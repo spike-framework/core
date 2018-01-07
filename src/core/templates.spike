@@ -1,0 +1,11 @@
+package spike.core;
+
+static class Templates {
+
+    templates: {},
+
+    compileTemplate: function(element, name, model){
+        return this.templates[name](element, model);
+    },
+
+}

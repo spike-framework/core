@@ -1,0 +1,54 @@
+{
+  "name": "spike-framework-core",
+  "description": "JavaScript Framework to build Web and Mobile apps",
+  "version": "2.1.0",
+  "main": "gruntfile.js",
+  "scripts": {
+    "setup": "npm install"
+  },
+   "devDependencies": {
+    "grunt": ">=1.0.1",
+    "grunt-contrib-clean": ">=1.0.0",
+    "grunt-contrib-concat": ">=1.0.0",
+    "grunt-contrib-uglify": ">=1.0.1",
+    "grunt-shell": ">=2.1.0",
+    "grunt-contrib-watch": ">=1.0.0",
+    "grunt-contrib-copy": ">=1.0.0",
+    "grunt-concurrent": ">=2.3.0",
+    "dox": ">=0.9.0"
+  },
+  "keywords": [
+    "spike framework",
+    "spike javascript",
+    "spike js",
+    "spike",
+    "javascript framework",
+    "mobile framework"
+  ],
+  "maintainers": [
+    {
+      "name": "Dawid Senko",
+      "email": "dawid@spikeframework.com",
+      "web": "http://spikeframework.com/"
+    }
+  ],
+  "demos": [
+    "http://spikeframework.com/"
+  ],
+  "bugs": {
+    "web": "https://github.com/dsenko/spike-framework-core/issues"
+  },
+  "repositories": [
+    {
+      "type": "git",
+      "url": "https://github.com/dsenko/spike-framework-core"
+    }
+  ],
+  "licenses": [
+    {
+      "name": "MIT with exclusions",
+      "url": "http://spikeframework.com/license.html"
+    }
+  ],
+  "homepage": "http://spikeframework.com/"
+}

@@ -1,0 +1,105 @@
+package spike.core;
+
+import Log from spike.core.Log;
+import Request from spike.core.Request;
+import Message from spike.core.Message;
+import Util from spike.core.Util;
+
+static class Message {
+
+    /**
+     * @public
+     * Information if translations has been downloaded
+     */
+    waitingForTranslations: {},
+
+    /**
+     * @public
+     * Storage for translation data
+     */
+    messages: {},
+
+    /**
+     * @public
+     *
+     * Registering new language translation from hosted file
+     * File can be hosted locally or from server
+     *
+     * @param languageName
+     * @param languageFilePath
+     */
+    add: function (languageName, languageFilePath) {
+
+        Log.log('register translation {0}', [languageName]);
+
+        this.waitingForTranslations[languageName] = false;
+
+        var promise = new Request({
+            url: languageFilePath,
+            type: 'GET'
+        });
+
+        promise.then(function (data) {
+
+            Message.setTranslation(languageName, data);
+            return data;
+
+        });
+
+        promise.catch(function (error) {
+
+            if (error.status === 200) {
+                Message.setTranslation(languageName, error.responseText);
+            } else {
+                Message.messages[languageName] = {};
+                Errors.throwWarn(Errors.messages.TRANSLATION_LOAD_WARN, [languageName, error.status]);
+            }
+
+            return error;
+
+        });
+
+        return promise;
+
+    },
+
+    setTranslation: function (languageName, translationData) {
+
+        if (typeof translationData === 'string') {
+
+            try {
+                translationData = JSON.parse(translationData);
+            } catch (err) {
+                Errors.throwError(Errors.messages.TRANSLATION_PARSING, [languageName]);
+            }
+
+        }
+
+        Message.messages[languageName] = translationData;
+        Message.waitingForTranslations[languageName] = true;
+    },
+
+
+    /**
+     * @public
+     *
+     * Function to retrieve single translation for named message
+     * using existing language from @Config.lang
+     *
+     * @param messageName
+     */
+    get: function (messageName, arrayOrMapParams) {
+
+        var message = this.messages[Config.lang][messageName];
+        if(!message){
+            Errors.throwWarn(Errors.messages.TRANSLATION_MESSAGE_NOT_FOUND, [messageName])
+        }
+
+        if(arrayOrMapParams && message){
+            message = Util.bindTranslationParams(message, arrayOrMapParams);
+        }
+
+        return message || messageName;
+    }
+
+}

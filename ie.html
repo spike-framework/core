@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<div id="test">
+</div>
+
+<!--<script src="src/assembler/assembler.js"></script>-->
+
+<!--&lt;!&ndash; Body componentu &ndash;&gt;-->
+<!--<div>-->
+
+    <!--<spike for="item in items">-->
+        <!--<element name="personalData" params="item"></element>-->
+    <!--</spike>-->
+
+    <!--<element name="footer"></element>-->
+
+<!--</div>-->
+
+<!--<element name="app.element.TopMenu"></element>-->
+
+<!--<div spike-view></div>-->
+
+
+<!--<div spike-modals></div>-->
+
+<script>
+
+    var __extends_help = {};
+
+    var extend = function(from, to){
+
+        for(var prop in from){
+            if(from.hasOwnProperty(prop)){
+                to[prop] = from[prop];
+            }
+        }
+
+    }
+
+    var Config1 = function(){
+    }; Config1.prototype.config1 = true;
+
+    var Config2 = function(){
+      //  extend(Config1.prototype, Config2.prototype);
+    }; Config2.prototype.config2 = true;
+
+    var Config3 = function(){
+
+    }; Config3.prototype.config3 = true;
+
+    extend(Config1.prototype, Config2.prototype);
+    extend(Config2.prototype, Config3.prototype);
+
+    //zbudowac lancuch dziedziczenia w transpilerze i na jego podstawie sortowac dziedziczenie
+
+    console.log(new Config3());
+
+
+</script>
+</body>
+</html>

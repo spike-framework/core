@@ -1,0 +1,11 @@
+{
+    "name": "spike-framework-core",
+    "version": "2.1.0",
+    "main": "dist/spike-framework.min.js",
+    "ignore": [
+        "node_modules",
+		"bower_components"
+    ],
+    "dependencies": {
+    }
+}

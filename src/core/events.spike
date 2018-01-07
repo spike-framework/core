@@ -1,0 +1,82 @@
+package spike.core;
+
+import System from spike.core.System;
+
+static class Events {
+
+  /**
+   * List of allowed events which can be binded by Spike Framework and compiled by Spike compiler
+   */
+  allowedEvents: [
+    'click',
+    'change',
+    'keyup',
+    'keydown',
+    'keypress',
+    'blur',
+    'focus',
+    'dblclick',
+    'die',
+    'hover',
+    'keydown',
+    'mousemove',
+    'mouseover',
+    'mouseenter',
+    'mousedown',
+    'mouseleave',
+    'mouseout',
+    'submit',
+    'trigger',
+    'toggle',
+    'load',
+    'unload'
+  ],
+
+  bindEvents: function(element){
+
+    for(var i = 0; i < element.childElements.length; i++){
+
+        this.bindEventsForElement(element.childElements[i]);
+
+        if(element.childElements[i].length > 0){
+            this.bindEvents(element.childElements[i]);
+        }
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Finds all elements with attribute @spike-event
+   * in given (root) selector.
+   *
+   * Gets event name and event function string, binds
+   * jQuery event with created function.
+   *
+   * @param rootSelector
+   */
+  bindEventsForElement: function (element) {
+
+    for(var i = 0; i < element.eventsSelectors.length; i++){
+
+        var selector = document.getElementById(element.eventsSelectors[i]);
+
+        for (var k = 0; k < this.allowedEvents.length; k++) {
+
+            var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
+
+            if (eventFunctionBody) {
+                selector.addEventListener(this.allowedEvents[i], Function('event', eventFunctionBody));
+            }
+
+        }
+
+        element.removeAttribute('spike-unbinded');
+
+    }
+
+  },
+
+}

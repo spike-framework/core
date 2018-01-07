@@ -1,0 +1,1140 @@
+package spike.core;
+
+import Router from spike.core.Router;
+import System from spike.core.System;
+import Errors from spike.core.Errors;
+import Util from spike.core.Util;
+import Log from spike.core.Log;
+import Config from spike.core.System.config;
+
+static class Router {
+
+  /**
+   * @public
+   *
+   * Stores information about path which should be prevented
+   * to reload page
+   */
+  preventReloadPage: null,
+
+  /**
+   * @public
+   *
+   * List of registerd events to fire on route change
+   */
+  events: {},
+
+  /**
+   * @public
+   * Declares string which is used as 'OTHERWISE' URL
+   */
+  otherwiseReplacement: '!',
+
+  /**
+   * @public
+   * Declares pattern replacement for path params
+   */
+  pathParamReplacement: 'var',
+
+  /**
+   * @public
+   * Storage of routing endpoints objects
+   */
+  endpoints: {},
+
+  /**
+   * @public
+   *
+   * Defines if HTML5 mode is available
+   */
+  routerHTML5Mode: false,
+
+  /**
+   * @public
+   *
+   * Returns factory object for creating routing endpoints
+   * based on {path} and {other} functions mapped from
+   * @public pathFunction and @public otherFunction
+   *
+   */
+  getRouterFactory: function () {
+    return {
+      path: Router.pathFunction,
+      other: Router.otherFunction
+    }
+  },
+
+  /**
+   * @public
+   *
+   * Function creates starts creating new router and
+   * Returns routing creator object.
+   *
+   */
+  create: function () {
+    return Router.getRouterFactory();
+  },
+
+  /**
+   * @public
+   *
+   * Function registers otherwise endpoint.
+   * Returns routing creator.
+   *
+   * @param pathObject
+   */
+  otherFunction: function (pathObject) {
+    return Router.pathFunction(Router.otherwiseReplacement, pathObject);
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Function invokes before @pathFunction registers new endpoint in routing
+   * Developer can change path value using @pathValue nad @pathObject args
+   *
+   */
+  pathFunctionHandler: null,
+
+  /**
+   * @public
+   *
+   * Function registers routing endpoint.
+   * Checks if @pathValue and @pathObject are defined
+   * If not throws error.
+   * If defined, registers new endpoint via @public {registerPath}
+   *
+   * Returns routing creator
+   *
+   * @param pathValue
+   * @param pathObject
+   */
+  pathFunction: function (pathValue, pathObject) {
+
+    if (Util.isEmpty(pathValue) || Util.isNull(pathObject)) {
+      Errors.throwError(Errors.messages.PATH_DEFINITION);
+    }
+
+    if(Router.pathFunctionHandler){
+      pathValue = Router.pathFunctionHandler(pathValue, pathObject);
+    }
+
+    Router.registerPath(pathValue, pathObject.controller, pathObject.routingParams, pathObject.onRoute, pathObject.name, pathObject.modal, pathObject.defaultController);
+
+    return Router.getRouterFactory();
+
+  },
+
+  /**
+   * @public
+   *
+   * Function registers new routing endpoint.
+   * If endpoint with given @pathValue already exists then
+   * throws error.
+   * If not, creates given @pathValue pattern and checks
+   * if endpoint with similar pattern already exist, if exist
+   * throws error.
+   *
+   * Creates endpoint object.
+   *
+   * @param pathValue
+   * @param pathController
+   * @param routingParams
+   * @param onRouteEvent
+   *
+   */
+  registerPath: function (pathValue, pathController, routingParams, onRouteEvent, routeName, pathModal, pathModalDefaultController) {
+
+    if (Router.endpoints[pathValue]) {
+      Errors.throwError(Errors.messages.PATH_ALREADY_EXIST, [pathValue]);
+    }
+
+    if (routeName && Router.routeNameExist(routeName)) {
+      Errors.throwError(Errors.messages.ROUTE_NAME_EXIST, [routeName]);
+    }
+
+    var pathPattern = Router.createPathPattern(pathValue);
+
+    //Checks if pattern exists in set of endpoints
+    if (Router.pathPatternExist(pathPattern)) {
+      Errors.throwError(Errors.messages.PATH_PATTERN_ALREADY_EXIST, [pathValue, pathPattern.join("").split(Router.pathParamReplacement).join("/PATH_PARAM")]);
+    }
+
+    Router.endpoints[pathValue] = {
+      pathValue: pathValue,
+      controller: pathController,
+      defaultController: pathModalDefaultController,
+      modal: pathModal,
+      routingParams: routingParams,
+      onRouteEvent: onRouteEvent,
+      pathPattern: pathPattern,
+      routeName: routeName,
+      isModal: !Util.isEmpty(pathModal)
+    };
+
+  },
+
+  /**
+   * @public
+   *
+   * Finds endpoint full path by declared @routeName
+   *
+   * @param routeName
+   */
+  byName: function (routeName) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].routeName === routeName) {
+        return pathValue;
+      }
+
+    }
+
+    Errors.throwError(Errors.messages.ROUTE_NAME_NOT_EXIST, [routeName]);
+
+  },
+
+  /**
+   * @public
+   *
+   * Function checks if given @routeName already exists in registred endpoints
+   *
+   * @param routeName
+   */
+  routeNameExist: function (routeName) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].routeName === routeName) {
+        return true;
+      }
+
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function checks if path patterns already exists in set of endpoints
+   *
+   * @param pathPattern
+   */
+  pathPatternExist: function (pathPattern) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].pathPattern.pattern.join("") === pathPattern.pattern.join("")) {
+        return true;
+      }
+
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates path pattern from given @pathValue
+   * Returns path pattern object containing pattern and
+   * giver @pathValue path params set
+   *
+   * @param pathValue
+   *
+   */
+  createPathPattern: function (pathValue) {
+
+    var pathPattern = {
+      pattern: [],
+      pathParams: []
+    };
+
+    //Avoid processing URL params
+    var split = pathValue.substring(0, pathValue.indexOf('?') > -1 ? pathValue.indexOf('?') : pathValue.length).split('/');
+
+    for (var i = 0; i < split.length; i++) {
+
+      if (split[i].indexOf(':') > -1) {
+        //Is path param
+        pathPattern.pathParams.push(split[i].replace(':', ''));
+        pathPattern.pattern.push(Router.pathParamReplacement)
+      } else if (split[i].trim().length > 0) {
+        pathPattern.pattern.push(split[i])
+      }
+
+    }
+
+    return pathPattern;
+
+  },
+
+  /**
+   * @public
+   *
+   * Detects history API exists and sets @routerHTML5Mode to TRUE if exists
+   *
+   */
+  detectHTML5Mode: function () {
+
+    if (window.history && window.history.pushState && Config.html5Mode === true) {
+      Router.routerHTML5Mode = true;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function initializes router.
+   * If @Config.routingEnabled is setted, then
+   * prepare browser URL to work with router.
+   *
+   * Binds hashchange event.
+   *
+   */
+  registerRouter: function () {
+
+     Log.ok('HTML5 router mode status: {0}', [Router.routerHTML5Mode]);
+
+     if (Util.isEmpty(System.routing)) {
+       Errors.throwError(Errors.messages.ROUTING_ENABLED_NOT_DEFINED, []);
+     }
+
+     if (Router.routerHTML5Mode === false && window.location.hash.substring(0, 2) !== '#/') {
+       window.location.hash = '#/';
+     }
+
+     Router.renderCurrentView();
+
+     if (Router.routerHTML5Mode === false) {
+       $(window).bind('hashchange', Router.onHashChanges);
+     }
+
+  },
+
+  /**
+   * @public
+   *
+   * Event function executes when hash changes in not html5 mode
+   */
+  onHashChanges: function (e) {
+
+    Log.debug('Executes Router.onHashChanges');
+
+    if (window.location.hash.replace('#', '') === Router.preventReloadPage) {
+      Router.preventReloadPage = null;
+      Router.fireRouteEvents(e);
+      return false;
+    }
+
+    Router.clearCacheViewData();
+
+    Router.fireRouteEvents(e);
+    Router.renderCurrentView();
+
+  },
+
+  /**
+   * @public
+   *
+   * Event function executes when history changes in html5 mode
+   */
+  onHistoryChanges: function () {
+
+    if (Router.routerHTML5Mode === true) {
+
+      Log.debug('Executes Router.onHistoryChanges');
+
+      if (Router.getPathName() === Router.preventReloadPage) {
+        Router.preventReloadPage = null;
+        Router.fireRouteEvents({});
+        return false;
+      }
+
+      Router.clearCacheViewData();
+
+      Router.fireRouteEvents({});
+      Router.renderCurrentView();
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function iterate all registred events and fire them
+   */
+  fireRouteEvents: function (e) {
+
+    var currentRoute = Router.getCurrentRoute();
+
+    $.each(Router.events, function (eventName, eventFunction) {
+
+      if (eventFunction) {
+        eventFunction(e, currentRoute, app.currentController);
+      }
+
+    });
+
+  },
+
+
+  /**
+   * @public
+   *
+   * Function registers new route event fired when route changing
+   */
+  onRouteChange: function (eventName, eventFunction) {
+
+    if (Router.events[eventName]) {
+      Errors.throwWarn(Errors.messages.ROUTE_EVENT_ALREADY_REGISTRED, [eventName]);
+    }
+
+    Router.events[eventName] = eventFunction;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function unregisters route event
+   */
+  offRouteChange: function (eventName) {
+
+    if (Router.events[eventName]) {
+      Router.events[eventName] = null;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   *  Function checks if given @hashPattern so pattern created
+   *  from current browser hash matches with @endpointPattern
+   *  given from @public endpoints set
+   *
+   * @param hashPattern
+   * @param endpointPattern
+   *
+   */
+  checkPathIntegrity: function (hashPattern, endpointPattern) {
+
+    for (var i = 0; i < endpointPattern.pattern.length; i++) {
+
+      if (endpointPattern.pattern[i] !== Router.pathParamReplacement
+        && endpointPattern.pattern[i] !== hashPattern.pattern[i]) {
+        return false;
+      }
+
+    }
+
+    return true;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getURLParams: function () {
+    return Router.getURLParams();
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getURLParams: function () {
+
+    var params = {};
+
+    if (window.location.href.indexOf('?') > -1) {
+      window.location.href.substring(window.location.href.indexOf('?'), window.location.href.length).replace(/[?&]+([^=&]+)=([^&]*)/gi, function (str, key, value) {
+        params[key] = Util.tryParseNumber(value);
+
+        if (!Util.isNull(params[key]) && typeof params[key] === 'string') {
+          if (params[key].indexOf('#/') > -1) {
+            params[key] = params[key].replace('#/', '');
+          }
+        }
+
+      });
+    }
+
+    return params;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns current route path params
+   *
+   */
+  getPathParams: function () {
+    return Router.getCurrentViewData().data.pathParams;
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object containing @urlParams and
+   * @pathParams as objects. Data is retrieved from
+   * given @hashPattern based on @endpointPattern
+   *
+   *
+   *
+   * @param hashPattern
+   * @param endpointPattern
+   */
+  getPathData: function (hashPattern, endpointPattern) {
+
+    var urlParams = Router.getURLParams();
+    var pathParams = {};
+    var pathParamsIndex = 0;
+    for (var i = 0; i < endpointPattern.pattern.length; i++) {
+
+      if (endpointPattern.pattern[i] === Router.pathParamReplacement) {
+        //If path param is numeric string, then making it just number. If not, returns passed object without modifications
+        pathParams[endpointPattern.pathParams[pathParamsIndex]] = Util.tryParseNumber(hashPattern.pattern[i]);
+        pathParamsIndex++;
+      }
+
+    }
+
+    return {
+      urlParams: urlParams,
+      pathParams: pathParams,
+    };
+
+  },
+
+  /**
+   * @public
+   *
+   * Clears cached current view data
+   */
+  clearCacheViewData: function () {
+
+    Router.getCurrentViewCache = null;
+    Router.getCurrentViewDataCache = null;
+
+  },
+
+  setCacheViewData: function(type, data) {
+
+    if(type === 'DATA'){
+      Router.getCurrentViewDataCache = data;
+      Router.getCurrentViewDataRouteCache = Router.getCurrentRoute();
+    }else {
+      Router.getCurrentViewCache = data;
+      Router.getCurrentViewRouteCache = Router.getCurrentRoute();
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentView function result
+   * Restores to null on history change
+   */
+  getCurrentViewCache: null,
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentView route
+   */
+  getCurrentViewRouteCache: null,
+
+  /**
+   * @public
+   *
+   * Function gets current browser URL data
+   *
+   * Finally, for given endpoint data sets
+   * global info like @public controller, @public routingParams
+   * and @public {onRouteEfvent} properties.
+   *
+   * Returns those data.
+   */
+  getCurrentView: function () {
+
+    if (Router.getCurrentViewCache !== null && Router.getCurrentRoute() != Router.getCurrentViewRouteCache) {
+      Log.debug('Using @getCurrentViewCache cache');
+      return Router.getCurrentViewCache;
+    }
+
+    var currentEndpointObject = Router.getCurrentViewData();
+
+    var currentEndpointData = currentEndpointObject.data;
+    var currentEndpoint = currentEndpointObject.endpoint;
+
+    if (currentEndpointData === null && Router.endpoints[Router.otherwiseReplacement]) {
+
+      currentEndpointData = {
+        controller: Router.endpoints[Router.otherwiseReplacement].controller,
+        modal: Router.endpoints[Router.otherwiseReplacement].modal,
+        defaultController: Router.endpoints[Router.otherwiseReplacement].defaultController,
+        isModal: Router.endpoints[Router.otherwiseReplacement].isModal,
+        routingParams: Router.endpoints[Router.otherwiseReplacement].routingParams,
+        onRouteEvent: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
+        onRouteEventWithModal: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
+      };
+
+    } else {
+
+      if (currentEndpointData.isModal === true && !Util.isEmpty(app.previousController)) {
+        currentEndpointData.controller = app.previousController;
+      } else {
+        currentEndpointData.controller = currentEndpoint.controller;
+      }
+
+      currentEndpointData.defaultController = currentEndpoint.defaultController;
+      currentEndpointData.modal = currentEndpoint.modal;
+      currentEndpointData.isModal = currentEndpoint.isModal;
+      currentEndpointData.routingParams = currentEndpoint.routingParams;
+      currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
+      currentEndpointData.onRouteEventWithModal = function () {
+        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+      }
+
+    }
+
+    Router.setCacheViewData('VIEW', currentEndpointData);
+
+    return currentEndpointData;
+
+  },
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentViewData function result
+   * Restored to null when history change
+   */
+  getCurrentViewDataCache: null,
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentViewData route
+   */
+  getCurrentViewDataRouteCache: null,
+
+  /**
+   * @public
+   *
+   * Function gets current browser URL and matches it
+   * with @public endpoints.
+   *
+   * If current URL matches with any of routing declarations from
+   * @public endpoints set, then gets endpoint data.
+   *
+   * If current URL not matches then endpoint data is null.
+   *
+   * Returns those data.
+   */
+  getCurrentViewData: function () {
+
+    if (Router.getCurrentViewDataCache !== null && Router.getCurrentRoute() != Router.getCurrentViewDataRouteCache) {
+      Log.debug('Using @getCurrentViewDataCache cache');
+      return Router.getCurrentViewDataCache;
+    }
+
+    var hash = null;
+
+    if (Router.routerHTML5Mode === false) {
+      hash = window.location.hash.replace(/^#\//, '');
+    } else if (Router.getPathName().indexOf('/') > 0) {
+      hash = '/' + Router.getPathName();
+    } else {
+      hash = Router.getPathName();
+    }
+
+    var hashPattern = Router.createPathPattern(hash);
+
+    var viewData = {
+      endpoint: null,
+      data: null
+    };
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].pathPattern.pattern.length === hashPattern.pattern.length
+        && Router.checkPathIntegrity(hashPattern, Router.endpoints[pathValue].pathPattern)) {
+        var currentEndpoint = Router.endpoints[pathValue];
+        var currentEndpointData = Router.getPathData(hashPattern, Router.endpoints[pathValue].pathPattern);
+
+        if (currentEndpoint.isModal === true) {
+
+          if (Util.isEmpty(app.previousController)) {
+            currentEndpoint.controller = currentEndpoint.defaultController;
+          } else {
+            currentEndpoint.controller = app.previousController;
+          }
+
+        }
+
+        viewData = {
+          endpoint: currentEndpoint,
+          data: currentEndpointData
+        };
+
+        break;
+
+      }
+
+    }
+
+    Router.setCacheViewData('DATA', viewData);
+
+    return viewData;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function applies given @pathParams to the current
+   * browser URL.
+   *
+   * If given @pathParams not contains or contains undefined
+   * or null value for specified param, then function omits it
+   *
+   * @param pathParams
+   */
+  setPathParams: function (pathParams) {
+
+    var currentViewData = Router.getCurrentViewData();
+
+    for (var pathParam in pathParams) {
+
+      if (currentViewData.data.pathParams[pathParam]
+        && !Util.isNull(pathParams[pathParam])) {
+        currentViewData.data.pathParams[pathParam] = pathParams[pathParam];
+      }
+
+    }
+
+    Router.redirectToView(currentViewData.endpoint.pathValue, currentViewData.data.pathParams, currentViewData.data.urlParams, true);
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function applies given @urlParams to the current
+   * browser URL
+   *
+   * If given @urlParams not contains or contains undefined
+   * or null value for specified param, then function omits it
+   *
+   *
+   *
+   * @param urlParams
+   */
+  setURLParams: function (urlParams) {
+
+    var currentViewData = Router.getCurrentViewData();
+
+    var newURLParams = {};
+
+    for (var urlParam in urlParams) {
+
+      if (urlParams[urlParam] !== null) {
+        newURLParams[urlParam] = urlParams[urlParam];
+      }
+
+    }
+
+    currentViewData.data.urlParams = newURLParams;
+
+    Router.redirectToView(currentViewData.endpoint.pathValue, currentViewData.data.pathParams, currentViewData.data.urlParams, true);
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns current URI
+   *
+   */
+  getCurrentRoute: function () {
+
+    if (Router.routerHTML5Mode === true) {
+      return Router.getPathName().substring(1, Router.getPathName().length);
+    }
+
+    return window.location.hash.replace('#/', '');
+
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Function invokes after preparing path in @_redirectToView function
+   * Developer can change @path value using given arguments
+   */
+  redirectToViewHandler: null,
+
+  /**
+   * @public
+   *
+   * Function redirects to given @path defined in @Config.routing
+   * object and applies given @pathParams and @urlParams to @path
+   *
+   * @param path
+   * @param pathParams
+   * @param urlParams
+   */
+  redirectToView: function (path, pathParams, urlParams, preventReloadPage) {
+
+    Router.clearCacheViewData();
+
+    if (!path) {
+      Errors.throwError(Errors.messages.REDIRECT_NO_PATH);
+    }
+
+    path = path.replace('#/', '/');
+
+    if (path[0] !== '/') {
+      path = '/' + path;
+    }
+
+    path = Util.preparePathDottedParams(path, pathParams);
+    path = Util.prepareUrlParams(path, urlParams);
+
+    if(Router.redirectToViewHandler){
+     path = Router.redirectToViewHandler(path, pathParams, urlParams, preventReloadPage);
+    }
+    if (preventReloadPage === true) {
+      Router.preventReloadPage = path;
+    }
+
+    if (Router.routerHTML5Mode === true) {
+      Router.pushState(path);
+    } else {
+      window.location.hash = path;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Wrapper for history.pushState
+   */
+  pushState: function (path) {
+    history.pushState({state: path}, null, path);
+  },
+
+  /**
+   * @public
+   *
+   * Substitute function to @getCurrentViewData
+   */
+  getViewData: function () {
+    var currentViewData = Router.getCurrentViewData();
+    return $.extend({}, currentViewData.endpoint, currentViewData.data);
+  },
+
+  /**
+   * @public
+   *
+   * Substitute function to @renderCurrentView
+   */
+  reloadView: function () {
+    Router.renderCurrentView();
+  },
+
+  /**
+   * @public
+   *
+   * Function retrieves current view data from current browser URL
+   * and renders matched endpoint  defined in @Config.routing
+   *
+   */
+  renderCurrentView: function () {
+
+    var currentEndpointData = Router.getCurrentView();
+    Log.debug('current view to render {0}', [currentEndpointData]);
+
+    if (currentEndpointData.isModal === true) {
+
+      Log.debug('rendering controller & modal, previous controller: ' + app.previousController);
+
+      if (app.previousController === null) {
+
+        Log.debug('rendering controller & modal, default controller: ' + currentEndpointData.defaultController);
+
+        System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteEventWithModal);
+      } else {
+        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+        Router.refreshCurrentHyperlinkCache();
+      }
+
+    } else {
+      System.render(currentEndpointData.controller, currentEndpointData, currentEndpointData.onRouteEvent);
+    }
+
+    app.previousController = currentEndpointData.controller;
+
+  },
+
+  /**
+   * @public
+   *
+   * Refresh all hyperlinks on page redirecting to modals
+   * Refresh for current route only
+   *
+   */
+  refreshCurrentHyperlinkCache: function () {
+
+    var currentEndpoint = Router.getCurrentViewData();
+
+    var timestamp = new Date().getTime();
+
+    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
+
+      var hyperLinkUrl = $(this).attr('href');
+
+      if (hyperLinkUrl.indexOf('?') > -1) {
+        hyperLinkUrl += '&t=' + timestamp;
+      } else {
+        hyperLinkUrl += '?t=' + timestamp;
+      }
+
+      $(this).attr('href', hyperLinkUrl);
+
+    });
+
+  },
+
+  /**
+   * @public
+   *
+   * Returns path value without path params
+   *
+   * @param pathValue
+   */
+  getPathValueWithoutParams: function (pathValue) {
+
+    if (pathValue.indexOf(':') > -1) {
+      return pathValue.substring(0, pathValue.indexOf(':'));
+    }
+
+    return pathValue;
+
+  },
+
+  /**
+   * @public
+   *
+   * Renders controller based on passed @path param
+   * declared in @Config.routing
+   *
+   * Optionally can apply @pathParams and @urlParams
+   *
+   * Window location will be set
+   *
+   * @param path
+   * @param pathParams
+   * @param urlParams
+   */
+  redirect: function (path, pathParams, urlParams, preventReloadPage) {
+    Router.redirectToView(path, pathParams, urlParams, preventReloadPage);
+  },
+
+  /**
+   * @public
+   *
+   * Renders controller based on passed @path param
+   * declared in @Config.routing
+   *
+   * Optionally can apply @pathParams and @urlParams
+   *
+   * Window location will be set
+   *
+   * @param routeName
+   * @param pathParams
+   * @param urlParams
+   */
+  redirectByName: function (routeName, pathParams, urlParams, preventReloadPage) {
+    Router.redirectToView(Router.byName(routeName), pathParams, urlParams, preventReloadPage);
+  },
+
+  /**
+   * @public
+   *
+   * Opens given URL/URI using window.location or window.open
+   * if @redirectType provided
+   *
+   * @param url
+   * @param redirectType
+   */
+  location: function (url, redirectType) {
+
+    Router.clearCacheViewData();
+
+    if (redirectType) {
+
+      redirectType = redirectType.toLowerCase();
+
+      if (redirectType.indexOf('blank') > -1) {
+        redirectType = '_blank';
+      } else if (redirectType.indexOf('self') > -1) {
+        redirectType = '_self';
+      } else if (redirectType.indexOf('parent') > -1) {
+        redirectType = '_parent';
+      } else if (redirectType.indexOf('top') > -1) {
+        redirectType = '_top';
+      }
+
+      window.open(url, redirectType);
+
+    } else {
+      window.location = url;
+    }
+
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Handler for @createLink function which is invoked before returning path
+   */
+  createLinkHandler: null,
+
+  /**
+   * @public
+   *
+   * Prepares passed @path as relative link accepted by router
+   *
+   * @param path
+   */
+  createLink: function (path, pathParams, urlParams) {
+
+    if (Router.routerHTML5Mode === false) {
+
+      if (path.substring(0, 1) === '/') {
+        path = '#' + path;
+      } else if (path.substring(0, 1) !== '#') {
+        path = '#/' + path;
+      }
+
+    }
+
+    path = Util.preparePathDottedParams(path, pathParams);
+    path = Util.prepareUrlParams(path, urlParams);
+
+    if(Router.createLinkHandler){
+      path = Router.createLinkHandler(path, pathParams, urlParams);
+    }
+
+    return path;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function forces going to previous page
+   *
+   */
+  back: function () {
+    window.history.go(-1);
+  },
+
+  /**
+   * Return current pathname
+   * Can be overriden for custom purposes
+   *
+   * @returns {string}
+   */
+  getPathName: function(){
+    return window.location.pathname;
+  },
+
+  /**
+     * @public
+     *
+     * Finds all @a elements
+     * in given (root) selector.
+     *
+     * Binds @click event to prevent default browser navigation
+     * and use @Router.redirect or @Router.locations
+     *
+     * @param rootSelector
+     */
+  bindLinks: function(element){
+
+    for(var i = 0; i < element.childElements.length; i++){
+
+        this.bindLinksForElement(element.childElements[i]);
+
+        if(element.childElements[i].length > 0){
+            this.bindEvents(element.childElements[i]);
+        }
+
+    }
+
+  },
+
+  bindLinksForElement: function (element) {
+
+    for(var i = 0; i < element.linksSelectors.length; i++){
+
+        var selector = document.getElementById(element.linksSelectors[i]);
+
+        element.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            var link = this.getAttribute('href');
+
+            if (Router.routerHTML5Mode === true) {
+              link = link.replace('#', '');
+
+              if (link.trim() === '') {
+                link = '/';
+              }
+
+            } else {
+
+              if (link.trim() === '') {
+                link = '/#/';
+              }
+
+            }
+
+            if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
+              Router.location(link,this.getAttribute('target') || '_blank');
+            } else {
+              Router.redirect(link);
+            }
+
+        });
+
+    }
+
+  }
+
+}
+
+

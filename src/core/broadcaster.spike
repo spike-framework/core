@@ -1,0 +1,118 @@
+package spike.core;
+
+import Errors from spike.core.Errors;
+import Util from spike.core.Util;
+
+static class Broadcaster {
+
+    /**
+     * @public
+     *
+     * Storage for all events created by developer
+     *
+     */
+    applicationEvents: {},
+
+    /**
+     * @public
+     *
+     * Registers new event with given name.
+     * Events should be registred manually to avoid events spagetti
+     *
+     * If event with given name exists, then throws error
+     *
+     * @param eventName
+     */
+    register: function (eventName) {
+
+        if (!Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_ALREADY_EXIST, [eventName]);
+        }
+
+        this.applicationEvents[eventName] = [];
+
+    },
+
+    /**
+     * @public
+     *
+     * Broadcast event with given name and given data across
+     * all registred and @on declared events
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     * @param eventData
+     */
+    broadcast: function (eventName, eventData) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        for(var i = 0; i < this.applicationEvents[eventName].length; i++){
+            this.applicationEvents[eventName][i](eventData);
+        }
+
+    },
+
+    /**
+     * @public
+     *
+     * Catches all @broadcasted events with given name and executes
+     * given event callback with @eventData as argument
+     *
+     * Checks if event listener is already reigstred, then
+     * prevents duplicating it.
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     * @param eventData
+     */
+    listen: function (eventName, eventCallback) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        if (Util.isNull(eventCallback)) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_CALLBACK_NULL, [eventName]);
+        }
+
+        var isAlreadyRegisteredListener = false;
+
+        for(var i = 0; i < this.applicationEvents[eventName].length; i++){
+
+            if(this.applicationEvents[eventName][i].toString() === eventCallback.toString()){
+                isAlreadyRegisteredListener = true;
+            }
+
+        }
+
+        if(isAlreadyRegisteredListener === false){
+            this.applicationEvents[eventName].push(eventCallback);
+        }
+
+    },
+
+    /**
+     * @public
+     *
+     * Removes all events listeners for given @eventName
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     */
+    destroy: function (eventName) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        this.applicationEvents[eventName] = [];
+
+    }
+
+}

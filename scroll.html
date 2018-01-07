@@ -1,0 +1,174 @@
+<html>
+
+<head>
+
+    <title>Endless scrolling example.</title>
+
+    <!-- Include the MooTools framework. -->
+
+    <!-- Note: we'll use id's to select objects since it's faster. -->
+
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
+</head>
+
+<style>
+
+    .menu {
+        float: left;
+        width: 250px;
+        height: 1000px;
+        background: #eee;
+    }
+
+    body {
+        height: 200000px;
+    }
+
+    ul {
+        position: fixed;
+        top: 0;
+        left: 300px;
+        width: 200px;
+        float: left;
+    }
+
+    li {
+        display: block; float: left; height: 20px; line-height: 20px; border-bottom: 1px solid #000;
+    }
+</style>
+<body>
+
+<div class="menu">
+
+</div>
+
+<ul id="list_container" >
+</ul>
+
+</body>
+
+<script type="text/javascript">
+
+
+        var list = [];
+
+        var item_height = 20;
+        var list_size = 10000;   // total list size
+        var list_offset = 0;    // initial list position
+        var list_subset = null;   // the smount of displayed items
+        var scroll_step = null;    // items to scroll in one step
+
+        function calculateList() {
+            list_subset = Math.round((window.innerHeight || document.body.clientHeight || document.documentElement.clientHeight)/item_height);
+            list_offset = list_subset+0;
+        }
+
+        function createTestList(){
+
+            for (var i = 0; i < list_size; i++) {
+                var red = Math.floor(i * 2) % 256;
+                var green = Math.floor(i * 3) % 256;
+                var blue = Math.floor(i * 4) % 256;
+
+                list[i] = "<span style=\"color:rgb(" + red + ", " + green + ", " + blue + ");\">" +
+                    "My name is 'Object no." + (i + 1) + "'." +
+                    "</span>";
+            }
+
+            list_container = $('#list_container');
+
+            for (var i = 0; i < list_subset; i++) {
+                list_container.append('<li>'+list[i]+'</li>');
+            }
+
+        }
+
+        function steps(stepPx, fn){
+
+            var itemsCount = Math.round(Math.abs(stepPx)/20);
+
+            console.log('stepPx: '+stepPx+', itemsCount: '+itemsCount);
+
+            scroll_step = itemsCount;
+            fn();
+
+        }
+
+        function up() {
+
+            var list_offset_2 = list_offset - scroll_step;
+
+            if (list_offset_2 <= 0) {
+                return false;
+            }
+
+            list_offset -= scroll_step;
+
+            var html = '';
+            for (var i = 0; i < scroll_step; i++) {
+                html += '<li>'+list[list_offset-i]+'</li>';
+            }
+
+            console.log('scroll_step : '+scroll_step);
+            list_container.prepend(html);
+            //list_container.find('li').slice(scroll_step, scroll_step).remove();
+
+
+
+//            // get element
+//            var element = list_container.getLast();
+//
+//            // devance offset
+//            list_offset--;
+//
+//            // re-write element
+//            element.set('html', list[list_offset]);
+//
+//            // move top element to top
+//            list_container.grab(element, 'top');
+//
+//            // success
+//            return true;
+
+        }
+
+        function down() {
+
+            var list_offset_2 = list_offset + scroll_step;
+
+            if (list_offset_2 >= list_size - list_subset) {
+                return false;
+            }
+
+            list_offset += scroll_step;
+
+            var html = '';
+            for (var i = 0; i < scroll_step; i++) {
+                html += '<li>'+list[list_offset+i]+'</li>';
+            }
+
+            list_container.append(html);
+            list_container.find('li').slice(0, scroll_step).remove();
+
+        }
+
+        calculateList();
+        createTestList();
+
+        var lastScrollTop = 0;
+        $(window).scroll(function (event) {
+            var st = $(this).scrollTop();
+            var scrollStep = lastScrollTop-st;
+
+            if (st > lastScrollTop) {
+                steps(scrollStep, down);
+            } else {
+                steps(scrollStep, up);
+            }
+
+            lastScrollTop = st;
+        });
+
+
+</script>

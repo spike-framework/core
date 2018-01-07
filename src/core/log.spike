@@ -1,0 +1,149 @@
+package spike.core;
+
+import Config from spike.core.System.config;
+import Util from spike.core.Util;
+
+static class Log {
+
+  /**
+   * @public
+   *
+   * Function prints JavaScript @object in console
+   *
+   * @param jsObject
+   */
+  obj: function (jsObject) {
+
+    if (Config.showObj) {
+      console.log(jsObject);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints log message
+   *
+   * @param logMessage
+   * @param logData -- optional
+   */
+  log: function (logMessage, logData) {
+
+    if (Config.showLog) {
+      app.print(logMessage, logData, 'LOG');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints error message
+   *
+   * @param errorMessage
+   * @param errorData -- optional
+   */
+  error: function (errorMessage, errorData) {
+
+    if (Config.showError) {
+      app.print(errorMessage, errorData, 'ERROR');
+    }
+  },
+
+  /**
+   * @public
+   *
+   * Function prints debug message
+   * If @Config.debug is false then
+   * debug message is not print
+   *
+   * @param debugMessage
+   * @param debugData -- optional
+   */
+  debug: function (debugMessage, debugData) {
+
+    if (Config.showDebug) {
+      app.print(debugMessage, debugData, 'DEBUG');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints warn message
+   *
+   * @param warnMessage
+   * @param warnData -- optional
+   */
+  warn: function (warnMessage, warnData) {
+
+    if (Config.showWarn) {
+      app.print(warnMessage, warnData, 'WARN');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints ok message
+   *
+   * @param okMessage
+   * @param okData -- optional
+   */
+  ok: function (okMessage, okData) {
+
+    if (Config.showOk) {
+      app.print(okMessage, okData, 'OK');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints message in console
+   * with custom colors
+   *
+   * @param message
+   * @param data -- optional
+   * @param type
+   */
+  print: function (message, data, type) {
+
+    if (typeof message !== 'string') {
+      message = JSON.stringify(message);
+    }
+
+    if (data) {
+      message = Util.bindStringParams(message, data);
+    }
+
+    var color = '';
+    switch (type) {
+      case 'LOG' :
+        color = 'blue';
+        break;
+      case 'ERROR' :
+        color = 'red';
+        break;
+      case 'DEBUG' :
+        color = 'gray';
+        break;
+      case 'WARN' :
+        color = 'orange';
+        break;
+      case 'OK' :
+        color = 'green';
+        break;
+      default:
+        color = 'black';
+    }
+
+    console.log('%c' + Util.currentDateLog() + ' Spike Framework: ' + message, 'color: ' + color);
+
+  }
+
+}

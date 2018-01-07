@@ -1,0 +1,43 @@
+package spike.core;
+
+import Log from spike.core.Log;
+import System from spike.core.System;
+import Errors from spike.core.Errors;
+import ModalInterface from spike.core.System.modalInterface;
+import Element from spike.core.Element;
+
+class Modal extends Element {
+
+    destroyed: false,
+
+    Modal: function(model){
+
+        this.parentElement = System.getModalsView();
+        this.model = model;
+
+        this.createTemplatePath();
+        this.createTemplate();
+
+        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
+        //System.bindLinks(componentSelector);
+
+//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
+//            this.init();
+//         }
+
+    },
+
+    show: function(){
+        ModalInterface.onShow();
+    },
+
+    hide: function(){
+        ModalInterface.onHide();
+    },
+
+    destroy: function () {
+        this.destroyed = true;
+    },
+
+
+};

@@ -1,0 +1,167 @@
+package spike.core;
+
+import Selectors from spike.core.Selectors;
+
+static class Selectors {
+
+ /**
+   * @public
+   *
+   * Counter for selectors cache for
+   * debug proposes
+   *
+   */
+  cacheUsageCounter: 0,
+
+  /**
+   * @public
+   *
+   * Storage for cached once used selectors
+   *
+   */
+  selectorsCache: {},
+
+  /**
+   * @public
+   *
+   * Clears selectors cache, should be executed before
+   * new controller rendering
+   *
+   */
+  clearSelectorsCache: function () {
+    this.selectorsCache = {};
+  },
+
+  /**
+   * @public
+   *
+   * Clears selector given id from cache
+   *
+   * @param selectorId
+   */
+  clearSelectorInCache: function (selectorId) {
+
+    if (this.selectorsCache[selectorId]) {
+      this.selectorsCache[selectorId] = null;
+    }
+
+  },
+
+  createNamesSelectors: function(templateHtml, selectors){
+
+    //Retrieving list of form elements names
+    var nameList = Util.findStringBetween(templateHtml, 'name="', '"');
+
+    //Creating names selectors functions
+    for(var i = 0; i < nameList.length; i++){
+
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+
+        selectors.names[name] = function () {
+
+            var selector = Selectors.selectorsCache[newName];
+
+            if (selector === undefined) {
+                selector = document.querySelector('['+newId+']');
+                selector.plainId = newId;
+                Selectors.selectorsCache[newId] = selector;
+            } else {
+                Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+
+        }
+
+        //Replacing identifier with generated hash
+        templateHtml = templateHtml.replace('name="' + name + '"', 'spike-name="' + newName + '" name="' + name + '"');
+
+    }
+
+    return templateHtml;
+
+  },
+
+  createIdSelectors: function(templateHtml, selectors, eventsSelectors, linksSelectors){
+
+   //Retrieving list of identifiers names
+   var idList = Util.findStringBetween(templateHtml, 'id="', '"');
+
+   //Creating identifiers selectors functions
+   for(var i = 0; i < idList.length; i++){
+
+    //Creating new hash for identifier
+    var newId = idList[i] + '-' + Util.hash();
+
+    //Creating handler function for identifier with optional basic events binding by @jQuery
+    selectors[idList[i]] = function () {
+
+        var selector = Selectors.selectorsCache[newId];
+
+        if (selector === undefined) {
+          selector = document.getElementById(newId);
+          selector.plainId = newId;
+          Selectors.selectorsCache[newId] = selector;
+        } else {
+          Selectors.cacheUsageCounter++;
+        }
+
+        return selector;
+
+    };
+
+    if(idList[i].indexOf('spike-event-') > -1){
+        eventsSelectors.push(newId);
+    }
+
+    if(idList[i].indexOf('spike-href-') > -1){
+        linksSelectors.push(newId);
+    }
+
+    //Replacing identifier with generated hash
+    templateHtml = templateHtml.replace('id="' + id + '"', 'id="' + newId + '"');
+
+   }
+
+   return templateHtml;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates selectors for passed HTML @string based
+   * on @attr id and @attr name.
+   * Function returns set of methods as @jQuery selectors getters
+   * and processed HTML @string with replaced attributes with
+   * special hashes
+   *
+   * @param templateHtml
+   *
+   */
+   createUniqueSelectors: function (templateHtml) {
+
+    var selectors = {
+        names: {},
+        forms: {}
+    };
+
+    var eventsSelectors = [];
+    var linksSelectors = [];
+
+    templateHtml = this.createNamesSelectors(templateHtml, selectors);
+    templateHtml = this.createIdSelectors(templateHtml, selectors, eventsSelectors, linksSelectors);
+
+    return {
+      html: templateHtml,
+      selectors: selectors,
+      eventsSelectors: eventsSelectors,
+      linksSelectors: linksSelectors
+    };
+
+  },
+
+
+}

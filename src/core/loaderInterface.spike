@@ -1,0 +1,12 @@
+package spike.core;
+
+class LoaderInterface {
+
+  loadApplication: function(){
+
+  },
+
+  onLoadApplication: function(){
+  }
+
+}

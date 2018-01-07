@@ -1,0 +1,114 @@
+package spike.core;
+
+import System from spike.core.System;
+import Config from spike.core.System.config;
+import Templates from spike.core.Templates;
+
+class Element {
+
+    rendered: false,
+
+    model: null,
+    elementId: null,
+    elementSelector: null,
+
+    compiledHtml: null,
+
+    parentElement: null,
+    childElements: [],
+
+    selector: {},
+    eventsSelectors: [],
+    linksSelectors: [],
+
+    rootSelector: function(){
+
+        if(this.elementSelector === null){
+            this.elementSelector = document.getElementById(this.elementId);
+        }
+
+        return document.getElementById(elementId);
+    },
+
+    Element: function(parentElement, model){
+
+        this.parentElement = parentElement;
+        this.model = model;
+
+        this.createTemplatePath();
+        this.createTemplate();
+
+        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
+        //System.bindLinks(componentSelector);
+
+//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
+//            this.init();
+//         }
+
+    },
+
+    //W templatce powinno konwertowac na ' + this.include(new app.elements.SomeElement(this, model)) + '
+    include: function(childElement){
+
+        this.childElements.push(childElement);
+        this.createTemplatePath();
+        this.createTemplate();
+
+        return this.compiledHtml;
+
+    },
+
+    createTemplatePath: function(){
+
+        this.templatePath = '';
+
+        var elementPath = this.getClass().split('.');
+
+        for(var i = 0; i < elementPath.length; i++){
+            this.templatePath += elementPath[i].toLowerCase()+'/';
+        }
+
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('/')-1)+'.html';
+
+        return this.templatePath;
+
+    },
+
+    createTemplate: function () {
+
+     try {
+        this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
+     }catch (err){
+        Errors.throwError('Error occur when executing component {0} template {1}', [this.getClass(), this.templatePath]);
+     }
+
+     var selectorsObj = System.createUniqueSelectors(this.compiledHtml);
+
+     this.compiledHtml = selectorsObj.html;
+     this.selector = selectorsObj.selectors;
+     this.eventsSelectors = selectorsObj.eventsSelectors;
+     this.linksSelectors = selectorsObj.linksSelectors;
+
+
+    },
+
+    render: function () {
+    },
+
+    reloadComponent: function(component, componentData){
+    //TODO
+    },
+
+    replaceWith: function () {
+
+        var elementDiv = document.createElement("div");
+        elementDiv.innerHTML = this.compiledHtml;
+        elementDiv.setAttribute('element-name', this.getClass());
+        elementDiv.setAttribute('id', this.elementId);
+        this.rootSelector().parentNode.replaceChild(elementDiv, this.rootSelector());
+
+        this.elementSelector = null;
+
+    }
+
+}

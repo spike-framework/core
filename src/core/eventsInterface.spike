@@ -1,0 +1,88 @@
+package spike.core;
+
+class EventsInterface {
+
+/**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Spike
+          * controller or modal is rendered
+          *
+          */
+         onRender: function () {
+
+         },
+
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Cordova is initializing
+          * Can contain any global events registred via @window.addEventListener
+          * or @document.addEventListener
+          *
+          */
+         domEvents: function () {
+
+         },
+
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when application is in @online state
+          *
+          */
+         onOnline: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when application is in @offline state
+          *
+          */
+         onOffline: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when @back event happens
+          *
+          * If there aren't rendered modals and current controller has not
+          * overriden @onBack function then application invokes this function
+          *
+          * More info in @app.cordova.onBack function
+          *
+          */
+         onBack: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Cordova application is ready
+          *
+          */
+         onDeviceReady: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Spike application is ready
+          * Invokes before rendering @Config.mainController
+          *
+          */
+         onReady: function () {
+         }
+
+}

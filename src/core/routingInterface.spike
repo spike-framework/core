@@ -1,0 +1,9 @@
+package spike.core;
+
+class RoutingInterface {
+
+  create: function(router){
+
+  }
+
+}

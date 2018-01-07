@@ -1,0 +1,91 @@
+package spike.core;
+
+import Util from spike.core.Util;
+import Log from spike.core.Log;
+
+static class Errors {
+
+   messages: {
+
+      CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
+      REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
+      APPLICATION_EVENT_CALLBACK_NULL: 'Applicaton event listener {0} is null',
+      APPLICATION_EVENT_NOT_EXIST: 'Application event {0} not exists',
+      APPLICATION_EVENT_ALREADY_EXIST: 'Application event {0} already exists',
+      ROUTING_ENABLED_NOT_DEFINED: 'Routing is enabled but not defined in Config',
+      ROUTE_NAME_NOT_EXIST: 'Route name {0} not exists',
+      ROUTE_NAME_EXIST: 'Route name {0} already exists, must be unique',
+      INTERCEPTOR_ALREADY_REGISTRED: 'Interceptor {0} is already registred',
+      REDIRECT_NO_PATH: 'Try redirect to path but path argument is not defined',
+      TRANSLATION_PARSING: 'Translation parsing error for language {0}',
+      TEMPLATE_NOT_FOUND_ERROR: 'Template named {0} not found',
+      INITIAL_VIEW_ERROR: 'No initial view with name: {0}',
+      WEBSQL_SUPPORT: 'No WebSQL support in this browser',
+      PATH_DEFINITION: 'Path URI and Path object cannot be empty',
+      PATH_ALREADY_EXIST: 'Path {0} is already defined',
+      PATH_PATTERN_ALREADY_EXIST: 'Path {0} is already defined. Pattern {1} is duplicated',
+      MODULE_NOT_EXIST: 'Try rendering not existing module',
+      RESTRICTED_NAME: 'Name {0} is restricted in usage in application',
+      TRANSLATION_MESSAGE_NOT_FOUND: 'Translation for message {0} not found',
+      TRANSLATION_NOT_EXIST: 'No defined language: {0}',
+      TRANSLATION_LOAD_WARN: 'Translation file for language: {0} cannot be downloaded, status: {1}',
+      OUTSIDE_CONTEXT_COMPONENT_NOT_FOUND: 'Component {0} outside "spike-view" is not defined and cannot be rendered',
+      OUTSIDE_CONTEXT_COMPONENT_NOT_GLOBAL: 'Component {0} outside "spike-view" cannot be rendered because is not GLOBAL',
+      OUTSIDE_CONTEXT_COMPONENT_NO_NAME: 'One of global component has not defined name',
+
+      SPIKE_APP_NOT_DEFINED: 'No DOM element with {0} or {1} attribute specified',
+      REQUEST_WRONG_PARAMS: 'Request url and type not defined',
+      JSON_PARSE_ERROR: 'JSON parse error during execution {0}'
+
+    },
+
+  /**
+   * @public
+   *
+   * Throws @error from Spike framework
+   *
+   * @param errorMessage
+   * @param errorMessageBinding
+   *
+   **/
+  throwError: function (errorMessage, errorMessageBinding) {
+
+    var error = 'Spike Framework: ' + Util.bindStringParams(errorMessage, errorMessageBinding);
+    this.errors.push(error);
+    this.printExceptions();
+    throw new Error(error);
+
+  },
+
+  /**
+   * @public
+   * Storage for all exceptions
+   */
+  errors: [],
+
+  /**
+   * @public
+   * Prints all exceptions to console
+   */
+  printExceptions: function () {
+
+    for (var i = 0; i < this.errors.length; i++) {
+      console.error('Error ' + i + ': ' + this.errors[i]);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Throws @error from Spike framework
+   *
+   * @param errorMessage
+   * @param errorMessageBinding
+   *
+   **/
+  throwWarn: function (warnMessage, warnMessageBinding) {
+    Log.warn('Spike Framework: ' + Util.bindStringParams(warnMessage, warnMessageBinding));
+  }
+
+}

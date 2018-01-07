@@ -1,0 +1,89 @@
+package spike.core;
+
+ import Log from spike.core.Log;
+ import System from spike.core.System;
+ import Errors from spike.core.Errors;
+
+class ModalInterface {
+
+    modals: [],
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Additional function executed when modal is rendered
+     * Executes every time when new modal instance is rendered
+     * Is not invoke if modal is already rendered and will be only showed
+     *
+     * @param modalSelector
+     */
+    onRender: function (modal) {
+        this.clearDestroyedModals();
+        this.modals.push(modal);
+    },
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Function implements modal showing mechanics
+     * By default invokes default implementation @public onModalShowEventDefault
+     *
+     * @param modalSelector
+     * @param modalObject
+     * @param defaultImpl
+     */
+    onShow: function (modal) {
+         modal.rootSelector().style = 'display: block;';
+    },
+
+    onHide: function (modal) {
+         modal.rootSelector().style = 'display: hide;';
+    },
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Function implements modal hiding mechanics
+     * By default invokes default implementation @public onModalHideEventDefault
+     *
+     * @param modalSelector
+     * @param modalObject
+     * @param defaultImpl
+     */
+    onDestroy: function (modal) {
+        modal.rootSelector().style = 'display: none;';
+        modal.destroy();
+    },
+
+    /**
+     * @public
+     *
+     * Function invalidates all rendered modals.
+     * Iterates over @public modal executes @public modal.invalidate function to remove modals from DOM and cache
+     *
+     */
+    invalidateAll: function () {
+
+       for(var i = 0; i < this.modals.length; i++){
+           this.onDestroy(this.modals[i]);
+       }
+
+    },
+
+    clearDestroyedModals: function(){
+
+       var modals = [];
+       for(var i = 0; i < this.modals.length; i++){
+          if(this.modals[i].destroyed === false){
+            modals.push(this.modals[i]);
+          }
+       }
+
+       this.modals = modals;
+
+    }
+
+}

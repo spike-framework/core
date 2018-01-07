@@ -1,0 +1,33 @@
+package spike.core;
+
+import System from spike.core.System;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
+import Element from spike.core.Element;
+
+class GlobalElement extends Element {
+
+    GlobalElement: function(){
+
+        this.elementSelector = document.body;
+        this.createTemplatePath();
+        this.createTemplate();
+
+    },
+
+    render: function(){
+
+        this.replaceWith();
+
+        Events.bindEvents(this);
+        Router.bindLinks(this);
+
+        this.rendered = true;
+
+        if(this.init !== undefined){
+            this.init();
+        }
+
+    }
+
+}

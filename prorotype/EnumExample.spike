@@ -1,0 +1,27 @@
+package app.enums;
+
+enum Status {
+
+    OK: 200,
+    ERROR: 500,
+    WARNING: 301
+
+}
+
+/* OUTPUT */
+/*
+    Enum nie może być prywatny, jest zawsze publiczny. Kompilator powinien sprawdzać, czy nie ma
+    modyfikatora private lub static i rzucać błąd "Enum cannot be private nor static"
+
+    Podczas kompilacji jeżeli w enumie jest jakiś "function" kompilator powinien wywalić błąd
+    "Functions are not enum type elements"
+*/
+
+SpikeAssembler.createClass('app.enums','Status', 'static', [], {
+
+ OK: 200,
+ ERROR: 500,
+ WARNING: 301
+
+});
+

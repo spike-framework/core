@@ -1,0 +1,69 @@
+package app.model;
+
+class Person {
+
+    name: null,
+    surname: null,
+    age: null,
+
+    Person: function(name, surname){
+        this.name = name;
+        this.surname = surname;
+    }
+
+    Person: function(name, surname, age){
+        this.name = name;
+        this.surname = surname;
+        this.age = age;
+    }
+
+    setName: function(name){
+        this.name = name;
+    }
+
+}
+/* OUTPUT */
+/*
+
+*/
+
+SpikeAssembler.createClass('app.model',['Person', 'Person_name_surname', 'Person_name_surname_age'], 'public', [], function(){
+
+    app.model.Person = function Person(){
+        this.name = null;
+        this.surname = null;
+        this.age = null;
+    };
+    app.model.Person.prototype.setName = function(name){
+        this.name = name;
+    };
+    app.model.Person.prototype.getClass = function(){
+        return 'Person';
+    };
+
+    app.model.Person_name_surname = function Person_name_surname(name, surname){
+            this.name = name;
+            this.surname = surname;
+            this.age = null;
+    };
+    app.model.Person_name_surname.prototype.setName = function(name){
+        this.name = name;
+    };
+    app.model.Person_name_surname.prototype.getClass = function(){
+            return 'Person';
+    };
+
+    app.model.Person_name_surname_age = function Person_name_surname_age(name, surname, age){
+            this.name = name;
+            this.surname = surname;
+            this.age = age;
+    };
+    app.model.Person_name_surname_age.prototype.setName = function(name){
+        this.name = name;
+    };
+    app.model.Person_name_surname_age.prototype.getClass = function(){
+            return 'Person';
+    };
+
+});
+

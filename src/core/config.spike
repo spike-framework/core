@@ -1,0 +1,82 @@
+package spike.core;
+
+class Config {
+
+      /**
+       * @public
+       *
+       * Defines if router should work in History API mode
+       */
+      html5Mode: false,
+
+      /**
+       * @public
+       *
+       * Defines if application runs locally (false) or on mobile device (true)
+       */
+      mobileRun: false,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'LOG' shoud be printed in console
+       */
+      showLog: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'OBJ' shoud be printed in console
+       */
+      showObj: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'DEBUG' shoud be printed in console
+       */
+      showDebug: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'WARN' shoud be printed in console
+       */
+      showWarn: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'OK' shoud be printed in console
+       */
+      showOk: true,
+
+      /**
+       * @public
+       *
+       * Defines controller name which one is rendered as first after application ready
+       */
+      mainController: null,
+
+      /**
+       * @public
+       *
+       * Defines application initial view (before Spike starts application initializing)
+       */
+      initialView: null,
+
+      /**
+       * @public
+       *
+       * Defines application main path (ex. project root/app)
+       */
+      rootPath: 'app',
+
+      /**
+       * @public
+       *
+       * Defines application default language
+       */
+      lang: "en"
+
+}

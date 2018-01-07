@@ -1,0 +1,579 @@
+package spike.core;
+
+import Rest from spike.core.Rest;
+import Log from spike.core.Log;
+import Request from spike.core.Request;
+import Errors from spike.core.Errors;
+
+static class Rest {
+
+  /**
+   * @public
+   *
+   * Storage for @rest cache
+   *
+   */
+  cacheData: {},
+
+  /**
+   * @public
+   * Storage for interceptors functions
+   */
+  interceptors: {},
+
+  /**
+   * @public
+   * Storage for global interceptors functions
+   */
+  globalInterceptors: {},
+
+  /**
+   * @public
+   *
+   * Function saves new interceptor function which one
+   * can be executed during rest api invoking and which one's
+   * accepts @response and @promise arguments
+   *
+   * @param interceptorName
+   * @param interceptorFunction
+   */
+  interceptor: function (interceptorName, interceptorFunction, isGlobal) {
+
+    if (isGlobal) {
+
+      //Check if interceptor exists, then throws error
+      if (Rest.globalInterceptors[interceptorName]) {
+        Errors.throwError(Errors.messages.INTERCEPTOR_ALREADY_REGISTRED, [interceptorName]);
+      }
+
+      //Saves interceptor function to @interceptors
+      Rest.globalInterceptors[interceptorName] = interceptorFunction;
+
+    } else {
+
+      //Check if interceptor exists, then throws error
+      if (Rest.interceptors[interceptorName]) {
+        Errors.throwError(Errors.messages.INTERCEPTOR_ALREADY_REGISTRED, [interceptorName]);
+      }
+
+      //Saves interceptor function to @interceptors
+      Rest.interceptors[interceptorName] = interceptorFunction;
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function iterates passed interceptors (names) and
+   * invokes each interceptor function.
+   *
+   * If interceptor not exists, then throws warn
+   *
+   * @param response
+   * @param promise
+   * @param interceptors
+   */
+  invokeInterceptors: function (requestData, response, promise, interceptors) {
+
+    if (interceptors) {
+
+      for (var i = 0; i < interceptors.length; i++) {
+
+        if (!Rest.interceptors[interceptors[i]]) {
+          Errors.throwWarn(Errors.messages.INTERCEPTOR_NOT_EXISTS, [interceptors[i]]);
+        } else {
+          Rest.interceptors[interceptors[i]](response, promise, requestData);
+        }
+
+      }
+
+    }
+
+    for (var interceptorName in Rest.globalInterceptors) {
+      Rest.globalInterceptors[interceptorName](response, promise, requestData);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates and returns basic promise object
+   *
+   * @param data
+   *
+   */
+  createCachedPromise: function (url, method, interceptors) {
+
+    var data = Rest.cacheData[url + '_' + method].data;
+
+    var promise = {
+      result: data,
+      then: function (callback) {
+
+        if (promise.result) {
+          data = promise.result;
+        }
+
+        var _result = callback(data);
+
+        if (_result) {
+          promise.result = _result;
+        }
+
+        return promise;
+
+      },
+      catch: function () {
+        return promise;
+      }
+    };
+
+    Rest.invokeInterceptors({}, data, promise, interceptors);
+
+    return promise;
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Checks if endpoint is already cached, filled
+   * depends on cache type.
+   *
+   */
+  isCached: function (url, method) {
+
+    var data = Rest.cacheData[url + '_' + method];
+
+    if (Util.isNull(data)) {
+      return false;
+    }
+
+    if (data.filled === false) {
+      return false;
+    }
+
+    if (data.cacheType === 'TIME') {
+
+      if (data.cacheTime + data.cachePeriod < new Date().getTime()) {
+        return false;
+      }
+
+      return true;
+
+    } else if (data.cacheType === 'PERSIST') {
+      return true;
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes GET request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  get: function (url, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'GET', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'GET', propertiesObject.interceptors || []);
+      } else {
+        return Rest.getDelete(url, 'GET', propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes DELETE request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  delete: function (url, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'DELETE', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'DELETE', propertiesObject.interceptors || []);
+      } else {
+        return Rest.getDelete(url, 'DELETE', propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes PUT request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  update: function (url, request, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'PUT', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'PUT', propertiesObject.interceptors || []);
+      } else {
+        return Rest.postPut(url, 'PUT', request, propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Substitute method for @update
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  put: function (url, request, propertiesObject) {
+    return Rest.update(url, request, propertiesObject);
+  },
+
+
+  /**
+   * @public
+   *
+   * Function executes POST request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  post: function (url, request, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'POST', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'POST', propertiesObject.interceptors || []);
+      } else {
+        return Rest.postPut(url, 'POST', request, propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function to realize GET and DELETE methods execution using AJAX
+   * and preparing url params, path params, headers etc.
+   *
+   * Constructs promise and returns it.
+   *
+   * @param url
+   * @param method
+   * @param pathParams
+   * @param headers
+   * @param urlParams
+   *
+   */
+  getDelete: function (url, method, propertiesObject) {
+
+    var pathParams = propertiesObject.pathParams;
+    var headers = propertiesObject.headers;
+    var urlParams = propertiesObject.urlParams;
+    var interceptors = propertiesObject.interceptors || [];
+
+    var preparedUrl = url;
+
+    if (pathParams !== undefined && pathParams !== null) {
+      preparedUrl = Util.preparePathDottedParams(url, pathParams);
+
+      if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
+        Errors.throwWarn(Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
+        preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+      }
+
+    }
+
+    if (urlParams !== undefined && urlParams !== null) {
+      preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+    }
+
+    var dataType = "json";
+    var contentType = "application/json; charset=utf-8";
+
+    if (!Util.isNull(propertiesObject.cache) && Util.isNull(Rest.cacheData[url + '_' + method])) {
+      Rest.createCacheObject(url, method, propertiesObject.cache);
+    }
+
+    var promiseObj = {
+      url: preparedUrl,
+      type: method,
+      beforeSend: function () {
+
+      },
+      complete: function (xhr) {
+
+        if (!Util.isNull(propertiesObject.cache)) {
+          Rest.fillCache(url, method, xhr.responseJSON);
+        }
+
+      }
+
+    };
+
+    if(propertiesObject.async !== undefined){
+      promiseObj.async = propertiesObject.async;
+    }
+
+    if (!headers) {
+      headers = {}
+    }
+
+    if (headers['Content-Type'] !== null && headers['Content-Type'] !== undefined) {
+      contentType = headers['Content-Type'];
+    }
+
+    if (headers['Data-Type'] !== null && headers['Data-Type'] !== undefined) {
+      dataType = headers['Data-Type'];
+      headers['Data-Type'] = undefined;
+    }
+
+
+    if (headers['Content-Type'] !== null) {
+      promiseObj.contentType = headers['Content-Type'] || contentType;
+    }
+
+    if (headers['Data-Type'] !== null) {
+      promiseObj.dataType = headers['Data-Type'] || dataType;
+      headers['Data-Type'] = undefined;
+    }
+
+    var newHeaders = {};
+    for (var prop in headers) {
+      if (headers[prop] !== undefined && headers[prop] !== null) {
+        newHeaders[prop] = headers[prop];
+      }
+    }
+
+    headers = newHeaders;
+
+
+    promiseObj.headers = headers;
+
+
+    var promise = new Request(promiseObj);
+
+    var requestData = {url: url, method: method, pathParams: pathParams, urlParams: urlParams, headers: headers};
+
+    promise.then(function (result) {
+      Rest.invokeInterceptors(requestData, result, promise, interceptors);
+    });
+
+    promise.catch(function (error) {
+      Rest.invokeInterceptors(requestData, error, promise, interceptors);
+    });
+
+    return promise;
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function to realize POST and PUT methods execution using AJAX
+   * and preparing request data, url params, path params, headers etc.
+   *
+   * Constructs promise and returns it.
+   *
+   * @param url
+   * @param method
+   * @param pathParams
+   * @param headers
+   * @param urlParams
+   *
+   */
+  postPut: function (url, method, request, propertiesObject) {
+
+    var pathParams = propertiesObject.pathParams;
+    var headers = propertiesObject.headers;
+    var urlParams = propertiesObject.urlParams;
+    var interceptors = propertiesObject.interceptors || [];
+
+
+    var jsonData = JSON.stringify(request);
+
+    var preparedUrl = url;
+
+    if (pathParams !== undefined && pathParams !== null) {
+      preparedUrl = Util.preparePathDottedParams(url, pathParams);
+
+      if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
+        Errors.throwWarn(Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
+        preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+      }
+
+    }
+
+    if (urlParams !== undefined && urlParams !== null) {
+      preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+    }
+
+    var dataType = "json";
+    var contentType = "application/json; charset=utf-8";
+
+    if (!Util.isNull(propertiesObject.cache) && Util.isNull(Rest.cacheData[url + '_' + method])) {
+      Rest.createCacheObject(url, method, propertiesObject.cache);
+    }
+
+    var promiseObj = {
+      url: preparedUrl,
+      data: jsonData,
+      type: method,
+      beforeSend: function () {
+
+      },
+      complete: function (xhr) {
+
+        if (!Util.isNull(propertiesObject.cache)) {
+          Rest.fillCache(url, method, xhr.responseJSON);
+        }
+
+      }
+
+    };
+
+    if(propertiesObject.async !== undefined){
+      promiseObj.async = propertiesObject.async;
+    }
+
+    if (!headers) {
+      headers = {}
+    }
+
+    if (headers['Content-Type'] !== null && headers['Content-Type'] !== undefined) {
+      contentType = headers['Content-Type'];
+    }
+
+    if (headers['Data-Type'] !== null && headers['Data-Type'] !== undefined) {
+      dataType = headers['Data-Type'];
+      headers['Data-Type'] = undefined;
+    }
+
+
+    if (headers['Content-Type'] !== null) {
+      promiseObj.contentType = headers['Content-Type'] || contentType;
+    }
+
+    if (headers['Data-Type'] !== null) {
+      promiseObj.dataType = headers['Data-Type'] || dataType;
+      headers['Data-Type'] = undefined;
+    }
+
+    var newHeaders = {};
+    for (var prop in headers) {
+      if (headers[prop] !== undefined && headers[prop] !== null) {
+        newHeaders[prop] = headers[prop];
+      }
+    }
+
+    headers = newHeaders;
+    promiseObj.headers = headers;
+
+    var promise = new Request(promiseObj);
+
+    var requestData = {
+      url: url,
+      method: method,
+      request: request,
+      pathParams: pathParams,
+      urlParams: urlParams,
+      headers: headers
+    };
+
+    promise.then(function (result) {
+      Rest.invokeInterceptors(requestData, result, promise, interceptors);
+    });
+
+    promise.catch(function (error) {
+      Rest.invokeInterceptors(requestData, error, promise, interceptors);
+    });
+
+    return promise;
+
+  },
+
+  /**
+   * @public
+   *
+   * Fills cache with data
+   *
+   */
+  fillCache: function (url, method, data) {
+
+    Rest.cacheData[url + '_' + method].filled = true;
+    Rest.cacheData[url + '_' + method].data = data;
+    Rest.cacheData[url + '_' + method].cacheTime = new Date().getTime();
+
+  },
+
+  /**
+   * @public
+   *
+   * Creates new cache object
+   *
+   */
+  createCacheObject: function (url, method, cache) {
+
+    Rest.cacheData[url + '_' + method] = {
+      filled: false,
+      cacheTime: new Date().getTime(),
+      cacheType: cache === true ? 'PERSIST' : 'TIME',
+      cachePeriod: cache === true ? null : cache,
+      data: null
+    };
+
+  },
+
+
+}

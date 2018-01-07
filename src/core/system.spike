@@ -1,0 +1,365 @@
+package spike.core;
+
+import System from spike.core.System;
+import Router from spike.core.Router;
+import Log from spike.core.Log;
+import Assembler from spike.core.Assembler;
+import Config from spike.core.System.config;
+import Errors from spike.core.Errors;
+import ModalInterface from spike.core.ModalInterface;
+import EventsInterface from spike.core.EventsInterface;
+import Selectors from spike.core.Selectors;
+
+static class System {
+
+   config: null,
+   eventsInterface: null,
+   modalInterface: null,
+   routing: null,
+
+   setConfig: function(configObject){
+    this.config = configObject;
+   },
+
+   setRouting: function(routing){
+    this.routing = routing;
+   },
+
+   setEventsInterface: function(eventsInterface){
+    this.eventsInterface = eventsInterface;
+   },
+
+   setModalInterface: function(modalInterface){
+    this.modalInterface = modalInterface;
+   },
+
+   idCounter: 1,
+   assignId: function(){
+    idCounter++;
+    return 'element-'+idCounter;
+   },
+
+  /**
+   * @public
+   *
+   * Stores DOM elements attributes
+   */
+  attributes: {
+    VIEW: 'spike-view',
+    MODALS: 'spike-modals',
+  },
+
+  /**
+   * @public
+   *
+   * Spike framework version
+   */
+  version: '3.0.0',
+
+  /**
+   * @public
+   *
+   * Stores name of current rendered controller
+   */
+  currentController: null,
+
+  /**
+   * @public
+   *
+   * Stores name of previous rendered controller
+   */
+  previousController: null,
+
+  getCurrentController: function () {
+
+    var endpoint = Router.getCurrentViewData().endpoint;
+
+    if (endpoint) {
+      return endpoint.controller;
+    }
+
+    return this.currentController || Config.mainController;
+  },
+
+
+  /**
+   * @public
+   *
+   * Invokes @Events.onRender event if exist
+   *
+   **/
+  execOnRenderEvent: function () {
+
+    if (Events.onRender) {
+      Events.onRender();
+    }
+
+  },
+
+
+  /**
+   * @public
+   *
+   * Function renders @modal object passed from @app.modal
+   * Renders @modal with @modalInitialData and executes
+   * @afterRenderCallback after rendering is done
+   *
+   * @param modalObject
+   * @param modalInitialData
+   * @param afterRenderCallback
+   *
+   */
+  renderModal: function (modalObject, modalInitialData, afterRenderCallback) {
+  
+    Log.debug('Invoke system.renderModal', []);
+    Log.log('Rendering modal {0}', [modalObject.name]);
+
+    //Checks network status
+    if (modalObject.checkNetwork === true) {
+      app.cordova.checkNetwork();
+    }
+
+    if (modalInitialData === undefined) {
+      modalInitialData = null;
+    }
+
+    //Renders modal
+    modalObject.render(modalInitialData);
+
+    System.execOnRenderEvent();
+
+    if (afterRenderCallback) {
+      afterRenderCallback();
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function renders @controller object passed from @app.controller
+   * Renders @controller with @controllerInitialData and executes
+   * @afterRenderCallback after rendering is done
+   *
+   * @param controllerObject
+   * @param controllerInitialData
+   * @param afterRenderCallback
+   *
+   */
+  renderController: function (controller, afterRenderCallback) {
+    Log.debug('Invoke system.renderController with params', []);
+    Log.log('Rendering controller {0}', [controller.getClass()]);
+
+    //Scrolling to top of page
+    if (controller.scrollTop === true) {
+      window.scrollTo(0,0);
+    }
+
+    //Invalidates all existing modals (even hidden)
+    this.modalInterface.invalidateAll();
+
+  //  if (controllerObject.checkNetwork === true && Config.mobileRun === true) {
+      //app.cordova.checkNetwork();
+   // }
+
+    //Clears selectors cache
+    Selectors.clearSelectorsCache();
+
+    //Renders controller
+    controller.render();
+
+    System.execOnRenderEvent();
+
+    if (afterRenderCallback) {
+      afterRenderCallback();
+    }
+
+    Log.ok('Selectors cache usage during app lifecycle: ' + System.cacheUsageCounter);
+
+  },
+
+  /**
+   * @public
+   *
+   * Renders passed @module object with initial data.
+   * If object not exists, then throw error.
+   *
+   * If object type is CONTROLLER then invoke @public renderController
+   * If object type is MODAL then invoke @public renderModal
+   *
+   * @param moduleObject
+   * @param moduleInitialData
+   * @param afterRenderCallback
+   */
+  render: function (moduleClass, moduleInitialModel, afterRenderCallback) {
+
+    if (!moduleClass) {
+      Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
+    }
+
+    Router.clearCacheViewData();
+
+    var module = Assembler.getClassObject(moduleClass, [moduleInitialModel]);
+
+    if (module.getSuper() === 'spike.core.Controller') {
+      System.renderController(module, afterRenderCallback);
+    } else if (module.getSuper() === 'spike.core.Modal') {
+      System.renderModal(module, afterRenderCallback);
+    }
+
+  },
+
+  viewSelector: null,
+
+  /**
+   * @public
+   *
+   * Returns main view selector
+   *
+   */
+  getView: function () {
+
+    if(this.viewSelector === null){
+        this.viewSelector = document.querySelector('['+this.attributes.VIEW+']');
+    }
+
+    return this.viewSelector;
+
+  },
+
+  modalsSelector: null,
+
+  /**
+     * @public
+     *
+     * Returns modals view selector
+     *
+     */
+  getModalsView: function(){
+
+   if(this.modalsSelector === null){
+    this.modalsSelector = document.querySelector('['+this.attributes.MODALS+']');
+   }
+
+   return this.modalsSelector;
+
+  },
+
+  verifyViews: function(){
+
+    if(this.getView() === null || this.getModalsView() === null){
+        Errors.throwError(Errors.messages.SPIKE_APP_NOT_DEFINED, [this.attributes.VIEW, this.attributes.MODALS]);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Sets plain (without Spike support) HTML template
+   * before whole application start initializing with Cordova
+   *
+   * Can be used as loading screen, splash screen etc.
+   *
+   * View is defined in @Config.initialView
+   *
+   */
+  renderInitialView: function () {
+    Log.debug('Running system.initialView');
+
+    if (Config.initialView !== undefined) {
+
+      try {
+
+        var templateHtml = Templates.templates[Config.initialView];
+
+        if(templateHtml){
+            System.getView().html(templateHTML);
+        }
+
+      } catch (err) {
+        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [Config.initialView])
+      }
+
+    }
+
+
+  },
+
+  loader: null,
+
+  /**
+   * @public
+   *
+   * Main function initializing Spike framework and Cordova.
+   * Switch debug mode and prints jQuery and Spike version.
+   *
+   * Waits for @document ready state and initialize Cordova and Spike
+   * for local or device mode.
+   *
+   * @param callBack --optional
+   *
+   */
+  init: function () {
+
+    this.loader = Assembler.findLoaderClass();
+    this.loader.loadApplication();
+
+    Log.debug('Invoke spike.core.System.init with params', []);
+
+    if(Config === null){
+        this.setConfig(new spike.core.Config());
+    }
+
+    if(this.modalInterface === null){
+        this.setModalInterface(new ModalInterface());
+    }
+
+    if(this.eventsInterface === null){
+        this.setEventsInterface(new EventsInterface());
+    }
+
+    Router.detectHTML5Mode();
+
+    Log.warn('Spike version: {0}', [System.version]);
+    Log.ok('Spike application initializing...');
+
+
+    this.verifyViews();
+    System.renderInitialView();
+    this.routing.create(Router.create());
+    this.initGlobalElements();
+
+    Router.registerRouter();
+
+
+    if (this.getEvents().onReady !== undefined) {
+        this.getEvents().onReady();
+    }
+
+    this.loader.onLoadApplication();
+
+    Log.ok('Spike application ready to work...');
+
+  },
+
+  /**
+    Renders global components defined outside 'spike-view'
+    **/
+  initGlobalElements: function(){
+
+    var globalElements = this.getView().getElementsByTagName('element');
+
+    for(var i = 0; i < globalElements.length; i++){
+
+        var className = globalElements[i].getAttribute('name');
+
+        var globalElement = Assembler.getDotPath(className)();
+
+        globalElement.render();
+
+    }
+
+  }
+
+}

@@ -1,0 +1,3887 @@
+package spike.core;
+
+class Config {
+
+      /**
+       * @public
+       *
+       * Defines if router should work in History API mode
+       */
+      html5Mode: false,
+
+      /**
+       * @public
+       *
+       * Defines if application runs locally (false) or on mobile device (true)
+       */
+      mobileRun: false,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'LOG' shoud be printed in console
+       */
+      showLog: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'OBJ' shoud be printed in console
+       */
+      showObj: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'DEBUG' shoud be printed in console
+       */
+      showDebug: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'WARN' shoud be printed in console
+       */
+      showWarn: true,
+
+      /**
+       * @public
+       *
+       * Defines if logs type 'OK' shoud be printed in console
+       */
+      showOk: true,
+
+      /**
+       * @public
+       *
+       * Defines controller name which one is rendered as first after application ready
+       */
+      mainController: null,
+
+      /**
+       * @public
+       *
+       * Defines application initial view (before Spike starts application initializing)
+       */
+      initialView: null,
+
+      /**
+       * @public
+       *
+       * Defines application main path (ex. project root/app)
+       */
+      rootPath: 'app',
+
+      /**
+       * @public
+       *
+       * Defines application default language
+       */
+      lang: "en"
+
+}package spike.core;
+
+import Util from spike.core.Util;
+import Log from spike.core.Log;
+
+static class Errors {
+
+   messages: {
+
+      CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
+      REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
+      APPLICATION_EVENT_CALLBACK_NULL: 'Applicaton event listener {0} is null',
+      APPLICATION_EVENT_NOT_EXIST: 'Application event {0} not exists',
+      APPLICATION_EVENT_ALREADY_EXIST: 'Application event {0} already exists',
+      ROUTING_ENABLED_NOT_DEFINED: 'Routing is enabled but not defined in Config',
+      ROUTE_NAME_NOT_EXIST: 'Route name {0} not exists',
+      ROUTE_NAME_EXIST: 'Route name {0} already exists, must be unique',
+      INTERCEPTOR_ALREADY_REGISTRED: 'Interceptor {0} is already registred',
+      REDIRECT_NO_PATH: 'Try redirect to path but path argument is not defined',
+      TRANSLATION_PARSING: 'Translation parsing error for language {0}',
+      TEMPLATE_NOT_FOUND_ERROR: 'Template named {0} not found',
+      INITIAL_VIEW_ERROR: 'No initial view with name: {0}',
+      WEBSQL_SUPPORT: 'No WebSQL support in this browser',
+      PATH_DEFINITION: 'Path URI and Path object cannot be empty',
+      PATH_ALREADY_EXIST: 'Path {0} is already defined',
+      PATH_PATTERN_ALREADY_EXIST: 'Path {0} is already defined. Pattern {1} is duplicated',
+      MODULE_NOT_EXIST: 'Try rendering not existing module',
+      RESTRICTED_NAME: 'Name {0} is restricted in usage in application',
+      TRANSLATION_MESSAGE_NOT_FOUND: 'Translation for message {0} not found',
+      TRANSLATION_NOT_EXIST: 'No defined language: {0}',
+      TRANSLATION_LOAD_WARN: 'Translation file for language: {0} cannot be downloaded, status: {1}',
+      OUTSIDE_CONTEXT_COMPONENT_NOT_FOUND: 'Component {0} outside "spike-view" is not defined and cannot be rendered',
+      OUTSIDE_CONTEXT_COMPONENT_NOT_GLOBAL: 'Component {0} outside "spike-view" cannot be rendered because is not GLOBAL',
+      OUTSIDE_CONTEXT_COMPONENT_NO_NAME: 'One of global component has not defined name',
+
+      SPIKE_APP_NOT_DEFINED: 'No DOM element with {0} or {1} attribute specified',
+      REQUEST_WRONG_PARAMS: 'Request url and type not defined',
+      JSON_PARSE_ERROR: 'JSON parse error during execution {0}'
+
+    },
+
+  /**
+   * @public
+   *
+   * Throws @error from Spike framework
+   *
+   * @param errorMessage
+   * @param errorMessageBinding
+   *
+   **/
+  throwError: function (errorMessage, errorMessageBinding) {
+
+    var error = 'Spike Framework: ' + Util.bindStringParams(errorMessage, errorMessageBinding);
+    this.errors.push(error);
+    this.printExceptions();
+    throw new Error(error);
+
+  },
+
+  /**
+   * @public
+   * Storage for all exceptions
+   */
+  errors: [],
+
+  /**
+   * @public
+   * Prints all exceptions to console
+   */
+  printExceptions: function () {
+
+    for (var i = 0; i < this.errors.length; i++) {
+      console.error('Error ' + i + ': ' + this.errors[i]);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Throws @error from Spike framework
+   *
+   * @param errorMessage
+   * @param errorMessageBinding
+   *
+   **/
+  throwWarn: function (warnMessage, warnMessageBinding) {
+    Log.warn('Spike Framework: ' + Util.bindStringParams(warnMessage, warnMessageBinding));
+  }
+
+}package spike.core;
+
+import System from spike.core.System;
+
+static class Events {
+
+  /**
+   * List of allowed events which can be binded by Spike Framework and compiled by Spike compiler
+   */
+  allowedEvents: [
+    'click',
+    'change',
+    'keyup',
+    'keydown',
+    'keypress',
+    'blur',
+    'focus',
+    'dblclick',
+    'die',
+    'hover',
+    'keydown',
+    'mousemove',
+    'mouseover',
+    'mouseenter',
+    'mousedown',
+    'mouseleave',
+    'mouseout',
+    'submit',
+    'trigger',
+    'toggle',
+    'load',
+    'unload'
+  ],
+
+  bindEvents: function(element){
+
+    for(var i = 0; i < element.childElements.length; i++){
+
+        this.bindEventsForElement(element.childElements[i]);
+
+        if(element.childElements[i].length > 0){
+            this.bindEvents(element.childElements[i]);
+        }
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Finds all elements with attribute @spike-event
+   * in given (root) selector.
+   *
+   * Gets event name and event function string, binds
+   * jQuery event with created function.
+   *
+   * @param rootSelector
+   */
+  bindEventsForElement: function (element) {
+
+    for(var i = 0; i < element.eventsSelectors.length; i++){
+
+        var selector = document.getElementById(element.eventsSelectors[i]);
+
+        for (var k = 0; k < this.allowedEvents.length; k++) {
+
+            var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
+
+            if (eventFunctionBody) {
+                selector.addEventListener(this.allowedEvents[i], Function('event', eventFunctionBody));
+            }
+
+        }
+
+        element.removeAttribute('spike-unbinded');
+
+    }
+
+  },
+
+}package spike.core;
+
+class EventsInterface {
+
+/**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Spike
+          * controller or modal is rendered
+          *
+          */
+         onRender: function () {
+
+         },
+
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Cordova is initializing
+          * Can contain any global events registred via @window.addEventListener
+          * or @document.addEventListener
+          *
+          */
+         domEvents: function () {
+
+         },
+
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when application is in @online state
+          *
+          */
+         onOnline: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when application is in @offline state
+          *
+          */
+         onOffline: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when @back event happens
+          *
+          * If there aren't rendered modals and current controller has not
+          * overriden @onBack function then application invokes this function
+          *
+          * More info in @app.cordova.onBack function
+          *
+          */
+         onBack: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Cordova application is ready
+          *
+          */
+         onDeviceReady: function () {
+         },
+
+         /**
+          * @public
+          * @toImplement
+          *
+          * Additional @event function executed when Spike application is ready
+          * Invokes before rendering @Config.mainController
+          *
+          */
+         onReady: function () {
+         }
+
+}package spike.core;
+
+class RoutingInterface {
+
+  create: function(router){
+
+  }
+
+}package spike.core;
+
+class LoaderInterface {
+
+  loadApplication: function(){
+
+  },
+
+  onLoadApplication: function(){
+  }
+
+}package spike.core;
+
+ import Log from spike.core.Log;
+ import System from spike.core.System;
+ import Errors from spike.core.Errors;
+
+class ModalInterface {
+
+    modals: [],
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Additional function executed when modal is rendered
+     * Executes every time when new modal instance is rendered
+     * Is not invoke if modal is already rendered and will be only showed
+     *
+     * @param modalSelector
+     */
+    onRender: function (modal) {
+        this.clearDestroyedModals();
+        this.modals.push(modal);
+    },
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Function implements modal showing mechanics
+     * By default invokes default implementation @public onModalShowEventDefault
+     *
+     * @param modalSelector
+     * @param modalObject
+     * @param defaultImpl
+     */
+    onShow: function (modal) {
+         modal.rootSelector().style = 'display: block;';
+    },
+
+    onHide: function (modal) {
+         modal.rootSelector().style = 'display: hide;';
+    },
+
+    /**
+     * @public
+     * @toImplement
+     *
+     * Function implements modal hiding mechanics
+     * By default invokes default implementation @public onModalHideEventDefault
+     *
+     * @param modalSelector
+     * @param modalObject
+     * @param defaultImpl
+     */
+    onDestroy: function (modal) {
+        modal.rootSelector().style = 'display: none;';
+        modal.destroy();
+    },
+
+    /**
+     * @public
+     *
+     * Function invalidates all rendered modals.
+     * Iterates over @public modal executes @public modal.invalidate function to remove modals from DOM and cache
+     *
+     */
+    invalidateAll: function () {
+
+       for(var i = 0; i < this.modals.length; i++){
+           this.onDestroy(this.modals[i]);
+       }
+
+    },
+
+    clearDestroyedModals: function(){
+
+       var modals = [];
+       for(var i = 0; i < this.modals.length; i++){
+          if(this.modals[i].destroyed === false){
+            modals.push(this.modals[i]);
+          }
+       }
+
+       this.modals = modals;
+
+    }
+
+}package spike.core;
+
+import System from spike.core.System;
+import Router from spike.core.Router;
+import Log from spike.core.Log;
+import Assembler from spike.core.Assembler;
+import Config from spike.core.System.config;
+import Errors from spike.core.Errors;
+import ModalInterface from spike.core.ModalInterface;
+import EventsInterface from spike.core.EventsInterface;
+import Selectors from spike.core.Selectors;
+
+static class System {
+
+   config: null,
+   eventsInterface: null,
+   modalInterface: null,
+   routing: null,
+
+   setConfig: function(configObject){
+    this.config = configObject;
+   },
+
+   setRouting: function(routing){
+    this.routing = routing;
+   },
+
+   setEventsInterface: function(eventsInterface){
+    this.eventsInterface = eventsInterface;
+   },
+
+   setModalInterface: function(modalInterface){
+    this.modalInterface = modalInterface;
+   },
+
+   idCounter: 1,
+   assignId: function(){
+    idCounter++;
+    return 'element-'+idCounter;
+   },
+
+  /**
+   * @public
+   *
+   * Stores DOM elements attributes
+   */
+  attributes: {
+    VIEW: 'spike-view',
+    MODALS: 'spike-modals',
+  },
+
+  /**
+   * @public
+   *
+   * Spike framework version
+   */
+  version: '3.0.0',
+
+  /**
+   * @public
+   *
+   * Stores name of current rendered controller
+   */
+  currentController: null,
+
+  /**
+   * @public
+   *
+   * Stores name of previous rendered controller
+   */
+  previousController: null,
+
+  getCurrentController: function () {
+
+    var endpoint = Router.getCurrentViewData().endpoint;
+
+    if (endpoint) {
+      return endpoint.controller;
+    }
+
+    return this.currentController || Config.mainController;
+  },
+
+
+  /**
+   * @public
+   *
+   * Invokes @Events.onRender event if exist
+   *
+   **/
+  execOnRenderEvent: function () {
+
+    if (Events.onRender) {
+      Events.onRender();
+    }
+
+  },
+
+
+  /**
+   * @public
+   *
+   * Function renders @modal object passed from @app.modal
+   * Renders @modal with @modalInitialData and executes
+   * @afterRenderCallback after rendering is done
+   *
+   * @param modalObject
+   * @param modalInitialData
+   * @param afterRenderCallback
+   *
+   */
+  renderModal: function (modalObject, modalInitialData, afterRenderCallback) {
+  
+    Log.debug('Invoke system.renderModal', []);
+    Log.log('Rendering modal {0}', [modalObject.name]);
+
+    //Checks network status
+    if (modalObject.checkNetwork === true) {
+      app.cordova.checkNetwork();
+    }
+
+    if (modalInitialData === undefined) {
+      modalInitialData = null;
+    }
+
+    //Renders modal
+    modalObject.render(modalInitialData);
+
+    System.execOnRenderEvent();
+
+    if (afterRenderCallback) {
+      afterRenderCallback();
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function renders @controller object passed from @app.controller
+   * Renders @controller with @controllerInitialData and executes
+   * @afterRenderCallback after rendering is done
+   *
+   * @param controllerObject
+   * @param controllerInitialData
+   * @param afterRenderCallback
+   *
+   */
+  renderController: function (controller, afterRenderCallback) {
+    Log.debug('Invoke system.renderController with params', []);
+    Log.log('Rendering controller {0}', [controller.getClass()]);
+
+    //Scrolling to top of page
+    if (controller.scrollTop === true) {
+      window.scrollTo(0,0);
+    }
+
+    //Invalidates all existing modals (even hidden)
+    this.modalInterface.invalidateAll();
+
+  //  if (controllerObject.checkNetwork === true && Config.mobileRun === true) {
+      //app.cordova.checkNetwork();
+   // }
+
+    //Clears selectors cache
+    Selectors.clearSelectorsCache();
+
+    //Renders controller
+    controller.render();
+
+    System.execOnRenderEvent();
+
+    if (afterRenderCallback) {
+      afterRenderCallback();
+    }
+
+    Log.ok('Selectors cache usage during app lifecycle: ' + System.cacheUsageCounter);
+
+  },
+
+  /**
+   * @public
+   *
+   * Renders passed @module object with initial data.
+   * If object not exists, then throw error.
+   *
+   * If object type is CONTROLLER then invoke @public renderController
+   * If object type is MODAL then invoke @public renderModal
+   *
+   * @param moduleObject
+   * @param moduleInitialData
+   * @param afterRenderCallback
+   */
+  render: function (moduleClass, moduleInitialModel, afterRenderCallback) {
+
+    if (!moduleClass) {
+      Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
+    }
+
+    Router.clearCacheViewData();
+
+    var module = Assembler.getClassObject(moduleClass, [moduleInitialModel]);
+
+    if (module.getSuper() === 'spike.core.Controller') {
+      System.renderController(module, afterRenderCallback);
+    } else if (module.getSuper() === 'spike.core.Modal') {
+      System.renderModal(module, afterRenderCallback);
+    }
+
+  },
+
+  viewSelector: null,
+
+  /**
+   * @public
+   *
+   * Returns main view selector
+   *
+   */
+  getView: function () {
+
+    if(this.viewSelector === null){
+        this.viewSelector = document.querySelector('['+this.attributes.VIEW+']');
+    }
+
+    return this.viewSelector;
+
+  },
+
+  modalsSelector: null,
+
+  /**
+     * @public
+     *
+     * Returns modals view selector
+     *
+     */
+  getModalsView: function(){
+
+   if(this.modalsSelector === null){
+    this.modalsSelector = document.querySelector('['+this.attributes.MODALS+']');
+   }
+
+   return this.modalsSelector;
+
+  },
+
+  verifyViews: function(){
+
+    if(this.getView() === null || this.getModalsView() === null){
+        Errors.throwError(Errors.messages.SPIKE_APP_NOT_DEFINED, [this.attributes.VIEW, this.attributes.MODALS]);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Sets plain (without Spike support) HTML template
+   * before whole application start initializing with Cordova
+   *
+   * Can be used as loading screen, splash screen etc.
+   *
+   * View is defined in @Config.initialView
+   *
+   */
+  renderInitialView: function () {
+    Log.debug('Running system.initialView');
+
+    if (Config.initialView !== undefined) {
+
+      try {
+
+        var templateHtml = Templates.templates[Config.initialView];
+
+        if(templateHtml){
+            System.getView().html(templateHTML);
+        }
+
+      } catch (err) {
+        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [Config.initialView])
+      }
+
+    }
+
+
+  },
+
+  loader: null,
+
+  /**
+   * @public
+   *
+   * Main function initializing Spike framework and Cordova.
+   * Switch debug mode and prints jQuery and Spike version.
+   *
+   * Waits for @document ready state and initialize Cordova and Spike
+   * for local or device mode.
+   *
+   * @param callBack --optional
+   *
+   */
+  init: function () {
+
+    this.loader = Assembler.findLoaderClass();
+    this.loader.loadApplication();
+
+    Log.debug('Invoke spike.core.System.init with params', []);
+
+    if(Config === null){
+        this.setConfig(new spike.core.Config());
+    }
+
+    if(this.modalInterface === null){
+        this.setModalInterface(new ModalInterface());
+    }
+
+    if(this.eventsInterface === null){
+        this.setEventsInterface(new EventsInterface());
+    }
+
+    Router.detectHTML5Mode();
+
+    Log.warn('Spike version: {0}', [System.version]);
+    Log.ok('Spike application initializing...');
+
+
+    this.verifyViews();
+    System.renderInitialView();
+    this.routing.create(Router.create());
+    this.initGlobalElements();
+
+    Router.registerRouter();
+
+
+    if (this.getEvents().onReady !== undefined) {
+        this.getEvents().onReady();
+    }
+
+    this.loader.onLoadApplication();
+
+    Log.ok('Spike application ready to work...');
+
+  },
+
+  /**
+    Renders global components defined outside 'spike-view'
+    **/
+  initGlobalElements: function(){
+
+    var globalElements = this.getView().getElementsByTagName('element');
+
+    for(var i = 0; i < globalElements.length; i++){
+
+        var className = globalElements[i].getAttribute('name');
+
+        var globalElement = Assembler.getDotPath(className)();
+
+        globalElement.render();
+
+    }
+
+  }
+
+}
+package spike.core;
+
+import Config from spike.core.System.config;
+import Util from spike.core.Util;
+
+static class Log {
+
+  /**
+   * @public
+   *
+   * Function prints JavaScript @object in console
+   *
+   * @param jsObject
+   */
+  obj: function (jsObject) {
+
+    if (Config.showObj) {
+      console.log(jsObject);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints log message
+   *
+   * @param logMessage
+   * @param logData -- optional
+   */
+  log: function (logMessage, logData) {
+
+    if (Config.showLog) {
+      app.print(logMessage, logData, 'LOG');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints error message
+   *
+   * @param errorMessage
+   * @param errorData -- optional
+   */
+  error: function (errorMessage, errorData) {
+
+    if (Config.showError) {
+      app.print(errorMessage, errorData, 'ERROR');
+    }
+  },
+
+  /**
+   * @public
+   *
+   * Function prints debug message
+   * If @Config.debug is false then
+   * debug message is not print
+   *
+   * @param debugMessage
+   * @param debugData -- optional
+   */
+  debug: function (debugMessage, debugData) {
+
+    if (Config.showDebug) {
+      app.print(debugMessage, debugData, 'DEBUG');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints warn message
+   *
+   * @param warnMessage
+   * @param warnData -- optional
+   */
+  warn: function (warnMessage, warnData) {
+
+    if (Config.showWarn) {
+      app.print(warnMessage, warnData, 'WARN');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints ok message
+   *
+   * @param okMessage
+   * @param okData -- optional
+   */
+  ok: function (okMessage, okData) {
+
+    if (Config.showOk) {
+      app.print(okMessage, okData, 'OK');
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function prints message in console
+   * with custom colors
+   *
+   * @param message
+   * @param data -- optional
+   * @param type
+   */
+  print: function (message, data, type) {
+
+    if (typeof message !== 'string') {
+      message = JSON.stringify(message);
+    }
+
+    if (data) {
+      message = Util.bindStringParams(message, data);
+    }
+
+    var color = '';
+    switch (type) {
+      case 'LOG' :
+        color = 'blue';
+        break;
+      case 'ERROR' :
+        color = 'red';
+        break;
+      case 'DEBUG' :
+        color = 'gray';
+        break;
+      case 'WARN' :
+        color = 'orange';
+        break;
+      case 'OK' :
+        color = 'green';
+        break;
+      default:
+        color = 'black';
+    }
+
+    console.log('%c' + Util.currentDateLog() + ' Spike Framework: ' + message, 'color: ' + color);
+
+  }
+
+}
+package spike.core;
+
+import Selectors from spike.core.Selectors;
+
+static class Selectors {
+
+ /**
+   * @public
+   *
+   * Counter for selectors cache for
+   * debug proposes
+   *
+   */
+  cacheUsageCounter: 0,
+
+  /**
+   * @public
+   *
+   * Storage for cached once used selectors
+   *
+   */
+  selectorsCache: {},
+
+  /**
+   * @public
+   *
+   * Clears selectors cache, should be executed before
+   * new controller rendering
+   *
+   */
+  clearSelectorsCache: function () {
+    this.selectorsCache = {};
+  },
+
+  /**
+   * @public
+   *
+   * Clears selector given id from cache
+   *
+   * @param selectorId
+   */
+  clearSelectorInCache: function (selectorId) {
+
+    if (this.selectorsCache[selectorId]) {
+      this.selectorsCache[selectorId] = null;
+    }
+
+  },
+
+  createNamesSelectors: function(templateHtml, selectors){
+
+    //Retrieving list of form elements names
+    var nameList = Util.findStringBetween(templateHtml, 'name="', '"');
+
+    //Creating names selectors functions
+    for(var i = 0; i < nameList.length; i++){
+
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+
+        selectors.names[name] = function () {
+
+            var selector = Selectors.selectorsCache[newName];
+
+            if (selector === undefined) {
+                selector = document.querySelector('['+newId+']');
+                selector.plainId = newId;
+                Selectors.selectorsCache[newId] = selector;
+            } else {
+                Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+
+        }
+
+        //Replacing identifier with generated hash
+        templateHtml = templateHtml.replace('name="' + name + '"', 'spike-name="' + newName + '" name="' + name + '"');
+
+    }
+
+    return templateHtml;
+
+  },
+
+  createIdSelectors: function(templateHtml, selectors, eventsSelectors, linksSelectors){
+
+   //Retrieving list of identifiers names
+   var idList = Util.findStringBetween(templateHtml, 'id="', '"');
+
+   //Creating identifiers selectors functions
+   for(var i = 0; i < idList.length; i++){
+
+    //Creating new hash for identifier
+    var newId = idList[i] + '-' + Util.hash();
+
+    //Creating handler function for identifier with optional basic events binding by @jQuery
+    selectors[idList[i]] = function () {
+
+        var selector = Selectors.selectorsCache[newId];
+
+        if (selector === undefined) {
+          selector = document.getElementById(newId);
+          selector.plainId = newId;
+          Selectors.selectorsCache[newId] = selector;
+        } else {
+          Selectors.cacheUsageCounter++;
+        }
+
+        return selector;
+
+    };
+
+    if(idList[i].indexOf('spike-event-') > -1){
+        eventsSelectors.push(newId);
+    }
+
+    if(idList[i].indexOf('spike-href-') > -1){
+        linksSelectors.push(newId);
+    }
+
+    //Replacing identifier with generated hash
+    templateHtml = templateHtml.replace('id="' + id + '"', 'id="' + newId + '"');
+
+   }
+
+   return templateHtml;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates selectors for passed HTML @string based
+   * on @attr id and @attr name.
+   * Function returns set of methods as @jQuery selectors getters
+   * and processed HTML @string with replaced attributes with
+   * special hashes
+   *
+   * @param templateHtml
+   *
+   */
+   createUniqueSelectors: function (templateHtml) {
+
+    var selectors = {
+        names: {},
+        forms: {}
+    };
+
+    var eventsSelectors = [];
+    var linksSelectors = [];
+
+    templateHtml = this.createNamesSelectors(templateHtml, selectors);
+    templateHtml = this.createIdSelectors(templateHtml, selectors, eventsSelectors, linksSelectors);
+
+    return {
+      html: templateHtml,
+      selectors: selectors,
+      eventsSelectors: eventsSelectors,
+      linksSelectors: linksSelectors
+    };
+
+  },
+
+
+}package spike.core;
+
+static class Util {
+
+        /**
+         * Transforms string into camel case notation
+         * Example: category-id => categoryId
+         * Example category id => categoryId
+         *
+         * @param str
+         */
+        toCamelCase: function (str) {
+
+            if (Util.isEmpty(str)) {
+                return str;
+            }
+
+            str = str.split('-').join(' ');
+
+            return str.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, function (match, index) {
+                if (+match === 0) return ""; // or if (/\s+/.test(match)) for white spaces
+                return index === 0 ? match.toLowerCase() : match.toUpperCase();
+            });
+
+        },
+
+        /**
+         * @public
+         *
+         * Copies array to another instance without reference
+         *
+         * @returns {string}
+         */
+        copyArray: function (oldArray) {
+            return JSON.parse(JSON.stringify(oldArray));
+        },
+
+        /**
+         * @public
+         *
+         * Returns date for logging module
+         *
+         * @returns {string}
+         */
+        currentDateLog: function () {
+            return new Date().toLocaleTimeString();
+        },
+
+        /**
+         * @public
+         *
+         * Function to bind values represented by map or array to special
+         * formatted @string
+         *
+         * Example:
+         *
+         * var someString = "Mark of this car is {0}";
+         * Util.bindStringParams(someString, ["Ford"] );
+         *
+         * or
+         *
+         * var someString = "Mark of this car is {mark}";
+         * Util.bindStringParams(someString, { mark: "Ford" } );
+         *
+         *
+         * @param string
+         * @param objectOrArrayParams
+         * @returns {*}
+         */
+        bindStringParams: function (string, objectOrArrayParams, noStringify) {
+
+            if (!string) {
+                return '';
+            }
+
+            if (string.indexOf('{') === -1 || !objectOrArrayParams) {
+                return string;
+            }
+
+            try {
+
+                if (objectOrArrayParams instanceof Array) {
+
+                    for (var i = 0; i < objectOrArrayParams.length; i++) {
+                        string = string.replace('{' + i + '}', noStringify ? objectOrArrayParams[i] : JSON.stringify(objectOrArrayParams[i]))
+                    }
+
+                } else {
+
+                    for (var paramName in objectOrArrayParams) {
+                        string = string.replace('{' + paramName + '}', noStringify ? objectOrArrayParams[paramName] : JSON.stringify(objectOrArrayParams[paramName]));
+                    }
+
+                }
+
+            } catch (err) {
+            }
+
+            return string;
+
+        },
+
+        /**
+         * @public
+         *
+         * Checks if passed object is JavaScript @function
+         *
+         * @param functionToCheck
+         * @returns {*|boolean}
+         */
+        isFunction: function (functionToCheck) {
+            var getType = {};
+            return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
+        },
+
+        /**
+         * @public
+         *
+         * Checks if given variable is an object
+         * If null or undefined returns false
+         *
+         * @param object
+         */
+        isObject: function (object) {
+
+            if (Util.isNull(object)) {
+                return false;
+            }
+
+            if (object.toString() === '[object Object]') {
+                return true;
+            }
+
+            return false;
+
+        },
+
+        /**
+         * @public
+         *
+         * Function to parse JSON @string to JavaScript @object with replacing
+         * whole whitespaces, tabs, new lines etc.
+         *
+         * @param s
+         */
+        parseJSON: function (s) {
+
+            s = s.replace(/\\n/g, "\\n")
+                .replace(/\\'/g, "\\'")
+                .replace(/\\"/g, '\\"')
+                .replace(/\\&/g, "\\&")
+                .replace(/\\r/g, "\\r")
+                .replace(/\\t/g, "\\t")
+                .replace(/\\b/g, "\\b")
+                .replace(/\\f/g, "\\f");
+            s = s.replace(/[\u0000-\u0019]+/g, "");
+            var o = JSON.parse(s);
+
+            return o;
+        },
+
+        /**
+         * @public
+         *
+         * Returns true if passed object is undefined or null or empty
+         *
+         * @param obj
+         * @returns {boolean}
+         */
+        isEmpty: function (obj) {
+
+            if (obj === undefined || obj === null) {
+                return true;
+            }
+
+            if (typeof obj === 'string') {
+                if (obj.trim().length === 0) {
+                    return true;
+                }
+            }
+
+            return false;
+
+        },
+
+        /**
+         * @public
+         *
+         * If path param is numeric string, then making it just number - integer or float.
+         * If not, returns passed object without modifications
+         *
+         * @param obj
+         */
+        tryParseNumber: function (obj) {
+
+            if (!Util.isEmpty(obj) && $.isNumeric(obj)) {
+
+                if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1){
+                    return obj;
+                }
+
+                if (Util.isInt(parseFloat(obj))) {
+                    return parseInt(obj, 10);
+                } else {
+                    return parseFloat(obj);
+                }
+
+            }
+
+            return obj;
+
+
+        },
+
+        /**
+         * @public
+         *
+         * Checks if given number is integer
+         * @param n
+         */
+        isInt: function (n) {
+            return Number(n) === n && n % 1 === 0;
+        },
+
+        /**
+         * @public
+         *
+         * Checks if given number is float
+         * @param n
+         */
+        isFloat: function (n) {
+            return Number(n) === n && n % 1 !== 0;
+        },
+
+        /**
+         * @public
+         *
+         * Returns true if passed object is undefined or null
+         *
+         * @param obj
+         * @returns {boolean}
+         */
+        isNull: function (obj) {
+
+            if (obj === undefined || obj === null) {
+                return true;
+            }
+
+            return false;
+
+        },
+
+        /**
+         * @public
+         *
+         * Function to replacing whole URL path params (not typical) with passed
+         * values from params map
+         *
+         * Example:
+         *
+         * var someURL = "http://www.someSite.com/person/{personId}"
+         * "http://www.someSite.com/person/2" = Util.preparePathParams(someUrl, { personId: 2 });
+         *
+         * @param url
+         * @param params
+         */
+        preparePathDottedParams: function (url, params) {
+
+            for (var prop in params) {
+                url = url.replace(':' + prop, params[prop]);
+            }
+
+            return url;
+
+        },
+
+        /**
+         * @public
+         *
+         * Removes binded undefined pathParams from given url
+         *
+         * @param url
+         * @returns {string}
+         */
+        removeUndefinedPathParams: function (url) {
+            return url.split('/undefined').join('').split('/null').join('');
+        },
+
+        /**
+         * @public
+         *
+         * Function to adding URL params (typical) with passed
+         * values from params map
+         *
+         * Example:
+         *
+         * var someURL = "http://www.someSite.com/person"
+         * "http://www.someSite.com/person?id=2" = Util.prepareUrlParams(someUrl, { id: 2 });
+         *
+         * @param url
+         * @param params
+         */
+        prepareUrlParams: function (url, params) {
+
+            var i = 0;
+            for (var prop in params) {
+
+                if (i === 0) {
+                    url = url + '?' + prop + '=' + params[prop];
+                } else {
+                    url = url + '&' + prop + '=' + params[prop];
+                }
+
+                i++;
+
+            }
+
+            return url;
+
+        },
+
+        /**
+         * @public
+         *
+         * Function to finding string occurence between another @string objects
+         *
+         * @param str - string which want to find
+         * @param first
+         * @param last
+         * @returns {Array}
+         */
+        findStringBetween: function (str, first, last) {
+
+            var r = new RegExp(first + '(.*?)' + last, 'gm');
+            var arr = str.match(r);
+
+            if (arr === null || arr.length === 0) {
+                return [];
+            }
+
+            var arr2 = [];
+
+            for (var i = 0; i < arr.length; i++) {
+                arr2.push(arr[i].replace(first, '').replace(last, ''));
+            }
+
+            return arr2;
+
+        },
+
+        /**
+         * @public
+         *
+         * Function to generating hashes for id creating
+         *
+         * @returns {string}
+         */
+        hash: function () {
+            var text = "";
+            var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+            for (var i = 0; i < 10; i++)
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+            return text;
+        },
+
+        escapeQuotes: function (text) {
+
+            try {
+              text = text.replace(/"/g, "&quot;").replace(/'/g, "&quot;");
+            } catch (err) {
+                Log.warn('Could not escape single quotes in string: ' + text);
+            }
+
+            return text;
+
+        },
+
+        bindTranslationParams: function (string, objectOrArrayParams) {
+
+                if(!string){
+                    return '';
+                }
+
+                if(string.indexOf('{') === -1 || !objectOrArrayParams){
+                    return string;
+                }
+
+                if (objectOrArrayParams instanceof Array) {
+
+                    for (var i = 0; i < objectOrArrayParams.length; i++) {
+                        string = string.replace('{' + i + '}', objectOrArrayParams[i])
+                    }
+
+                } else {
+
+                    for (var paramName in objectOrArrayParams) {
+                        string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
+                    }
+
+                }
+
+                return string;
+
+            },
+
+}
+package spike.core;
+
+import Errors from spike.core.Errors;
+import Util from spike.core.Util;
+
+class Request {
+
+    /**
+    url: string
+    type: string,
+    data: obj || string,
+    beforeSend: function () {},
+    complete: function (xhr) {},
+    headers: map,
+    contentType: string
+    **/
+    config: null,
+    xhr: null,
+    catchCallbacks: [],
+    thenCallbacks: [],
+    response: null,
+
+    responseType: 'json',
+
+    STATUS: {
+        DONE: 4,
+        LOADING: 3,
+        HEADERS_RECEIVED: 2,
+        OPENED: 1,
+        UNSENT: 0
+    },
+
+    Request: function(config){
+
+        this.config = this.setConfig(config);
+        this.xhr = this.createXHR();
+
+        this.setEvents();
+        this.setHeaders();
+
+        this.config.beforeSend();
+        this.xhr.send(this.config.data);
+
+    },
+
+    setConfig: function(config){
+
+        if(config === undefined || config === null){
+            Errors.throwError(Errors.messages.REQUEST_WRONG_PARAMS, []);
+        }
+
+        if(config.url === undefined || config.type === undefined){
+            Errors.throwError(Errors.messages.REQUEST_WRONG_PARAMS, []);
+        }
+
+        if(config.headers === undefined){
+            config.headers = {};
+        }
+
+        if(config.contentType === undefined){
+            config.headers['Content-Type'] = 'application/json';
+        }
+
+        if(config.data === undefined){
+            config.data = {};
+        }
+
+        if(typeof config.data === 'string'){
+
+            try {
+                config.data = JSON.parse(config.data);
+            }catch(e){
+                Errors.thrownError(Errors.JSON_PARSE_ERROR, [config.url]);
+            }
+
+        }
+
+        if(config.beforeSend === undefined){
+            config.beforeSend = function() { };
+        }
+
+        if(config.complete === undefined){
+            config.complete = function() { };
+        }
+
+        return config;
+
+    },
+
+    setEvents: function(){
+
+        this.xhr.open(this.config.type, this.config.url, true);
+
+        var self = this;
+        this.xhr.onreadystatechange = function() {
+
+             if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 200) {
+
+                if(self.responseType === 'json'){
+
+                    try {
+                        self.response = JSON.parse(self.xhr.responseText);
+                        self.resolveThen(self.response, self.xhr, self.xhr.status);
+                    }catch(e){
+                        self.resolveCatch(self.xhr, 0, e);
+                    }
+
+
+                }else if(self.responseType === 'xml'){
+                    self.resolveThen(self.xhr.responseXML, self.xhr, self.xhr.status);
+                }
+
+              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 204){
+                self.resolveThen(null, self.xhr, self.xhr.status);
+              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status !== 200){
+                self.resolveCatch(self.xhr, self.xhr.status, new Error('Response error: '+self.xhr.status));
+              }
+
+        };
+
+
+    },
+
+    setHeaders: function(){
+
+        this.xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        for(var headerName in this.config.headers){
+            this.xhr.setRequestHeader(headerName, this.config.headers[headerName]);
+        }
+
+        if(this.config.headers['Content-Type'].indexOf('xml') > -1){
+            this.responseType = 'xml';
+        }
+
+    },
+
+    then: function (callback) {
+        this.thenCallbacks.push(callback);
+        return this;
+    },
+
+    resolveThen: function(response, xhr, status){
+
+        for(var i = 0; i < this.thenCallbacks.length; i++){
+            this.thenCallbacks[i](response, xhr, status);
+        }
+
+    },
+
+    catch: function (callback) {
+        this.catchCallbacks.push(callback);
+        return this;
+    },
+
+    resolveCatch: function(xhr, status, thrownError){
+
+        for(var i = 0; i < this.catchCallbacks.length; i++){
+            this.catchCallbacks[i](xhr, status, thrownError);
+        }
+
+    },
+
+    createXHR: function() {
+
+        var xhr;
+        if (window.XMLHttpRequest) {
+            xhr = new XMLHttpRequest();
+        } else if (window.ActiveXObject) {
+            try {
+                xhr = new ActiveXObject("Msxml2.XMLHTTP");
+            } catch (e) {
+                xhr = new ActiveXObject("Microsoft.XMLHTTP");
+            }
+        }
+
+        return xhr;
+
+    }
+
+}package spike.core;
+
+import Rest from spike.core.Rest;
+import Log from spike.core.Log;
+import Request from spike.core.Request;
+import Errors from spike.core.Errors;
+
+static class Rest {
+
+  /**
+   * @public
+   *
+   * Storage for @rest cache
+   *
+   */
+  cacheData: {},
+
+  /**
+   * @public
+   * Storage for interceptors functions
+   */
+  interceptors: {},
+
+  /**
+   * @public
+   * Storage for global interceptors functions
+   */
+  globalInterceptors: {},
+
+  /**
+   * @public
+   *
+   * Function saves new interceptor function which one
+   * can be executed during rest api invoking and which one's
+   * accepts @response and @promise arguments
+   *
+   * @param interceptorName
+   * @param interceptorFunction
+   */
+  interceptor: function (interceptorName, interceptorFunction, isGlobal) {
+
+    if (isGlobal) {
+
+      //Check if interceptor exists, then throws error
+      if (Rest.globalInterceptors[interceptorName]) {
+        Errors.throwError(Errors.messages.INTERCEPTOR_ALREADY_REGISTRED, [interceptorName]);
+      }
+
+      //Saves interceptor function to @interceptors
+      Rest.globalInterceptors[interceptorName] = interceptorFunction;
+
+    } else {
+
+      //Check if interceptor exists, then throws error
+      if (Rest.interceptors[interceptorName]) {
+        Errors.throwError(Errors.messages.INTERCEPTOR_ALREADY_REGISTRED, [interceptorName]);
+      }
+
+      //Saves interceptor function to @interceptors
+      Rest.interceptors[interceptorName] = interceptorFunction;
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function iterates passed interceptors (names) and
+   * invokes each interceptor function.
+   *
+   * If interceptor not exists, then throws warn
+   *
+   * @param response
+   * @param promise
+   * @param interceptors
+   */
+  invokeInterceptors: function (requestData, response, promise, interceptors) {
+
+    if (interceptors) {
+
+      for (var i = 0; i < interceptors.length; i++) {
+
+        if (!Rest.interceptors[interceptors[i]]) {
+          Errors.throwWarn(Errors.messages.INTERCEPTOR_NOT_EXISTS, [interceptors[i]]);
+        } else {
+          Rest.interceptors[interceptors[i]](response, promise, requestData);
+        }
+
+      }
+
+    }
+
+    for (var interceptorName in Rest.globalInterceptors) {
+      Rest.globalInterceptors[interceptorName](response, promise, requestData);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates and returns basic promise object
+   *
+   * @param data
+   *
+   */
+  createCachedPromise: function (url, method, interceptors) {
+
+    var data = Rest.cacheData[url + '_' + method].data;
+
+    var promise = {
+      result: data,
+      then: function (callback) {
+
+        if (promise.result) {
+          data = promise.result;
+        }
+
+        var _result = callback(data);
+
+        if (_result) {
+          promise.result = _result;
+        }
+
+        return promise;
+
+      },
+      catch: function () {
+        return promise;
+      }
+    };
+
+    Rest.invokeInterceptors({}, data, promise, interceptors);
+
+    return promise;
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Checks if endpoint is already cached, filled
+   * depends on cache type.
+   *
+   */
+  isCached: function (url, method) {
+
+    var data = Rest.cacheData[url + '_' + method];
+
+    if (Util.isNull(data)) {
+      return false;
+    }
+
+    if (data.filled === false) {
+      return false;
+    }
+
+    if (data.cacheType === 'TIME') {
+
+      if (data.cacheTime + data.cachePeriod < new Date().getTime()) {
+        return false;
+      }
+
+      return true;
+
+    } else if (data.cacheType === 'PERSIST') {
+      return true;
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes GET request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  get: function (url, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'GET', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'GET', propertiesObject.interceptors || []);
+      } else {
+        return Rest.getDelete(url, 'GET', propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes DELETE request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  delete: function (url, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'DELETE', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'DELETE', propertiesObject.interceptors || []);
+      } else {
+        return Rest.getDelete(url, 'DELETE', propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function executes PUT request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  update: function (url, request, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'PUT', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'PUT', propertiesObject.interceptors || []);
+      } else {
+        return Rest.postPut(url, 'PUT', request, propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Substitute method for @update
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  put: function (url, request, propertiesObject) {
+    return Rest.update(url, request, propertiesObject);
+  },
+
+
+  /**
+   * @public
+   *
+   * Function executes POST request
+   * Function return promise with execution params for passed @param url
+   *
+   * @param url
+   * @param propertiesObject -- optional {headers, pathParams, urlParams, interceptors}
+   *
+   */
+  post: function (url, request, propertiesObject) {
+
+    propertiesObject = propertiesObject || {};
+
+    if (typeof url === 'string') {
+
+      if (Rest.isCached(url, 'POST', propertiesObject)) {
+        return Rest.createCachedPromise(url, 'POST', propertiesObject.interceptors || []);
+      } else {
+        return Rest.postPut(url, 'POST', request, propertiesObject);
+      }
+
+    } else {
+      Errors.throwWarn(Errors.messages.CACHED_PROMISE_DEPRECADES);
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function to realize GET and DELETE methods execution using AJAX
+   * and preparing url params, path params, headers etc.
+   *
+   * Constructs promise and returns it.
+   *
+   * @param url
+   * @param method
+   * @param pathParams
+   * @param headers
+   * @param urlParams
+   *
+   */
+  getDelete: function (url, method, propertiesObject) {
+
+    var pathParams = propertiesObject.pathParams;
+    var headers = propertiesObject.headers;
+    var urlParams = propertiesObject.urlParams;
+    var interceptors = propertiesObject.interceptors || [];
+
+    var preparedUrl = url;
+
+    if (pathParams !== undefined && pathParams !== null) {
+      preparedUrl = Util.preparePathDottedParams(url, pathParams);
+
+      if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
+        Errors.throwWarn(Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
+        preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+      }
+
+    }
+
+    if (urlParams !== undefined && urlParams !== null) {
+      preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+    }
+
+    var dataType = "json";
+    var contentType = "application/json; charset=utf-8";
+
+    if (!Util.isNull(propertiesObject.cache) && Util.isNull(Rest.cacheData[url + '_' + method])) {
+      Rest.createCacheObject(url, method, propertiesObject.cache);
+    }
+
+    var promiseObj = {
+      url: preparedUrl,
+      type: method,
+      beforeSend: function () {
+
+      },
+      complete: function (xhr) {
+
+        if (!Util.isNull(propertiesObject.cache)) {
+          Rest.fillCache(url, method, xhr.responseJSON);
+        }
+
+      }
+
+    };
+
+    if(propertiesObject.async !== undefined){
+      promiseObj.async = propertiesObject.async;
+    }
+
+    if (!headers) {
+      headers = {}
+    }
+
+    if (headers['Content-Type'] !== null && headers['Content-Type'] !== undefined) {
+      contentType = headers['Content-Type'];
+    }
+
+    if (headers['Data-Type'] !== null && headers['Data-Type'] !== undefined) {
+      dataType = headers['Data-Type'];
+      headers['Data-Type'] = undefined;
+    }
+
+
+    if (headers['Content-Type'] !== null) {
+      promiseObj.contentType = headers['Content-Type'] || contentType;
+    }
+
+    if (headers['Data-Type'] !== null) {
+      promiseObj.dataType = headers['Data-Type'] || dataType;
+      headers['Data-Type'] = undefined;
+    }
+
+    var newHeaders = {};
+    for (var prop in headers) {
+      if (headers[prop] !== undefined && headers[prop] !== null) {
+        newHeaders[prop] = headers[prop];
+      }
+    }
+
+    headers = newHeaders;
+
+
+    promiseObj.headers = headers;
+
+
+    var promise = new Request(promiseObj);
+
+    var requestData = {url: url, method: method, pathParams: pathParams, urlParams: urlParams, headers: headers};
+
+    promise.then(function (result) {
+      Rest.invokeInterceptors(requestData, result, promise, interceptors);
+    });
+
+    promise.catch(function (error) {
+      Rest.invokeInterceptors(requestData, error, promise, interceptors);
+    });
+
+    return promise;
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function to realize POST and PUT methods execution using AJAX
+   * and preparing request data, url params, path params, headers etc.
+   *
+   * Constructs promise and returns it.
+   *
+   * @param url
+   * @param method
+   * @param pathParams
+   * @param headers
+   * @param urlParams
+   *
+   */
+  postPut: function (url, method, request, propertiesObject) {
+
+    var pathParams = propertiesObject.pathParams;
+    var headers = propertiesObject.headers;
+    var urlParams = propertiesObject.urlParams;
+    var interceptors = propertiesObject.interceptors || [];
+
+
+    var jsonData = JSON.stringify(request);
+
+    var preparedUrl = url;
+
+    if (pathParams !== undefined && pathParams !== null) {
+      preparedUrl = Util.preparePathDottedParams(url, pathParams);
+
+      if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
+        Errors.throwWarn(Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
+        preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+      }
+
+    }
+
+    if (urlParams !== undefined && urlParams !== null) {
+      preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+    }
+
+    var dataType = "json";
+    var contentType = "application/json; charset=utf-8";
+
+    if (!Util.isNull(propertiesObject.cache) && Util.isNull(Rest.cacheData[url + '_' + method])) {
+      Rest.createCacheObject(url, method, propertiesObject.cache);
+    }
+
+    var promiseObj = {
+      url: preparedUrl,
+      data: jsonData,
+      type: method,
+      beforeSend: function () {
+
+      },
+      complete: function (xhr) {
+
+        if (!Util.isNull(propertiesObject.cache)) {
+          Rest.fillCache(url, method, xhr.responseJSON);
+        }
+
+      }
+
+    };
+
+    if(propertiesObject.async !== undefined){
+      promiseObj.async = propertiesObject.async;
+    }
+
+    if (!headers) {
+      headers = {}
+    }
+
+    if (headers['Content-Type'] !== null && headers['Content-Type'] !== undefined) {
+      contentType = headers['Content-Type'];
+    }
+
+    if (headers['Data-Type'] !== null && headers['Data-Type'] !== undefined) {
+      dataType = headers['Data-Type'];
+      headers['Data-Type'] = undefined;
+    }
+
+
+    if (headers['Content-Type'] !== null) {
+      promiseObj.contentType = headers['Content-Type'] || contentType;
+    }
+
+    if (headers['Data-Type'] !== null) {
+      promiseObj.dataType = headers['Data-Type'] || dataType;
+      headers['Data-Type'] = undefined;
+    }
+
+    var newHeaders = {};
+    for (var prop in headers) {
+      if (headers[prop] !== undefined && headers[prop] !== null) {
+        newHeaders[prop] = headers[prop];
+      }
+    }
+
+    headers = newHeaders;
+    promiseObj.headers = headers;
+
+    var promise = new Request(promiseObj);
+
+    var requestData = {
+      url: url,
+      method: method,
+      request: request,
+      pathParams: pathParams,
+      urlParams: urlParams,
+      headers: headers
+    };
+
+    promise.then(function (result) {
+      Rest.invokeInterceptors(requestData, result, promise, interceptors);
+    });
+
+    promise.catch(function (error) {
+      Rest.invokeInterceptors(requestData, error, promise, interceptors);
+    });
+
+    return promise;
+
+  },
+
+  /**
+   * @public
+   *
+   * Fills cache with data
+   *
+   */
+  fillCache: function (url, method, data) {
+
+    Rest.cacheData[url + '_' + method].filled = true;
+    Rest.cacheData[url + '_' + method].data = data;
+    Rest.cacheData[url + '_' + method].cacheTime = new Date().getTime();
+
+  },
+
+  /**
+   * @public
+   *
+   * Creates new cache object
+   *
+   */
+  createCacheObject: function (url, method, cache) {
+
+    Rest.cacheData[url + '_' + method] = {
+      filled: false,
+      cacheTime: new Date().getTime(),
+      cacheType: cache === true ? 'PERSIST' : 'TIME',
+      cachePeriod: cache === true ? null : cache,
+      data: null
+    };
+
+  },
+
+
+}package spike.core;
+
+import Log from spike.core.Log;
+import Request from spike.core.Request;
+import Message from spike.core.Message;
+import Util from spike.core.Util;
+
+static class Message {
+
+    /**
+     * @public
+     * Information if translations has been downloaded
+     */
+    waitingForTranslations: {},
+
+    /**
+     * @public
+     * Storage for translation data
+     */
+    messages: {},
+
+    /**
+     * @public
+     *
+     * Registering new language translation from hosted file
+     * File can be hosted locally or from server
+     *
+     * @param languageName
+     * @param languageFilePath
+     */
+    add: function (languageName, languageFilePath) {
+
+        Log.log('register translation {0}', [languageName]);
+
+        this.waitingForTranslations[languageName] = false;
+
+        var promise = new Request({
+            url: languageFilePath,
+            type: 'GET'
+        });
+
+        promise.then(function (data) {
+
+            Message.setTranslation(languageName, data);
+            return data;
+
+        });
+
+        promise.catch(function (error) {
+
+            if (error.status === 200) {
+                Message.setTranslation(languageName, error.responseText);
+            } else {
+                Message.messages[languageName] = {};
+                Errors.throwWarn(Errors.messages.TRANSLATION_LOAD_WARN, [languageName, error.status]);
+            }
+
+            return error;
+
+        });
+
+        return promise;
+
+    },
+
+    setTranslation: function (languageName, translationData) {
+
+        if (typeof translationData === 'string') {
+
+            try {
+                translationData = JSON.parse(translationData);
+            } catch (err) {
+                Errors.throwError(Errors.messages.TRANSLATION_PARSING, [languageName]);
+            }
+
+        }
+
+        Message.messages[languageName] = translationData;
+        Message.waitingForTranslations[languageName] = true;
+    },
+
+
+    /**
+     * @public
+     *
+     * Function to retrieve single translation for named message
+     * using existing language from @Config.lang
+     *
+     * @param messageName
+     */
+    get: function (messageName, arrayOrMapParams) {
+
+        var message = this.messages[Config.lang][messageName];
+        if(!message){
+            Errors.throwWarn(Errors.messages.TRANSLATION_MESSAGE_NOT_FOUND, [messageName])
+        }
+
+        if(arrayOrMapParams && message){
+            message = Util.bindTranslationParams(message, arrayOrMapParams);
+        }
+
+        return message || messageName;
+    }
+
+}package spike.core;
+
+static class Templates {
+
+    templates: {},
+
+    compileTemplate: function(element, name, model){
+        return this.templates[name](element, model);
+    },
+
+}package spike.core;
+
+import Router from spike.core.Router;
+import System from spike.core.System;
+import Errors from spike.core.Errors;
+import Util from spike.core.Util;
+import Log from spike.core.Log;
+import Config from spike.core.System.config;
+
+static class Router {
+
+  /**
+   * @public
+   *
+   * Stores information about path which should be prevented
+   * to reload page
+   */
+  preventReloadPage: null,
+
+  /**
+   * @public
+   *
+   * List of registerd events to fire on route change
+   */
+  events: {},
+
+  /**
+   * @public
+   * Declares string which is used as 'OTHERWISE' URL
+   */
+  otherwiseReplacement: '!',
+
+  /**
+   * @public
+   * Declares pattern replacement for path params
+   */
+  pathParamReplacement: 'var',
+
+  /**
+   * @public
+   * Storage of routing endpoints objects
+   */
+  endpoints: {},
+
+  /**
+   * @public
+   *
+   * Defines if HTML5 mode is available
+   */
+  routerHTML5Mode: false,
+
+  /**
+   * @public
+   *
+   * Returns factory object for creating routing endpoints
+   * based on {path} and {other} functions mapped from
+   * @public pathFunction and @public otherFunction
+   *
+   */
+  getRouterFactory: function () {
+    return {
+      path: Router.pathFunction,
+      other: Router.otherFunction
+    }
+  },
+
+  /**
+   * @public
+   *
+   * Function creates starts creating new router and
+   * Returns routing creator object.
+   *
+   */
+  create: function () {
+    return Router.getRouterFactory();
+  },
+
+  /**
+   * @public
+   *
+   * Function registers otherwise endpoint.
+   * Returns routing creator.
+   *
+   * @param pathObject
+   */
+  otherFunction: function (pathObject) {
+    return Router.pathFunction(Router.otherwiseReplacement, pathObject);
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Function invokes before @pathFunction registers new endpoint in routing
+   * Developer can change path value using @pathValue nad @pathObject args
+   *
+   */
+  pathFunctionHandler: null,
+
+  /**
+   * @public
+   *
+   * Function registers routing endpoint.
+   * Checks if @pathValue and @pathObject are defined
+   * If not throws error.
+   * If defined, registers new endpoint via @public {registerPath}
+   *
+   * Returns routing creator
+   *
+   * @param pathValue
+   * @param pathObject
+   */
+  pathFunction: function (pathValue, pathObject) {
+
+    if (Util.isEmpty(pathValue) || Util.isNull(pathObject)) {
+      Errors.throwError(Errors.messages.PATH_DEFINITION);
+    }
+
+    if(Router.pathFunctionHandler){
+      pathValue = Router.pathFunctionHandler(pathValue, pathObject);
+    }
+
+    Router.registerPath(pathValue, pathObject.controller, pathObject.routingParams, pathObject.onRoute, pathObject.name, pathObject.modal, pathObject.defaultController);
+
+    return Router.getRouterFactory();
+
+  },
+
+  /**
+   * @public
+   *
+   * Function registers new routing endpoint.
+   * If endpoint with given @pathValue already exists then
+   * throws error.
+   * If not, creates given @pathValue pattern and checks
+   * if endpoint with similar pattern already exist, if exist
+   * throws error.
+   *
+   * Creates endpoint object.
+   *
+   * @param pathValue
+   * @param pathController
+   * @param routingParams
+   * @param onRouteEvent
+   *
+   */
+  registerPath: function (pathValue, pathController, routingParams, onRouteEvent, routeName, pathModal, pathModalDefaultController) {
+
+    if (Router.endpoints[pathValue]) {
+      Errors.throwError(Errors.messages.PATH_ALREADY_EXIST, [pathValue]);
+    }
+
+    if (routeName && Router.routeNameExist(routeName)) {
+      Errors.throwError(Errors.messages.ROUTE_NAME_EXIST, [routeName]);
+    }
+
+    var pathPattern = Router.createPathPattern(pathValue);
+
+    //Checks if pattern exists in set of endpoints
+    if (Router.pathPatternExist(pathPattern)) {
+      Errors.throwError(Errors.messages.PATH_PATTERN_ALREADY_EXIST, [pathValue, pathPattern.join("").split(Router.pathParamReplacement).join("/PATH_PARAM")]);
+    }
+
+    Router.endpoints[pathValue] = {
+      pathValue: pathValue,
+      controller: pathController,
+      defaultController: pathModalDefaultController,
+      modal: pathModal,
+      routingParams: routingParams,
+      onRouteEvent: onRouteEvent,
+      pathPattern: pathPattern,
+      routeName: routeName,
+      isModal: !Util.isEmpty(pathModal)
+    };
+
+  },
+
+  /**
+   * @public
+   *
+   * Finds endpoint full path by declared @routeName
+   *
+   * @param routeName
+   */
+  byName: function (routeName) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].routeName === routeName) {
+        return pathValue;
+      }
+
+    }
+
+    Errors.throwError(Errors.messages.ROUTE_NAME_NOT_EXIST, [routeName]);
+
+  },
+
+  /**
+   * @public
+   *
+   * Function checks if given @routeName already exists in registred endpoints
+   *
+   * @param routeName
+   */
+  routeNameExist: function (routeName) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].routeName === routeName) {
+        return true;
+      }
+
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function checks if path patterns already exists in set of endpoints
+   *
+   * @param pathPattern
+   */
+  pathPatternExist: function (pathPattern) {
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].pathPattern.pattern.join("") === pathPattern.pattern.join("")) {
+        return true;
+      }
+
+    }
+
+    return false;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function creates path pattern from given @pathValue
+   * Returns path pattern object containing pattern and
+   * giver @pathValue path params set
+   *
+   * @param pathValue
+   *
+   */
+  createPathPattern: function (pathValue) {
+
+    var pathPattern = {
+      pattern: [],
+      pathParams: []
+    };
+
+    //Avoid processing URL params
+    var split = pathValue.substring(0, pathValue.indexOf('?') > -1 ? pathValue.indexOf('?') : pathValue.length).split('/');
+
+    for (var i = 0; i < split.length; i++) {
+
+      if (split[i].indexOf(':') > -1) {
+        //Is path param
+        pathPattern.pathParams.push(split[i].replace(':', ''));
+        pathPattern.pattern.push(Router.pathParamReplacement)
+      } else if (split[i].trim().length > 0) {
+        pathPattern.pattern.push(split[i])
+      }
+
+    }
+
+    return pathPattern;
+
+  },
+
+  /**
+   * @public
+   *
+   * Detects history API exists and sets @routerHTML5Mode to TRUE if exists
+   *
+   */
+  detectHTML5Mode: function () {
+
+    if (window.history && window.history.pushState && Config.html5Mode === true) {
+      Router.routerHTML5Mode = true;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function initializes router.
+   * If @Config.routingEnabled is setted, then
+   * prepare browser URL to work with router.
+   *
+   * Binds hashchange event.
+   *
+   */
+  registerRouter: function () {
+
+     Log.ok('HTML5 router mode status: {0}', [Router.routerHTML5Mode]);
+
+     if (Util.isEmpty(System.routing)) {
+       Errors.throwError(Errors.messages.ROUTING_ENABLED_NOT_DEFINED, []);
+     }
+
+     if (Router.routerHTML5Mode === false && window.location.hash.substring(0, 2) !== '#/') {
+       window.location.hash = '#/';
+     }
+
+     Router.renderCurrentView();
+
+     if (Router.routerHTML5Mode === false) {
+       $(window).bind('hashchange', Router.onHashChanges);
+     }
+
+  },
+
+  /**
+   * @public
+   *
+   * Event function executes when hash changes in not html5 mode
+   */
+  onHashChanges: function (e) {
+
+    Log.debug('Executes Router.onHashChanges');
+
+    if (window.location.hash.replace('#', '') === Router.preventReloadPage) {
+      Router.preventReloadPage = null;
+      Router.fireRouteEvents(e);
+      return false;
+    }
+
+    Router.clearCacheViewData();
+
+    Router.fireRouteEvents(e);
+    Router.renderCurrentView();
+
+  },
+
+  /**
+   * @public
+   *
+   * Event function executes when history changes in html5 mode
+   */
+  onHistoryChanges: function () {
+
+    if (Router.routerHTML5Mode === true) {
+
+      Log.debug('Executes Router.onHistoryChanges');
+
+      if (Router.getPathName() === Router.preventReloadPage) {
+        Router.preventReloadPage = null;
+        Router.fireRouteEvents({});
+        return false;
+      }
+
+      Router.clearCacheViewData();
+
+      Router.fireRouteEvents({});
+      Router.renderCurrentView();
+
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Function iterate all registred events and fire them
+   */
+  fireRouteEvents: function (e) {
+
+    var currentRoute = Router.getCurrentRoute();
+
+    $.each(Router.events, function (eventName, eventFunction) {
+
+      if (eventFunction) {
+        eventFunction(e, currentRoute, app.currentController);
+      }
+
+    });
+
+  },
+
+
+  /**
+   * @public
+   *
+   * Function registers new route event fired when route changing
+   */
+  onRouteChange: function (eventName, eventFunction) {
+
+    if (Router.events[eventName]) {
+      Errors.throwWarn(Errors.messages.ROUTE_EVENT_ALREADY_REGISTRED, [eventName]);
+    }
+
+    Router.events[eventName] = eventFunction;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function unregisters route event
+   */
+  offRouteChange: function (eventName) {
+
+    if (Router.events[eventName]) {
+      Router.events[eventName] = null;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   *  Function checks if given @hashPattern so pattern created
+   *  from current browser hash matches with @endpointPattern
+   *  given from @public endpoints set
+   *
+   * @param hashPattern
+   * @param endpointPattern
+   *
+   */
+  checkPathIntegrity: function (hashPattern, endpointPattern) {
+
+    for (var i = 0; i < endpointPattern.pattern.length; i++) {
+
+      if (endpointPattern.pattern[i] !== Router.pathParamReplacement
+        && endpointPattern.pattern[i] !== hashPattern.pattern[i]) {
+        return false;
+      }
+
+    }
+
+    return true;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getURLParams: function () {
+    return Router.getURLParams();
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getURLParams: function () {
+
+    var params = {};
+
+    if (window.location.href.indexOf('?') > -1) {
+      window.location.href.substring(window.location.href.indexOf('?'), window.location.href.length).replace(/[?&]+([^=&]+)=([^&]*)/gi, function (str, key, value) {
+        params[key] = Util.tryParseNumber(value);
+
+        if (!Util.isNull(params[key]) && typeof params[key] === 'string') {
+          if (params[key].indexOf('#/') > -1) {
+            params[key] = params[key].replace('#/', '');
+          }
+        }
+
+      });
+    }
+
+    return params;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns current route path params
+   *
+   */
+  getPathParams: function () {
+    return Router.getCurrentViewData().data.pathParams;
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object containing @urlParams and
+   * @pathParams as objects. Data is retrieved from
+   * given @hashPattern based on @endpointPattern
+   *
+   *
+   *
+   * @param hashPattern
+   * @param endpointPattern
+   */
+  getPathData: function (hashPattern, endpointPattern) {
+
+    var urlParams = Router.getURLParams();
+    var pathParams = {};
+    var pathParamsIndex = 0;
+    for (var i = 0; i < endpointPattern.pattern.length; i++) {
+
+      if (endpointPattern.pattern[i] === Router.pathParamReplacement) {
+        //If path param is numeric string, then making it just number. If not, returns passed object without modifications
+        pathParams[endpointPattern.pathParams[pathParamsIndex]] = Util.tryParseNumber(hashPattern.pattern[i]);
+        pathParamsIndex++;
+      }
+
+    }
+
+    return {
+      urlParams: urlParams,
+      pathParams: pathParams,
+    };
+
+  },
+
+  /**
+   * @public
+   *
+   * Clears cached current view data
+   */
+  clearCacheViewData: function () {
+
+    Router.getCurrentViewCache = null;
+    Router.getCurrentViewDataCache = null;
+
+  },
+
+  setCacheViewData: function(type, data) {
+
+    if(type === 'DATA'){
+      Router.getCurrentViewDataCache = data;
+      Router.getCurrentViewDataRouteCache = Router.getCurrentRoute();
+    }else {
+      Router.getCurrentViewCache = data;
+      Router.getCurrentViewRouteCache = Router.getCurrentRoute();
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentView function result
+   * Restores to null on history change
+   */
+  getCurrentViewCache: null,
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentView route
+   */
+  getCurrentViewRouteCache: null,
+
+  /**
+   * @public
+   *
+   * Function gets current browser URL data
+   *
+   * Finally, for given endpoint data sets
+   * global info like @public controller, @public routingParams
+   * and @public {onRouteEfvent} properties.
+   *
+   * Returns those data.
+   */
+  getCurrentView: function () {
+
+    if (Router.getCurrentViewCache !== null && Router.getCurrentRoute() != Router.getCurrentViewRouteCache) {
+      Log.debug('Using @getCurrentViewCache cache');
+      return Router.getCurrentViewCache;
+    }
+
+    var currentEndpointObject = Router.getCurrentViewData();
+
+    var currentEndpointData = currentEndpointObject.data;
+    var currentEndpoint = currentEndpointObject.endpoint;
+
+    if (currentEndpointData === null && Router.endpoints[Router.otherwiseReplacement]) {
+
+      currentEndpointData = {
+        controller: Router.endpoints[Router.otherwiseReplacement].controller,
+        modal: Router.endpoints[Router.otherwiseReplacement].modal,
+        defaultController: Router.endpoints[Router.otherwiseReplacement].defaultController,
+        isModal: Router.endpoints[Router.otherwiseReplacement].isModal,
+        routingParams: Router.endpoints[Router.otherwiseReplacement].routingParams,
+        onRouteEvent: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
+        onRouteEventWithModal: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
+      };
+
+    } else {
+
+      if (currentEndpointData.isModal === true && !Util.isEmpty(app.previousController)) {
+        currentEndpointData.controller = app.previousController;
+      } else {
+        currentEndpointData.controller = currentEndpoint.controller;
+      }
+
+      currentEndpointData.defaultController = currentEndpoint.defaultController;
+      currentEndpointData.modal = currentEndpoint.modal;
+      currentEndpointData.isModal = currentEndpoint.isModal;
+      currentEndpointData.routingParams = currentEndpoint.routingParams;
+      currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
+      currentEndpointData.onRouteEventWithModal = function () {
+        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+      }
+
+    }
+
+    Router.setCacheViewData('VIEW', currentEndpointData);
+
+    return currentEndpointData;
+
+  },
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentViewData function result
+   * Restored to null when history change
+   */
+  getCurrentViewDataCache: null,
+
+  /**
+   * @public
+   *
+   * Stores cache of @getCurrentViewData route
+   */
+  getCurrentViewDataRouteCache: null,
+
+  /**
+   * @public
+   *
+   * Function gets current browser URL and matches it
+   * with @public endpoints.
+   *
+   * If current URL matches with any of routing declarations from
+   * @public endpoints set, then gets endpoint data.
+   *
+   * If current URL not matches then endpoint data is null.
+   *
+   * Returns those data.
+   */
+  getCurrentViewData: function () {
+
+    if (Router.getCurrentViewDataCache !== null && Router.getCurrentRoute() != Router.getCurrentViewDataRouteCache) {
+      Log.debug('Using @getCurrentViewDataCache cache');
+      return Router.getCurrentViewDataCache;
+    }
+
+    var hash = null;
+
+    if (Router.routerHTML5Mode === false) {
+      hash = window.location.hash.replace(/^#\//, '');
+    } else if (Router.getPathName().indexOf('/') > 0) {
+      hash = '/' + Router.getPathName();
+    } else {
+      hash = Router.getPathName();
+    }
+
+    var hashPattern = Router.createPathPattern(hash);
+
+    var viewData = {
+      endpoint: null,
+      data: null
+    };
+
+    for (var pathValue in Router.endpoints) {
+
+      if (Router.endpoints[pathValue].pathPattern.pattern.length === hashPattern.pattern.length
+        && Router.checkPathIntegrity(hashPattern, Router.endpoints[pathValue].pathPattern)) {
+        var currentEndpoint = Router.endpoints[pathValue];
+        var currentEndpointData = Router.getPathData(hashPattern, Router.endpoints[pathValue].pathPattern);
+
+        if (currentEndpoint.isModal === true) {
+
+          if (Util.isEmpty(app.previousController)) {
+            currentEndpoint.controller = currentEndpoint.defaultController;
+          } else {
+            currentEndpoint.controller = app.previousController;
+          }
+
+        }
+
+        viewData = {
+          endpoint: currentEndpoint,
+          data: currentEndpointData
+        };
+
+        break;
+
+      }
+
+    }
+
+    Router.setCacheViewData('DATA', viewData);
+
+    return viewData;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function applies given @pathParams to the current
+   * browser URL.
+   *
+   * If given @pathParams not contains or contains undefined
+   * or null value for specified param, then function omits it
+   *
+   * @param pathParams
+   */
+  setPathParams: function (pathParams) {
+
+    var currentViewData = Router.getCurrentViewData();
+
+    for (var pathParam in pathParams) {
+
+      if (currentViewData.data.pathParams[pathParam]
+        && !Util.isNull(pathParams[pathParam])) {
+        currentViewData.data.pathParams[pathParam] = pathParams[pathParam];
+      }
+
+    }
+
+    Router.redirectToView(currentViewData.endpoint.pathValue, currentViewData.data.pathParams, currentViewData.data.urlParams, true);
+
+
+  },
+
+  /**
+   * @public
+   *
+   * Function applies given @urlParams to the current
+   * browser URL
+   *
+   * If given @urlParams not contains or contains undefined
+   * or null value for specified param, then function omits it
+   *
+   *
+   *
+   * @param urlParams
+   */
+  setURLParams: function (urlParams) {
+
+    var currentViewData = Router.getCurrentViewData();
+
+    var newURLParams = {};
+
+    for (var urlParam in urlParams) {
+
+      if (urlParams[urlParam] !== null) {
+        newURLParams[urlParam] = urlParams[urlParam];
+      }
+
+    }
+
+    currentViewData.data.urlParams = newURLParams;
+
+    Router.redirectToView(currentViewData.endpoint.pathValue, currentViewData.data.pathParams, currentViewData.data.urlParams, true);
+
+  },
+
+  /**
+   * @public
+   *
+   * Function returns current URI
+   *
+   */
+  getCurrentRoute: function () {
+
+    if (Router.routerHTML5Mode === true) {
+      return Router.getPathName().substring(1, Router.getPathName().length);
+    }
+
+    return window.location.hash.replace('#/', '');
+
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Function invokes after preparing path in @_redirectToView function
+   * Developer can change @path value using given arguments
+   */
+  redirectToViewHandler: null,
+
+  /**
+   * @public
+   *
+   * Function redirects to given @path defined in @Config.routing
+   * object and applies given @pathParams and @urlParams to @path
+   *
+   * @param path
+   * @param pathParams
+   * @param urlParams
+   */
+  redirectToView: function (path, pathParams, urlParams, preventReloadPage) {
+
+    Router.clearCacheViewData();
+
+    if (!path) {
+      Errors.throwError(Errors.messages.REDIRECT_NO_PATH);
+    }
+
+    path = path.replace('#/', '/');
+
+    if (path[0] !== '/') {
+      path = '/' + path;
+    }
+
+    path = Util.preparePathDottedParams(path, pathParams);
+    path = Util.prepareUrlParams(path, urlParams);
+
+    if(Router.redirectToViewHandler){
+     path = Router.redirectToViewHandler(path, pathParams, urlParams, preventReloadPage);
+    }
+    if (preventReloadPage === true) {
+      Router.preventReloadPage = path;
+    }
+
+    if (Router.routerHTML5Mode === true) {
+      Router.pushState(path);
+    } else {
+      window.location.hash = path;
+    }
+
+  },
+
+  /**
+   * @public
+   *
+   * Wrapper for history.pushState
+   */
+  pushState: function (path) {
+    history.pushState({state: path}, null, path);
+  },
+
+  /**
+   * @public
+   *
+   * Substitute function to @getCurrentViewData
+   */
+  getViewData: function () {
+    var currentViewData = Router.getCurrentViewData();
+    return $.extend({}, currentViewData.endpoint, currentViewData.data);
+  },
+
+  /**
+   * @public
+   *
+   * Substitute function to @renderCurrentView
+   */
+  reloadView: function () {
+    Router.renderCurrentView();
+  },
+
+  /**
+   * @public
+   *
+   * Function retrieves current view data from current browser URL
+   * and renders matched endpoint  defined in @Config.routing
+   *
+   */
+  renderCurrentView: function () {
+
+    var currentEndpointData = Router.getCurrentView();
+    Log.debug('current view to render {0}', [currentEndpointData]);
+
+    if (currentEndpointData.isModal === true) {
+
+      Log.debug('rendering controller & modal, previous controller: ' + app.previousController);
+
+      if (app.previousController === null) {
+
+        Log.debug('rendering controller & modal, default controller: ' + currentEndpointData.defaultController);
+
+        System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteEventWithModal);
+      } else {
+        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+        Router.refreshCurrentHyperlinkCache();
+      }
+
+    } else {
+      System.render(currentEndpointData.controller, currentEndpointData, currentEndpointData.onRouteEvent);
+    }
+
+    app.previousController = currentEndpointData.controller;
+
+  },
+
+  /**
+   * @public
+   *
+   * Refresh all hyperlinks on page redirecting to modals
+   * Refresh for current route only
+   *
+   */
+  refreshCurrentHyperlinkCache: function () {
+
+    var currentEndpoint = Router.getCurrentViewData();
+
+    var timestamp = new Date().getTime();
+
+    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
+
+      var hyperLinkUrl = $(this).attr('href');
+
+      if (hyperLinkUrl.indexOf('?') > -1) {
+        hyperLinkUrl += '&t=' + timestamp;
+      } else {
+        hyperLinkUrl += '?t=' + timestamp;
+      }
+
+      $(this).attr('href', hyperLinkUrl);
+
+    });
+
+  },
+
+  /**
+   * @public
+   *
+   * Returns path value without path params
+   *
+   * @param pathValue
+   */
+  getPathValueWithoutParams: function (pathValue) {
+
+    if (pathValue.indexOf(':') > -1) {
+      return pathValue.substring(0, pathValue.indexOf(':'));
+    }
+
+    return pathValue;
+
+  },
+
+  /**
+   * @public
+   *
+   * Renders controller based on passed @path param
+   * declared in @Config.routing
+   *
+   * Optionally can apply @pathParams and @urlParams
+   *
+   * Window location will be set
+   *
+   * @param path
+   * @param pathParams
+   * @param urlParams
+   */
+  redirect: function (path, pathParams, urlParams, preventReloadPage) {
+    Router.redirectToView(path, pathParams, urlParams, preventReloadPage);
+  },
+
+  /**
+   * @public
+   *
+   * Renders controller based on passed @path param
+   * declared in @Config.routing
+   *
+   * Optionally can apply @pathParams and @urlParams
+   *
+   * Window location will be set
+   *
+   * @param routeName
+   * @param pathParams
+   * @param urlParams
+   */
+  redirectByName: function (routeName, pathParams, urlParams, preventReloadPage) {
+    Router.redirectToView(Router.byName(routeName), pathParams, urlParams, preventReloadPage);
+  },
+
+  /**
+   * @public
+   *
+   * Opens given URL/URI using window.location or window.open
+   * if @redirectType provided
+   *
+   * @param url
+   * @param redirectType
+   */
+  location: function (url, redirectType) {
+
+    Router.clearCacheViewData();
+
+    if (redirectType) {
+
+      redirectType = redirectType.toLowerCase();
+
+      if (redirectType.indexOf('blank') > -1) {
+        redirectType = '_blank';
+      } else if (redirectType.indexOf('self') > -1) {
+        redirectType = '_self';
+      } else if (redirectType.indexOf('parent') > -1) {
+        redirectType = '_parent';
+      } else if (redirectType.indexOf('top') > -1) {
+        redirectType = '_top';
+      }
+
+      window.open(url, redirectType);
+
+    } else {
+      window.location = url;
+    }
+
+  },
+
+  /**
+   * @public
+   * @ToImplement
+   *
+   * Handler for @createLink function which is invoked before returning path
+   */
+  createLinkHandler: null,
+
+  /**
+   * @public
+   *
+   * Prepares passed @path as relative link accepted by router
+   *
+   * @param path
+   */
+  createLink: function (path, pathParams, urlParams) {
+
+    if (Router.routerHTML5Mode === false) {
+
+      if (path.substring(0, 1) === '/') {
+        path = '#' + path;
+      } else if (path.substring(0, 1) !== '#') {
+        path = '#/' + path;
+      }
+
+    }
+
+    path = Util.preparePathDottedParams(path, pathParams);
+    path = Util.prepareUrlParams(path, urlParams);
+
+    if(Router.createLinkHandler){
+      path = Router.createLinkHandler(path, pathParams, urlParams);
+    }
+
+    return path;
+
+  },
+
+  /**
+   * @public
+   *
+   * Function forces going to previous page
+   *
+   */
+  back: function () {
+    window.history.go(-1);
+  },
+
+  /**
+   * Return current pathname
+   * Can be overriden for custom purposes
+   *
+   * @returns {string}
+   */
+  getPathName: function(){
+    return window.location.pathname;
+  },
+
+  /**
+     * @public
+     *
+     * Finds all @a elements
+     * in given (root) selector.
+     *
+     * Binds @click event to prevent default browser navigation
+     * and use @Router.redirect or @Router.locations
+     *
+     * @param rootSelector
+     */
+  bindLinks: function(element){
+
+    for(var i = 0; i < element.childElements.length; i++){
+
+        this.bindLinksForElement(element.childElements[i]);
+
+        if(element.childElements[i].length > 0){
+            this.bindEvents(element.childElements[i]);
+        }
+
+    }
+
+  },
+
+  bindLinksForElement: function (element) {
+
+    for(var i = 0; i < element.linksSelectors.length; i++){
+
+        var selector = document.getElementById(element.linksSelectors[i]);
+
+        element.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            var link = this.getAttribute('href');
+
+            if (Router.routerHTML5Mode === true) {
+              link = link.replace('#', '');
+
+              if (link.trim() === '') {
+                link = '/';
+              }
+
+            } else {
+
+              if (link.trim() === '') {
+                link = '/#/';
+              }
+
+            }
+
+            if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
+              Router.location(link,this.getAttribute('target') || '_blank');
+            } else {
+              Router.redirect(link);
+            }
+
+        });
+
+    }
+
+  }
+
+}
+
+
+package spike.core;
+
+import System from spike.core.System;
+import Config from spike.core.System.config;
+import Templates from spike.core.Templates;
+
+class Element {
+
+    rendered: false,
+
+    model: null,
+    elementId: null,
+    elementSelector: null,
+
+    compiledHtml: null,
+
+    parentElement: null,
+    childElements: [],
+
+    selector: {},
+    eventsSelectors: [],
+    linksSelectors: [],
+
+    rootSelector: function(){
+
+        if(this.elementSelector === null){
+            this.elementSelector = document.getElementById(this.elementId);
+        }
+
+        return document.getElementById(elementId);
+    },
+
+    Element: function(parentElement, model){
+
+        this.parentElement = parentElement;
+        this.model = model;
+
+        this.createTemplatePath();
+        this.createTemplate();
+
+        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
+        //System.bindLinks(componentSelector);
+
+//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
+//            this.init();
+//         }
+
+    },
+
+    //W templatce powinno konwertowac na ' + this.include(new app.elements.SomeElement(this, model)) + '
+    include: function(childElement){
+
+        this.childElements.push(childElement);
+        this.createTemplatePath();
+        this.createTemplate();
+
+        return this.compiledHtml;
+
+    },
+
+    createTemplatePath: function(){
+
+        this.templatePath = '';
+
+        var elementPath = this.getClass().split('.');
+
+        for(var i = 0; i < elementPath.length; i++){
+            this.templatePath += elementPath[i].toLowerCase()+'/';
+        }
+
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('/')-1)+'.html';
+
+        return this.templatePath;
+
+    },
+
+    createTemplate: function () {
+
+     try {
+        this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
+     }catch (err){
+        Errors.throwError('Error occur when executing component {0} template {1}', [this.getClass(), this.templatePath]);
+     }
+
+     var selectorsObj = System.createUniqueSelectors(this.compiledHtml);
+
+     this.compiledHtml = selectorsObj.html;
+     this.selector = selectorsObj.selectors;
+     this.eventsSelectors = selectorsObj.eventsSelectors;
+     this.linksSelectors = selectorsObj.linksSelectors;
+
+
+    },
+
+    render: function () {
+    },
+
+    reloadComponent: function(component, componentData){
+    //TODO
+    },
+
+    replaceWith: function () {
+
+        var elementDiv = document.createElement("div");
+        elementDiv.innerHTML = this.compiledHtml;
+        elementDiv.setAttribute('element-name', this.getClass());
+        elementDiv.setAttribute('id', this.elementId);
+        this.rootSelector().parentNode.replaceChild(elementDiv, this.rootSelector());
+
+        this.elementSelector = null;
+
+    }
+
+}package spike.core;
+
+import System from spike.core.System;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
+import Element from spike.core.Element;
+
+class GlobalElement extends Element {
+
+    GlobalElement: function(){
+
+        this.elementSelector = document.body;
+        this.createTemplatePath();
+        this.createTemplate();
+
+    },
+
+    render: function(){
+
+        this.replaceWith();
+
+        Events.bindEvents(this);
+        Router.bindLinks(this);
+
+        this.rendered = true;
+
+        if(this.init !== undefined){
+            this.init();
+        }
+
+    }
+
+}package spike.core;
+
+import System from spike.core.System;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
+import Element from spike.core.Element;
+
+class Controller extends Element {
+
+    scrollTop: true,
+    checkNetwork: true,
+
+    Controller: function(model){
+
+        this.model = model;
+        this.elementSelector = System.getView();
+        this.createTemplatePath();
+        this.createTemplate();
+
+    },
+
+    render: function(){
+
+        this.replaceWith();
+
+        Events.bindEvents(this);
+        Router.bindLinks(this);
+
+        this.rendered = true;
+
+        if(this.init !== undefined){
+            this.init();
+        }
+
+    }
+
+}package spike.core;
+
+import Log from spike.core.Log;
+import System from spike.core.System;
+import Errors from spike.core.Errors;
+import ModalInterface from spike.core.System.modalInterface;
+import Element from spike.core.Element;
+
+class Modal extends Element {
+
+    destroyed: false,
+
+    Modal: function(model){
+
+        this.parentElement = System.getModalsView();
+        this.model = model;
+
+        this.createTemplatePath();
+        this.createTemplate();
+
+        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
+        //System.bindLinks(componentSelector);
+
+//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
+//            this.init();
+//         }
+
+    },
+
+    show: function(){
+        ModalInterface.onShow();
+    },
+
+    hide: function(){
+        ModalInterface.onHide();
+    },
+
+    destroy: function () {
+        this.destroyed = true;
+    },
+
+
+};package spike.core;
+
+import Errors from spike.core.Errors;
+import Util from spike.core.Util;
+
+static class Broadcaster {
+
+    /**
+     * @public
+     *
+     * Storage for all events created by developer
+     *
+     */
+    applicationEvents: {},
+
+    /**
+     * @public
+     *
+     * Registers new event with given name.
+     * Events should be registred manually to avoid events spagetti
+     *
+     * If event with given name exists, then throws error
+     *
+     * @param eventName
+     */
+    register: function (eventName) {
+
+        if (!Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_ALREADY_EXIST, [eventName]);
+        }
+
+        this.applicationEvents[eventName] = [];
+
+    },
+
+    /**
+     * @public
+     *
+     * Broadcast event with given name and given data across
+     * all registred and @on declared events
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     * @param eventData
+     */
+    broadcast: function (eventName, eventData) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        for(var i = 0; i < this.applicationEvents[eventName].length; i++){
+            this.applicationEvents[eventName][i](eventData);
+        }
+
+    },
+
+    /**
+     * @public
+     *
+     * Catches all @broadcasted events with given name and executes
+     * given event callback with @eventData as argument
+     *
+     * Checks if event listener is already reigstred, then
+     * prevents duplicating it.
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     * @param eventData
+     */
+    listen: function (eventName, eventCallback) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        if (Util.isNull(eventCallback)) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_CALLBACK_NULL, [eventName]);
+        }
+
+        var isAlreadyRegisteredListener = false;
+
+        for(var i = 0; i < this.applicationEvents[eventName].length; i++){
+
+            if(this.applicationEvents[eventName][i].toString() === eventCallback.toString()){
+                isAlreadyRegisteredListener = true;
+            }
+
+        }
+
+        if(isAlreadyRegisteredListener === false){
+            this.applicationEvents[eventName].push(eventCallback);
+        }
+
+    },
+
+    /**
+     * @public
+     *
+     * Removes all events listeners for given @eventName
+     *
+     * If event with given name not exists, then throws error
+     *
+     * @param eventName
+     */
+    destroy: function (eventName) {
+
+        if (Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwError(Errors.messages.APPLICATION_EVENT_NOT_EXIST, [eventName]);
+        }
+
+        this.applicationEvents[eventName] = [];
+
+    }
+
+}
