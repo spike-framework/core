@@ -748,6 +748,8 @@ static class System {
    */
   init: function () {
 
+    Log.init();
+
     this.loader = Assembler.findLoaderClass();
     this.loader.loadApplication();
 
@@ -816,6 +818,11 @@ import Util from spike.core.Util;
 
 static class Log {
 
+  init: function(){
+      if (!window.console) window.console = {};
+      if (!window.console.log) window.console.log = function () { };
+  },
+
   /**
    * @public
    *
@@ -842,7 +849,7 @@ static class Log {
   log: function (logMessage, logData) {
 
     if (Config.showLog) {
-      app.print(logMessage, logData, 'LOG');
+      this.print(logMessage, logData, 'LOG');
     }
 
   },
@@ -858,8 +865,9 @@ static class Log {
   error: function (errorMessage, errorData) {
 
     if (Config.showError) {
-      app.print(errorMessage, errorData, 'ERROR');
+      this.print(errorMessage, errorData, 'ERROR');
     }
+
   },
 
   /**
@@ -875,7 +883,7 @@ static class Log {
   debug: function (debugMessage, debugData) {
 
     if (Config.showDebug) {
-      app.print(debugMessage, debugData, 'DEBUG');
+      this.print(debugMessage, debugData, 'DEBUG');
     }
 
   },
@@ -891,7 +899,7 @@ static class Log {
   warn: function (warnMessage, warnData) {
 
     if (Config.showWarn) {
-      app.print(warnMessage, warnData, 'WARN');
+      this.print(warnMessage, warnData, 'WARN');
     }
 
   },
@@ -907,7 +915,7 @@ static class Log {
   ok: function (okMessage, okData) {
 
     if (Config.showOk) {
-      app.print(okMessage, okData, 'OK');
+      this.print(okMessage, okData, 'OK');
     }
 
   },

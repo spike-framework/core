@@ -302,6 +302,8 @@ static class System {
    */
   init: function () {
 
+    Log.init();
+
     this.loader = Assembler.findLoaderClass();
     this.loader.loadApplication();
 

@@ -31,187 +31,130 @@
 
 <script>
 
-    var spike = { core: {} };
-
-    spike.core.Request_config_array = function (config, array) {
-        this.config = config;
-        this.array = array;
+    var Templates = {
+      templates: {}
     };
-    spike.core.Request_config = function (config) {
 
-        this.config = this.setConfig(config);
-        this.xhr = this.createXHR();
-
-        this.setEvents();
-        this.setHeaders();
-
-        this.config.beforeSend();
-        this.xhr.send(this.config.data);
-
-    };
-    spike.core.Request = function () {
-    };
-    spike.core.Request.prototype.config = null;
-    spike.core.Request.prototype.xhr = null;
-    spike.core.Request.prototype.catchCallbacks = [];
-    spike.core.Request.prototype.thenCallbacks = [];
-    spike.core.Request.prototype.response = null;
-    spike.core.Request.prototype.responseType = 'json';
-    spike.core.Request.prototype.STATUS = {
-        DONE: 4,
-        LOADING: 3,
-        HEADERS_RECEIVED: 2,
-        OPENED: 1,
-        UNSENT: 0
-    };
-    spike.core.Request.prototype.setConfig = function (config) {
-        var $this = this;
-
-        if (config === undefined || config === null) {
-            spike.core.Errors.throwError(spike.core.Errors.messages.REQUEST_WRONG_PARAMS, []);
+    Templates.templates['templates_input_iiner_techDemo_partial_html'] = function (scope) {
+      var t = '';
+      t += '<div class="testClass">   ' + scope.person.name;
+      t += '<div>';
+      t += scope.person.name;
+      t += '</div>';
+      t += '<div>';
+      t += scope.person.name;
+      t += '</div> ' + app.component.Menu.getCategories(scope.pageTitle);
+      t += '<div>';
+      t += app.message.get('test_translation');
+      t += '</div>';
+      t += '<div>';
+      t += app.message.get('test_translation_with_params', [scope.person.id, scope.person.name]);
+      t += '</div>';
+      t += '<div>';
+      t += app.message.get('' + $message.get('test_translation') + '');
+      t += '</div>';
+      t += '<div>';
+      t += app.message.get('test_placeholder');
+      t += '</div>';
+      t += '<div>';
+      t += app.message.get('test_placeholder', [scope.person.id, scope.person.name]);
+      t += '</div>';
+      t += '<input placeholder="' + $message.get('test_placeholder') + '">';
+      if (scope.user.id > 10) {
+        if (scope.user.id > 11) {
+          t += '<span>Show me if user id > 11</span>';
         }
-
-        if (config.url === undefined || config.type === undefined) {
-            spike.core.Errors.throwError(spike.core.Errors.messages.REQUEST_WRONG_PARAMS, []);
-        }
-
-        if (config.headers === undefined) {
-            config.headers = {};
-        }
-
-        if (config.contentType === undefined) {
-            config.headers['Content-Type'] = 'application/json';
-        }
-
-        if (config.data === undefined) {
-            config.data = {};
-        }
-
-        if (typeof config.data === 'string') {
-
-            try {
-                config.data = JSON.parse(config.data);
-            } catch (e) {
-                spike.core.Errors.thrownError(spike.core.Errors.JSON_PARSE_ERROR, [config.url]);
-            }
-
-        }
-
-        if (config.beforeSend === undefined) {
-            config.beforeSend = function () {
-            };
-        }
-
-        if (config.complete === undefined) {
-            config.complete = function () {
-            };
-        }
-
-        return config;
-
-    };
-    spike.core.Request.prototype.setEvents = function () {
-        var $this = this;
-
-        this.xhr.open(this.config.type, this.config.url, true);
-
-        var self = this;
-        this.xhr.onreadystatechange = function () {
-
-            if (self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 200) {
-
-                if (self.responseType === 'json') {
-
-                    try {
-                        self.response = JSON.parse(self.xhr.responseText);
-                        self.resolveThen(self.response, self.xhr, self.xhr.status);
-                    } catch (e) {
-                        self.resolveCatch(self.xhr, 0, e);
-                    }
-
-
-                } else if (self.responseType === 'xml') {
-                    self.resolveThen(self.xhr.responseXML, self.xhr, self.xhr.status);
-                }
-
-            } else if (self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 204) {
-                self.resolveThen(null, self.xhr, self.xhr.status);
-            } else if (self.xhr.readyState === self.STATUS.DONE && self.xhr.status !== 200) {
-                self.resolveCatch(self.xhr, self.xhr.status, new Error('Response error: ' + self.xhr.status));
-            }
-
-        };
-
-
-    };
-    spike.core.Request.prototype.setHeaders = function () {
-        var $this = this;
-
-        this.xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-        for (var headerName in this.config.headers) {
-            this.xhr.setRequestHeader(headerName, this.config.headers[headerName]);
-        }
-
-        if (this.config.headers['Content-Type'].indexOf('xml') > -1) {
-            this.responseType = 'xml';
-        }
-
-    };
-    spike.core.Request.prototype.then = function (callback) {
-        var $this = this;
-        this.thenCallbacks.push(callback);
-        return this;
-    };
-    spike.core.Request.prototype.resolveThen = function (response, xhr, status) {
-        var $this = this;
-
-        for (var i = 0; i < this.thenCallbacks.length; i++) {
-            this.thenCallbacks[i](response, xhr, status);
-        }
-
-    };
-    spike.core.Request.prototype.catch = function (callback) {
-        var $this = this;
-        this.catchCallbacks.push(callback);
-        return this;
-    };
-    spike.core.Request.prototype.resolveCatch = function (xhr, status, thrownError) {
-        var $this = this;
-
-        for (var i = 0; i < this.catchCallbacks.length; i++) {
-            this.catchCallbacks[i](xhr, status, thrownError);
-        }
-
-    };
-    spike.core.Request.prototype.createXHR = function () {
-        var $this = this;
-
-        var xhr;
-        if (window.XMLHttpRequest) {
-            xhr = new XMLHttpRequest();
-        } else if (window.ActiveXObject) {
-            try {
-                xhr = new ActiveXObject("Msxml2.XMLHTTP");
-            } catch (e) {
-                xhr = new ActiveXObject("Microsoft.XMLHTTP");
-            }
-        }
-
-        return xhr;
-
-    };
-    spike.core.Request.prototype.getSuper = function () {
-        var $this = this;
-        return 'null';
-    };
-    spike.core.Request.prototype.getClass = function () {
-        var $this = this;
-        return 'spike.core.Request';
-    };
-    spike.core.Request_config_array.prototype = spike.core.Request.prototype;
-    spike.core.Request_config.prototype = spike.core.Request.prototype;
-
+        t += 'Show me if user id > 10';
+        t += '<div>';
+        t += 'Some inner child 1';
+        t += '</div>';
+        t += '<div>';
+        t += 'Some inner child 2';
+        t += '</div>';
+      }
+      if (scope.user.id < 10) {
+        t += '<div>';
+        t += 'Remove me if user id > 10';
+        t += '<div>';
+        t += 'Some inner child 1';
+        t += '</div>';
+        t += '<div>';
+        t += 'Some inner child 2';
+        t += '</div>';
+        t += '</div>';
+      }
+      if (scope.user.id > 10) {
+        t += 'Show me if user id > 10';
+      } else {
+        t += 'Show me if first statement false';
+      }
+      if (scope.user.id > 10) {
+        t += 'Show me if user id > 10';
+        t += '<div id="dsd"></div>';
+      } else if (scope.user.id < 5) {
+        t += 'Show me if user id < 5';
+      } else {
+        t += 'Show me if first statement false';
+      }
+      switch (scope.status) {
+        case 200 :
+          t += '<div class="success">';
+          t += 'OK';
+          t += '</div>';
+          break;
+        case 'error' :
+        case 404 :
+          t += '<div class="error">';
+          t += 'ERROR';
+          t += '</div>';
+          defaultt += '<div class="error">';
+          t += 'ERROR';
+          t += '</div>';
+      }
+      for (var index = 0; i < scope.names.length; index++) {
+        t += '<p>Name: ' + user.name + '</p>';
+      }
+      for (var index = 0; i < scope.names.length; index++) {
+        t += '<p>Index: ' + index + '; Name: ' + user.name + '</p>';
+      }
+      for (var index = 0; i < scope.names.length; index++) {
+        t += '<div>';
+        t += '<p>Index: ' + index + '; Name: ' + user.name + '</p>';
+        t += '</div>';
+      }
+      var __index1 = 0;
+      for (var __prop1 in scope.names) {
+        var user = scope.names[__prop1];
+        t += '<p>Name: ' + user.name + '</p>';
+        __index1++;
+      }
+      var index = 0;
+      for (var __prop2 in scope.names) {
+        var user = scope.names[__prop2];
+        t += '<p>Index: ' + index + '; Name: ' + user.name + '</p>';
+        index++;
+      }
+      var index = 0;
+      for (var __prop2 in scope.names) {
+        var user = scope.names[__prop2];
+        t += '<div>';
+        t += '<p>Index: ' + index + '; Name: ' + user.name + '</p>';
+        t += '</div>';
+        index++;
+      }
+      t += 'while(scope.count < 10){';
+      scope.count++
+      t += '}';
+      t += '<button spike-unbinded="" spike-event-click="app.router.location(' + "'" + '/post/1' + "'" + ')" id="spike-event-1">Click me</button>';
+      t += '<select spike-unbinded="" spike-event-change="app.component.Menu.changeOption(event)" id="spike-event-2"> <option value="1">Test</option> </select>  @template(templateName)  ' + app.partial.include($somePartial, {user: scope.user}) + ' ' + app.partial.include($somePartial, {});
+      var demo = 'test'
+      var declareObject = {name: "Ok", id: 5,};
+      var x = 'kk';
+      var c = "OK";
+      t += '<a spike-href="some.html">Some link</a>';
+      t += '</div>';
+      return t;
+    }
 
 </script>
 </body>
