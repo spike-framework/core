@@ -4,17 +4,49 @@ var spike = {
 
 spike.core.Assembler = {
 
+    constructorsMap: {},
+
     templatesLoaded: false,
     appLoaded: false,
 
+    totalNamespaces: 0,
     namespacesCount: 0,
 
     staticClasses: {},
     objectiveClasses: {},
 
+    dependenciesFn: null,
+    spikeLoading: false,
+
+    setConstructorsMap: function(constructorsMap){
+        this.constructorsMap = this.extend(this.constructorsMap, constructorsMap);
+    },
+
+    resetNamespaces: function (namespacesCount, package) {
+        this.totalNamespaces = namespacesCount;
+        this.namespacesCount = 0;
+        this.dependenciesFn = null;
+        this.spikeLoading = false;
+
+        if (package === 'spike.core') {
+            this.spikeLoading = true;
+        } else {
+            this.staticClasses = {};
+            this.objectiveClasses = {};
+        }
+
+    },
+
+
     /**
      var newObjectShallow = extend(object1, object2, object3);
      var newObjectDeep = extend(true, object1, object2, object3);
+
+
+     UWAGA!!!! TRZEBA WYKLUCZYC FUNKCJE O NAZWACH getSuper i getClass BO SIE NADPISZA
+     ZROBIONE
+     SPRAWDZIC W TESTACH
+
      */
     extend: function () {
         var extended = {};
@@ -30,11 +62,17 @@ spike.core.Assembler = {
         var merge = function (obj) {
             for (var prop in obj) {
                 if (Object.prototype.hasOwnProperty.call(obj, prop)) {
-                    if (deep && Object.prototype.toString.call(obj[prop]) === '[object Object]') {
-                        extended[prop] = extend(true, extended[prop], obj[prop]);
-                    } else {
-                        extended[prop] = obj[prop];
+
+                    if (prop !== 'getSuper' && prop !== 'getClass') {
+
+                        if (deep && Object.prototype.toString.call(obj[prop]) === '[object Object]') {
+                            extended[prop] = extend(true, extended[prop], obj[prop]);
+                        } else {
+                            extended[prop] = obj[prop];
+                        }
+
                     }
+
                 }
             }
         };
@@ -47,6 +85,11 @@ spike.core.Assembler = {
         return extended;
     },
 
+    dependencies: function (dependenciesFn) {
+        this.dependenciesFn = dependenciesFn;
+        this.checkIfCanBootstrap();
+    },
+
     getDotPath: function (package) {
 
         var obj = window;
@@ -54,7 +97,7 @@ spike.core.Assembler = {
         package = package.split(".");
         for (var i = 0, l = package.length; i < l; i++) {
 
-            if(obj[package[i]] === undefined){
+            if (obj[package[i]] === undefined) {
                 break;
             }
 
@@ -72,7 +115,7 @@ spike.core.Assembler = {
             throw new Error();
         }
 
-      //  package = package.substring(4, package.length);
+        //  package = package.substring(4, package.length);
 
 
         var createNodesFnBody = '';
@@ -102,46 +145,43 @@ spike.core.Assembler = {
             this.createDotPath(package + '.' + names[i], null);
         }
 
-        //     namespaceCreator();
-        // }else{
-            this.objectiveClasses[package + '.' + names[0]] = namespaceCreator;
-
-        this.checkIfCanBootstrap();
+        this.objectiveClasses[package + '.' + names[0]] = namespaceCreator;
 
     },
 
     createStaticClass: function (package, name, inherits, classBody) {
 
-        if(name.indexOf(package) > -1){
-            name = name.replace(package+'.', '');
+        if (name.indexOf(package) > -1) {
+            name = name.replace(package + '.', '');
         }
 
         this.namespacesCount++;
         this.createDotPath(package + '.' + name, null);
 
-        if (inherits === null) {
-            inherits = {};
-        } else {
-            inherits = this.getDotPath(inherits);
-        }
+        // if (inherits === null) {
+        //     inherits = {};
+        // } else {
+        //     inherits = this.getDotPath(inherits);
+        // }
 
-        //if(package.indexOf('spike.core') > -1){
-        //     this.createDotPath(package + '.' + name, this.extend({}, inherits, classBody));
-        // }else{
-            this.staticClasses[package + '.' + name] = { package: package + '.' + name, inherits: inherits, classBody: classBody };
-      //  }
+        this.staticClasses[package + '.' + name] = classBody;
 
-        this.checkIfCanBootstrap();
+        //
+        // this.staticClasses[package + '.' + name] = {
+        //     package: package + '.' + name,
+        //     inherits: inherits,
+        //     classBody: classBody
+        // };
 
     },
 
 
-    checkIfCanBootstrap: function(){
+    checkIfCanBootstrap: function () {
 
-        if(this.namespacesCount === window.__spike_tn){
+        if (this.namespacesCount === this.totalNamespaces && this.dependenciesFn) {
             this.bootstrap();
 
-            if(this.appLoaded === true){
+            if (this.appLoaded === true && this.spikeLoading == false) {
                 spike.core.System.init();
             }
 
@@ -149,55 +189,39 @@ spike.core.Assembler = {
 
     },
 
-    bootstrap: function(){
+    bootstrap: function () {
 
-        var arrayOrder = [];
-        var mapOrdered = {};
-        var orderPrefix = 0;
-
-        for(var className in this.staticClasses){
-
-            var classDefinition = this.staticClasses[className];
-            mapOrdered[orderPrefix+'_'+Object.keys(classDefinition.inherits).length] = classDefinition;
-            arrayOrder.push(orderPrefix+'_'+Object.keys(classDefinition.inherits).length);
-
-            orderPrefix++;
+        for (var className in this.staticClasses) {
+            this.createDotPath(className, this.staticClasses[className]);
         }
 
-        arrayOrder.sort(function(a,b){
-            return a.split('_')[1] > b.split('_')[1] ? 1 : -1;
-        });
-
-        for(var i = 0; i < arrayOrder.length; i++){
-            this.createDotPath(mapOrdered[arrayOrder[i]].package, this.extend({}, mapOrdered[arrayOrder[i]].inherits, mapOrdered[arrayOrder[i]].classBody));
-        }
-
-        for(var className in this.objectiveClasses){
+        for (var className in this.objectiveClasses) {
             this.objectiveClasses[className]();
         }
 
+        this.dependenciesFn();
         this.loadTemplates();
 
     },
 
-    loadTemplates: function(){
+    loadTemplates: function () {
 
         var self = this;
 
-        if(this.templatesLoaded === false){
+        if (this.templatesLoaded === false) {
 
-            if(document.querySelector('[templates-src]') === null){
+            if (document.querySelector('[templates-src]') === null) {
                 throw new Error('Spike Framework: Cannot find script tag with templates-src definition')
             }
 
-            if(document.querySelector('[app-src]') === null){
+            if (document.querySelector('[app-src]') === null) {
                 throw new Error('Spike Framework: Cannot find script tag with app-src definition')
             }
 
             var script = document.createElement("script");
             script.type = "application/javascript";
             script.src = document.querySelector('[templates-src]').getAttribute('templates-src');
-            script.onload = function(){
+            script.onload = function () {
                 self.templatesLoaded = true;
 
                 self.namespacesCount = 0;
@@ -215,24 +239,24 @@ spike.core.Assembler = {
 
     },
 
-    findLoaderClass: function(){
+    findLoaderClass: function () {
 
-        for(var className in this.objectiveClasses){
+        for (var className in this.objectiveClasses) {
 
-            if(this.objectiveClasses[className].toString().indexOf('LoaderInterface.apply') > -1){
+            if (this.objectiveClasses[className].toString().indexOf('return \'spike.core.LoaderInterface\'') > -1) {
 
-               var loader = window;
+                var loader = window;
 
-               var split = className.split('.');
-               for(var i = 0; i < split.length; i++){
+                var split = className.split('.');
+                for (var i = 0; i < split.length; i++) {
 
-                   loader = loader[split[i]];
+                    loader = loader[split[i]];
 
-               }
+                }
 
-               loader = new loader();
+                loader = new loader();
 
-               return  loader;
+                return loader;
             }
 
         }
@@ -241,60 +265,35 @@ spike.core.Assembler = {
 
     },
 
-    getClassObject: function(className, argsArray){
+    getClassObject: function (className, argsArray) {
 
-        function getObjectFromPath(path){
+        function getObjectFromPath(path) {
+            console.log('path : '+path);
             var obj = window;
 
             var split = path.split('.');
-            for(var i = 0; i < split.length; i++){
+            for (var i = 0; i < split.length; i++) {
                 obj = obj[split[i]];
             }
 
             return obj;
         }
 
-        function countArgs(str){
-            return str.split('_').length - 1;
-        }
+        var packageName = className.substring(0, className.lastIndexOf('.'));
+        var classPackage = getObjectFromPath(packageName);
+        var constructor = this.constructorsMap[className][argsArray.length];
 
-        var classObject = null;
+        console.log('className ' + className);
+        console.log(classPackage);
+        console.log('argsArray.length : '+argsArray.length);
+        console.log(this.constructorsMap);
+        console.log('constructor ' + constructor);
 
-        var classArgs = countArgs(className);
-
-        if(classArgs !== argsArray.length){
-
-            var classStrictName = className.split('.')[className.split('.').length -1];
-
-            var classPackage = getObjectFromPath(className.replace('.'+classStrictName,''));
-
-
-            for(var classNameInPackage in classPackage){
-
-                if(countArgs(classNameInPackage) === argsArray.length){
-                    classObject = classPackage[classNameInPackage];
-                }
-
-            }
-
-        }
+        var classObject = classPackage[constructor];
 
         console.log(classObject);
-        console.log(className);
-
-        if(classObject == null){
-            classObject = getObjectFromPath(className);
-        }
-
-        console.log(classObject);
-
-        if(classObject.length !== argsArray.length){
-            spike.core.Log.warn('Spike Assembler: Skipping arguments for {0}', [className]);
-        }
 
         classObject = classObject.apply(this, argsArray);
-
-        console.log(classObject);
 
         return classObject;
 

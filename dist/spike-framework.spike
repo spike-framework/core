@@ -3710,6 +3710,10 @@ class Controller extends Element {
 
     },
 
+    Controller: function(model, test){
+            console.log('x');
+    },
+
     render: function(){
 
         this.replaceWith();
