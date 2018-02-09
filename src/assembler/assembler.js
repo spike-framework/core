@@ -52,12 +52,16 @@ spike.core.Assembler = {
    */
   extend: function (from, to) {
 
-    for(var prop in from){
+    if(to !== null && to !== undefined){
 
-      if(from.hasOwnProperty(prop)){
+      for(var prop in from){
 
-        if(prop !== 'getSuper' && prop !== 'getClass' && (to[prop] === undefined || to[prop] === null)){
-          to[prop] = from[prop];
+        if(from.hasOwnProperty(prop)){
+
+          if(prop !== 'getSuper' && prop !== 'getClass' && (to[prop] === undefined || to[prop] === null)){
+            to[prop] = from[prop];
+          }
+
         }
 
       }
@@ -138,20 +142,7 @@ spike.core.Assembler = {
     this.namespacesCount++;
     this.createDotPath(package + '.' + name, null);
 
-    // if (inherits === null) {
-    //     inherits = {};
-    // } else {
-    //     inherits = this.getDotPath(inherits);
-    // }
-
     this.staticClasses[package + '.' + name] = classBody;
-
-    //
-    // this.staticClasses[package + '.' + name] = {
-    //     package: package + '.' + name,
-    //     inherits: inherits,
-    //     classBody: classBody
-    // };
 
   },
 
@@ -225,28 +216,24 @@ spike.core.Assembler = {
 
     for (var className in this.objectiveClasses) {
 
-      if (this.objectiveClasses[className].toString().indexOf('return \'spike.core.LoaderInterface\'') > -1) {
+      if(this.objectiveClasses.hasOwnProperty(className)){
 
-        console.log('className : '+className);
-        console.log(this.objectiveClasses[className].toString());
-        console.log('******');
+        if (this.objectiveClasses[className].toString().indexOf('return \'spike.core.LoaderInterface\'') > -1) {
 
-        var loader = window;
+          var loader = window;
 
-        var split = className.split('.');
-        for (var i = 0; i < split.length; i++) {
+          var split = className.split('.');
+          for (var i = 0; i < split.length; i++) {
 
-          loader = loader[split[i]];
+            loader = loader[split[i]];
+
+          }
+
+          loader = new loader();
+          return loader;
 
         }
 
-        console.log(loader);
-
-        loader = new loader();
-
-        console.log(loader);
-
-        return loader;
       }
 
     }
@@ -274,6 +261,7 @@ spike.core.Assembler = {
     constructor = constructor.substring(constructor.lastIndexOf(".")+1, constructor.length);
 
     console.log('classPackage');
+
     console.log(classPackage);
 
     var classObject = classPackage[constructor];

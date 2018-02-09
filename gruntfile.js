@@ -147,7 +147,7 @@ module.exports = function (grunt) {
                 command: spike.docs.commandGenerate
             },
             transpile: {
-                command: "java -jar F:\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js"
+                command: "java -jar F:\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
             }
         },
 

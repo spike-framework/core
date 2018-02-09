@@ -450,11 +450,11 @@ import System from spike.core.System;
 import Router from spike.core.Router;
 import Log from spike.core.Log;
 import Assembler from spike.core.Assembler;
-import Config from spike.core.System.config;
 import Errors from spike.core.Errors;
 import ModalInterface from spike.core.ModalInterface;
 import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
+import SysUtils from spike.core.Util;
 
 static class System {
 
@@ -524,7 +524,7 @@ static class System {
       return endpoint.controller;
     }
 
-    return this.currentController || Config.mainController;
+    return this.currentController || this.config.mainController;
   },
 
 
@@ -556,7 +556,7 @@ static class System {
    *
    */
   renderModal: function (modalObject, modalInitialData, afterRenderCallback) {
-  
+
     Log.debug('Invoke system.renderModal', []);
     Log.log('Rendering modal {0}', [modalObject.name]);
 
@@ -713,18 +713,18 @@ static class System {
   renderInitialView: function () {
     Log.debug('Running system.initialView');
 
-    if (Config.initialView !== undefined) {
+    if (!SysUtils.isNull(this.config.initialView)) {
 
       try {
 
-        var templateHtml = Templates.templates[Config.initialView];
+        var templateHtml = Templates.templates[this.config.initialView]();
 
         if(templateHtml){
             System.getView().html(templateHTML);
         }
 
       } catch (err) {
-        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [Config.initialView])
+        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [this.config.initialView])
       }
 
     }
@@ -755,7 +755,7 @@ static class System {
 
     Log.debug('Invoke spike.core.System.init with params', []);
 
-    if(Config === null){
+    if(this.config === null){
         this.setConfig(new spike.core.Config());
     }
 
@@ -774,7 +774,7 @@ static class System {
 
 
     this.verifyViews();
-    System.renderInitialView();
+    this.renderInitialView();
     this.routing.create(Router.create());
     this.initGlobalElements();
 
@@ -3557,6 +3557,7 @@ package spike.core;
 import System from spike.core.System;
 import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
+import Errors from spike.core.Errors;
 
 class Element {
 
@@ -3581,7 +3582,12 @@ class Element {
             this.elementSelector = document.getElementById(this.elementId);
         }
 
-        return document.getElementById(elementId);
+        return document.getElementById(this.elementId);
+    },
+
+    Element: function(){
+    console.log(this);
+       // this.include('xx');
     },
 
     Element: function(parentElement, model){
@@ -3709,10 +3715,15 @@ class Controller extends Element {
     scrollTop: true,
     checkNetwork: true,
 
+    Controller: function(){
+        this.getSuper();
+    },
+
     Controller: function(model){
 
         this.model = model;
         this.elementSelector = System.getView();
+
         this.createTemplatePath();
         this.createTemplate();
 
@@ -3720,6 +3731,10 @@ class Controller extends Element {
 
     Controller: function(model, test){
             console.log('x');
+
+                console.log($this);
+
+
     },
 
     render: function(){

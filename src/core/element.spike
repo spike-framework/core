@@ -3,6 +3,7 @@ package spike.core;
 import System from spike.core.System;
 import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
+import Errors from spike.core.Errors;
 
 class Element {
 
@@ -27,7 +28,12 @@ class Element {
             this.elementSelector = document.getElementById(this.elementId);
         }
 
-        return document.getElementById(elementId);
+        return document.getElementById(this.elementId);
+    },
+
+    Element: function(){
+    console.log(this);
+       // this.include('xx');
     },
 
     Element: function(parentElement, model){
