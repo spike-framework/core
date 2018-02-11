@@ -85,8 +85,8 @@ module.exports = function (grunt) {
                         expand: true,
                         cwd: './dist',
                         src: ['spike-framework.js'],
-                        dest: 'F:\\starter\\dist'
-                      //  dest: 'D:\\xampp\\htdocs\\spike-framework-starter\\dist'
+                        //dest: 'F:\\starter\\dist'
+                        dest: 'D:\\xampp\\htdocs\\starter\\dist'
                     }
                 ],
             }
@@ -147,7 +147,8 @@ module.exports = function (grunt) {
                 command: spike.docs.commandGenerate
             },
             transpile: {
-                command: "java -jar F:\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+               // command: "java -jar F:\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+                command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
             }
         },
 

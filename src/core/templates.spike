@@ -1,11 +1,13 @@
 package spike.core;
 
+import Assembler from spike.core.Assembler;
+
 static class Templates {
 
     templates: {},
 
-    compileTemplate: function(element, name, model){
-        return this.templates[name](element, model);
+    compileTemplate: function(scope, name){
+        return this.templates[Assembler.sourcePath+"_"+name](scope);
     },
 
 }

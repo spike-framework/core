@@ -645,7 +645,9 @@ static class System {
 
     Router.clearCacheViewData();
 
-    var module = Assembler.getClassObject(moduleClass, [moduleInitialModel]);
+    var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
+
+    console.log(module);
 
     if (module.getSuper() === 'spike.core.Controller') {
       System.renderController(module, afterRenderCallback);
@@ -832,6 +834,7 @@ static class Log {
    */
   obj: function (jsObject) {
 
+
     if (Config.showObj) {
       console.log(jsObject);
     }
@@ -969,6 +972,7 @@ static class Log {
 package spike.core;
 
 import Selectors from spike.core.Selectors;
+import Util from spike.core.Util;
 
 static class Selectors {
 
@@ -2404,12 +2408,14 @@ static class Message {
 
 }package spike.core;
 
+import Assembler from spike.core.Assembler;
+
 static class Templates {
 
     templates: {},
 
-    compileTemplate: function(element, name, model){
-        return this.templates[name](element, model);
+    compileTemplate: function(scope, name){
+        return this.templates[Assembler.sourcePath+"_"+name](scope);
     },
 
 }package spike.core;
@@ -3558,6 +3564,7 @@ import System from spike.core.System;
 import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
 import Errors from spike.core.Errors;
+import Selectors from spike.core.Selectors;
 
 class Element {
 
@@ -3586,8 +3593,8 @@ class Element {
     },
 
     Element: function(){
-    console.log(this);
-       // this.include('xx');
+        console.log(this);
+           // this.include('xx');
     },
 
     Element: function(parentElement, model){
@@ -3625,10 +3632,10 @@ class Element {
         var elementPath = this.getClass().split('.');
 
         for(var i = 0; i < elementPath.length; i++){
-            this.templatePath += elementPath[i].toLowerCase()+'/';
+            this.templatePath += elementPath[i].toLowerCase()+'_';
         }
 
-        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('/')-1)+'.html';
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
 
         return this.templatePath;
 
@@ -3636,13 +3643,9 @@ class Element {
 
     createTemplate: function () {
 
-     try {
-        this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
-     }catch (err){
-        Errors.throwError('Error occur when executing component {0} template {1}', [this.getClass(), this.templatePath]);
-     }
+     this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
 
-     var selectorsObj = System.createUniqueSelectors(this.compiledHtml);
+     var selectorsObj = Selectors.createUniqueSelectors(this.compiledHtml);
 
      this.compiledHtml = selectorsObj.html;
      this.selector = selectorsObj.selectors;
@@ -3723,6 +3726,8 @@ class Controller extends Element {
 
         this.model = model;
         this.elementSelector = System.getView();
+
+        console.log(this);
 
         this.createTemplatePath();
         this.createTemplate();

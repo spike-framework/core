@@ -1,0 +1,13 @@
+package spike.core;
+
+import Assembler from spike.core.Assembler;
+
+static class Watchers {
+
+    watchers: {},
+
+    compileWatcher: function(scope, name){
+        return this.watchers[Assembler.sourcePath+"_"+name](scope);
+    },
+
+}

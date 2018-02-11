@@ -199,7 +199,9 @@ static class System {
 
     Router.clearCacheViewData();
 
-    var module = Assembler.getClassObject(moduleClass, [moduleInitialModel]);
+    var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
+
+    console.log(module);
 
     if (module.getSuper() === 'spike.core.Controller') {
       System.renderController(module, afterRenderCallback);

@@ -19,6 +19,8 @@ class Controller extends Element {
         this.model = model;
         this.elementSelector = System.getView();
 
+        console.log(this);
+
         this.createTemplatePath();
         this.createTemplate();
 

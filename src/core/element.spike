@@ -4,6 +4,7 @@ import System from spike.core.System;
 import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
 import Errors from spike.core.Errors;
+import Selectors from spike.core.Selectors;
 
 class Element {
 
@@ -32,8 +33,8 @@ class Element {
     },
 
     Element: function(){
-    console.log(this);
-       // this.include('xx');
+        console.log(this);
+           // this.include('xx');
     },
 
     Element: function(parentElement, model){
@@ -71,10 +72,10 @@ class Element {
         var elementPath = this.getClass().split('.');
 
         for(var i = 0; i < elementPath.length; i++){
-            this.templatePath += elementPath[i].toLowerCase()+'/';
+            this.templatePath += elementPath[i].toLowerCase()+'_';
         }
 
-        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('/')-1)+'.html';
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
 
         return this.templatePath;
 
@@ -82,13 +83,9 @@ class Element {
 
     createTemplate: function () {
 
-     try {
-        this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
-     }catch (err){
-        Errors.throwError('Error occur when executing component {0} template {1}', [this.getClass(), this.templatePath]);
-     }
+     this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
 
-     var selectorsObj = System.createUniqueSelectors(this.compiledHtml);
+     var selectorsObj = Selectors.createUniqueSelectors(this.compiledHtml);
 
      this.compiledHtml = selectorsObj.html;
      this.selector = selectorsObj.selectors;

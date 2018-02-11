@@ -1,6 +1,7 @@
 package spike.core;
 
 import Selectors from spike.core.Selectors;
+import Util from spike.core.Util;
 
 static class Selectors {
 

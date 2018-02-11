@@ -9,29 +9,60 @@
 <div id="test">
 </div>
 
-<!--<script src="src/assembler/assembler.js"></script>-->
+<script src="src/assembler/assembler.js"></script>
 
-<!--&lt;!&ndash; Body componentu &ndash;&gt;-->
-<!--<div>-->
+<script type="text/javascript">
 
-    <!--<spike for="item in items">-->
-        <!--<element name="personalData" params="item"></element>-->
-    <!--</spike>-->
+    spike.core.Controller = function () {
+        var $this = this;
+        this.getSuper();
+    };
+    spike.core.Controller_1 = function (model) {
+        var $this = this;
+        this.model = model;
 
-    <!--<element name="footer"></element>-->
+        console.log(this);
 
-<!--</div>-->
+        this.createTemplatePath();
+        this.createTemplate();
+    };
 
-<!--<element name="app.element.TopMenu"></element>-->
+    spike.core.Controller_2 = function (model, test) {
+        var $this = this;
+        console.log('x');
 
-<!--<div spike-view></div>-->
-
-
-<!--<div spike-modals></div>-->
-
-<script>
+        console.log($this);
 
 
+    };
+    spike.core.Controller.prototype.scrollTop = true;
+    spike.core.Controller.prototype.checkNetwork = true;
+    spike.core.Controller.prototype.render = function () {
+        var $this = this;
+
+        this.replaceWith();
+
+        spike.core.Events.bindEvents(this);
+        spike.core.Router.bindLinks(this);
+
+        this.rendered = true;
+
+        if (this.init !== undefined) {
+            this.init();
+        }
+
+    };
+    spike.core.Controller.prototype.getSuper = function () {
+        var $this = this;
+        return 'spike.core.Element';
+    };
+    spike.core.Controller.prototype.getClass = function () {
+        var $this = this;
+        return 'spike.core.Controller';
+    };
+
+     spike.core.Assembler.extend(spike.core.Controller.prototype, spike.core.Controller_1.prototype);
+      spike.core.Assembler.extend(spike.core.Controller.prototype, spike.core.Controller_2.prototype);
 
 </script>
 </body>
