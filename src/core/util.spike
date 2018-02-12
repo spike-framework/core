@@ -67,7 +67,7 @@ static class Util {
          * @param objectOrArrayParams
          * @returns {*}
          */
-        bindStringParams: function (string, objectOrArrayParams, noStringify) {
+        bindStringParams: function (string, objectOrArrayParams) {
 
             if (!string) {
                 return '';
@@ -81,14 +81,15 @@ static class Util {
 
                 if (objectOrArrayParams instanceof Array) {
 
+
                     for (var i = 0; i < objectOrArrayParams.length; i++) {
-                        string = string.replace('{' + i + '}', noStringify ? objectOrArrayParams[i] : JSON.stringify(objectOrArrayParams[i]))
+                        string = string.replace('{' + i + '}', objectOrArrayParams[i])
                     }
 
                 } else {
 
                     for (var paramName in objectOrArrayParams) {
-                        string = string.replace('{' + paramName + '}', noStringify ? objectOrArrayParams[paramName] : JSON.stringify(objectOrArrayParams[paramName]));
+                        string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
                     }
 
                 }

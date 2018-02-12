@@ -29,12 +29,7 @@ class Element {
             this.elementSelector = document.getElementById(this.elementId);
         }
 
-        return document.getElementById(this.elementId);
-    },
-
-    Element: function(){
-        console.log(this);
-           // this.include('xx');
+        return this.elementSelector;
     },
 
     Element: function(parentElement, model){
@@ -92,7 +87,6 @@ class Element {
      this.eventsSelectors = selectorsObj.eventsSelectors;
      this.linksSelectors = selectorsObj.linksSelectors;
 
-
     },
 
     render: function () {
@@ -100,6 +94,7 @@ class Element {
 
     reloadComponent: function(component, componentData){
     //TODO
+
     },
 
     replaceWith: function () {
@@ -108,7 +103,8 @@ class Element {
         elementDiv.innerHTML = this.compiledHtml;
         elementDiv.setAttribute('element-name', this.getClass());
         elementDiv.setAttribute('id', this.elementId);
-        this.rootSelector().parentNode.replaceChild(elementDiv, this.rootSelector());
+
+        this.rootSelector().replaceChild(elementDiv, this.rootSelector());
 
         this.elementSelector = null;
 

@@ -2,7 +2,18 @@ package spike.core;
 
 class EventsInterface {
 
-/**
+        /**
+          * @public
+          * @toImplement
+          *
+          * Executes when framework cannot run without given browser standard
+          *
+          */
+        onIncompatible: function(){
+
+        },
+
+        /**
           * @public
           * @toImplement
           *

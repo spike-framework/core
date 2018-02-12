@@ -122,7 +122,7 @@ static class Selectors {
     }
 
     //Replacing identifier with generated hash
-    templateHtml = templateHtml.replace('id="' + id + '"', 'id="' + newId + '"');
+    templateHtml = templateHtml.replace('id="' + idList[i] + '"', 'id="' + newId + '"');
 
    }
 

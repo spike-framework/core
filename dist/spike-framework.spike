@@ -5,6 +5,13 @@ class Config {
       /**
        * @public
        *
+       * Defines path to language files
+       */
+      languageFilePath: "/{lang}.json",
+
+      /**
+       * @public
+       *
        * Defines if router should work in History API mode
        */
       html5Mode: false,
@@ -254,7 +261,18 @@ static class Events {
 
 class EventsInterface {
 
-/**
+        /**
+          * @public
+          * @toImplement
+          *
+          * Executes when framework cannot run without given browser standard
+          *
+          */
+        onIncompatible: function(){
+
+        },
+
+        /**
           * @public
           * @toImplement
           *
@@ -455,6 +473,7 @@ import ModalInterface from spike.core.ModalInterface;
 import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
 import SysUtils from spike.core.Util;
+import Message from spike.core.Message;
 
 static class System {
 
@@ -536,8 +555,8 @@ static class System {
    **/
   execOnRenderEvent: function () {
 
-    if (Events.onRender) {
-      Events.onRender();
+    if (this.eventsInterface.onRender) {
+      this.eventsInterface.onRender();
     }
 
   },
@@ -769,27 +788,28 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
-    Router.detectHTML5Mode();
-
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
 
-
     this.verifyViews();
-    this.renderInitialView();
-    this.routing.create(Router.create());
-    this.initGlobalElements();
+    Router.detectHTML5Mode();
 
-    Router.registerRouter();
+    Message.loadLanguage().then(function(){
 
+        this.renderInitialView();
 
-    if (this.getEvents().onReady !== undefined) {
-        this.getEvents().onReady();
-    }
+        Router.registerRouter();
+        $this.initGlobalElements();
 
-    this.loader.onLoadApplication();
+        if ($this.eventsInterface.onReady !== undefined) {
+           $this.eventsInterface.onReady();
+        }
 
-    Log.ok('Spike application ready to work...');
+        $this.loader.onLoadApplication();
+
+        Log.ok('Spike application ready to work...');
+
+    });
 
   },
 
@@ -1093,7 +1113,7 @@ static class Selectors {
     }
 
     //Replacing identifier with generated hash
-    templateHtml = templateHtml.replace('id="' + id + '"', 'id="' + newId + '"');
+    templateHtml = templateHtml.replace('id="' + idList[i] + '"', 'id="' + newId + '"');
 
    }
 
@@ -1205,7 +1225,7 @@ static class Util {
          * @param objectOrArrayParams
          * @returns {*}
          */
-        bindStringParams: function (string, objectOrArrayParams, noStringify) {
+        bindStringParams: function (string, objectOrArrayParams) {
 
             if (!string) {
                 return '';
@@ -1219,14 +1239,15 @@ static class Util {
 
                 if (objectOrArrayParams instanceof Array) {
 
+
                     for (var i = 0; i < objectOrArrayParams.length; i++) {
-                        string = string.replace('{' + i + '}', noStringify ? objectOrArrayParams[i] : JSON.stringify(objectOrArrayParams[i]))
+                        string = string.replace('{' + i + '}', objectOrArrayParams[i])
                     }
 
                 } else {
 
                     for (var paramName in objectOrArrayParams) {
-                        string = string.replace('{' + paramName + '}', noStringify ? objectOrArrayParams[paramName] : JSON.stringify(objectOrArrayParams[paramName]));
+                        string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
                     }
 
                 }
@@ -2308,6 +2329,8 @@ import Log from spike.core.Log;
 import Request from spike.core.Request;
 import Message from spike.core.Message;
 import Util from spike.core.Util;
+import Config from spike.core.System.config;
+import Errors from spike.core.Errors;
 
 static class Message {
 
@@ -2322,6 +2345,11 @@ static class Message {
      * Storage for translation data
      */
     messages: {},
+
+    loadLanguage: function(){
+        console.log(Config);
+        return Message.add(Config.lang, Util.bindStringParams(Config.languageFilePath, { lang: Config.lang }));
+    },
 
     /**
      * @public
@@ -2346,6 +2374,10 @@ static class Message {
         promise.then(function (data) {
 
             Message.setTranslation(languageName, data);
+
+            Log.log('languageName : '+languageName);
+            Log.log('Config.lang  : '+Config.lang);
+
             return data;
 
         });
@@ -2482,17 +2514,6 @@ static class Router {
       path: Router.pathFunction,
       other: Router.otherFunction
     }
-  },
-
-  /**
-   * @public
-   *
-   * Function creates starts creating new router and
-   * Returns routing creator object.
-   *
-   */
-  create: function () {
-    return Router.getRouterFactory();
   },
 
   /**
@@ -2704,6 +2725,8 @@ static class Router {
 
     if (window.history && window.history.pushState && Config.html5Mode === true) {
       Router.routerHTML5Mode = true;
+    }else{
+        System.eventsInterface.onIncompatible('HISTORY_API');
     }
 
   },
@@ -2726,6 +2749,8 @@ static class Router {
        Errors.throwError(Errors.messages.ROUTING_ENABLED_NOT_DEFINED, []);
      }
 
+     System.routing.create(Router.getRouterFactory());
+
      if (Router.routerHTML5Mode === false && window.location.hash.substring(0, 2) !== '#/') {
        window.location.hash = '#/';
      }
@@ -2733,8 +2758,28 @@ static class Router {
      Router.renderCurrentView();
 
      if (Router.routerHTML5Mode === false) {
-       $(window).bind('hashchange', Router.onHashChanges);
+       this.initHashChangeEvent();
      }
+
+  },
+
+  hashChangeInterval: null,
+  lastHashValue: null,
+  initHashChangeEvent: function(){
+
+    function hashChangeCallback(){
+
+        Log.log('Router.lastHashValue : '+Router.lastHashValue);
+        Log.log('window.location.hash : '+window.location.hash);
+
+        if(Router.lastHashValue !== window.location.hash){
+            Router.lastHashValue = window.location.hash;
+            Router.onHashChanges();
+        }
+
+    }
+
+    Router.hashChangeInterval = setInterval(hashChangeCallback, 100);
 
   },
 
@@ -2743,19 +2788,19 @@ static class Router {
    *
    * Event function executes when hash changes in not html5 mode
    */
-  onHashChanges: function (e) {
+  onHashChanges: function () {
 
     Log.debug('Executes Router.onHashChanges');
 
     if (window.location.hash.replace('#', '') === Router.preventReloadPage) {
       Router.preventReloadPage = null;
-      Router.fireRouteEvents(e);
+      Router.fireRouteEvents();
       return false;
     }
 
     Router.clearCacheViewData();
 
-    Router.fireRouteEvents(e);
+    Router.fireRouteEvents();
     Router.renderCurrentView();
 
   },
@@ -2773,13 +2818,13 @@ static class Router {
 
       if (Router.getPathName() === Router.preventReloadPage) {
         Router.preventReloadPage = null;
-        Router.fireRouteEvents({});
+        Router.fireRouteEvents();
         return false;
       }
 
       Router.clearCacheViewData();
 
-      Router.fireRouteEvents({});
+      Router.fireRouteEvents();
       Router.renderCurrentView();
 
     }
@@ -2791,17 +2836,17 @@ static class Router {
    *
    * Function iterate all registred events and fire them
    */
-  fireRouteEvents: function (e) {
+  fireRouteEvents: function () {
 
     var currentRoute = Router.getCurrentRoute();
 
-    $.each(Router.events, function (eventName, eventFunction) {
+    for(var eventName in Router.events){
 
-      if (eventFunction) {
-        eventFunction(e, currentRoute, app.currentController);
-      }
+        if (Router.events[eventName]) {
+            Router.events[eventName](currentRoute, app.currentController);
+        }
 
-    });
+    }
 
   },
 
@@ -3306,7 +3351,7 @@ static class Router {
         System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteEventWithModal);
       } else {
         System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
-        Router.refreshCurrentHyperlinkCache();
+        //Router.refreshCurrentHyperlinkCache();
       }
 
     } else {
@@ -3324,27 +3369,27 @@ static class Router {
    * Refresh for current route only
    *
    */
-  refreshCurrentHyperlinkCache: function () {
-
-    var currentEndpoint = Router.getCurrentViewData();
-
-    var timestamp = new Date().getTime();
-
-    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
-
-      var hyperLinkUrl = $(this).attr('href');
-
-      if (hyperLinkUrl.indexOf('?') > -1) {
-        hyperLinkUrl += '&t=' + timestamp;
-      } else {
-        hyperLinkUrl += '?t=' + timestamp;
-      }
-
-      $(this).attr('href', hyperLinkUrl);
-
-    });
-
-  },
+//  refreshCurrentHyperlinkCache: function () {
+//
+//    var currentEndpoint = Router.getCurrentViewData();
+//
+//    var timestamp = new Date().getTime();
+//
+//    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
+//
+//      var hyperLinkUrl = $(this).attr('href');
+//
+//      if (hyperLinkUrl.indexOf('?') > -1) {
+//        hyperLinkUrl += '&t=' + timestamp;
+//      } else {
+//        hyperLinkUrl += '?t=' + timestamp;
+//      }
+//
+//      $(this).attr('href', hyperLinkUrl);
+//
+//    });
+//
+//  },
 
   /**
    * @public
@@ -3589,12 +3634,7 @@ class Element {
             this.elementSelector = document.getElementById(this.elementId);
         }
 
-        return document.getElementById(this.elementId);
-    },
-
-    Element: function(){
-        console.log(this);
-           // this.include('xx');
+        return this.elementSelector;
     },
 
     Element: function(parentElement, model){
@@ -3652,7 +3692,6 @@ class Element {
      this.eventsSelectors = selectorsObj.eventsSelectors;
      this.linksSelectors = selectorsObj.linksSelectors;
 
-
     },
 
     render: function () {
@@ -3660,6 +3699,7 @@ class Element {
 
     reloadComponent: function(component, componentData){
     //TODO
+
     },
 
     replaceWith: function () {
@@ -3668,7 +3708,8 @@ class Element {
         elementDiv.innerHTML = this.compiledHtml;
         elementDiv.setAttribute('element-name', this.getClass());
         elementDiv.setAttribute('id', this.elementId);
-        this.rootSelector().parentNode.replaceChild(elementDiv, this.rootSelector());
+
+        this.rootSelector().replaceChild(elementDiv, this.rootSelector());
 
         this.elementSelector = null;
 
@@ -3712,48 +3753,32 @@ import System from spike.core.System;
 import Events from spike.core.Events;
 import Router from spike.core.Router;
 import Element from spike.core.Element;
+import Assembler from spike.core.Assembler;
 
 class Controller extends Element {
 
     scrollTop: true,
     checkNetwork: true,
 
-    Controller: function(){
-        this.getSuper();
-    },
 
     Controller: function(model){
 
         this.model = model;
         this.elementSelector = System.getView();
 
-        console.log(this);
-
         this.createTemplatePath();
         this.createTemplate();
 
     },
 
-    Controller: function(model, test){
-            console.log('x');
-
-                console.log($this);
-
-
-    },
-
     render: function(){
 
-        this.replaceWith();
+        this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
         Router.bindLinks(this);
 
         this.rendered = true;
-
-        if(this.init !== undefined){
-            this.init();
-        }
 
     }
 

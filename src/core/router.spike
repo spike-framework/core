@@ -67,17 +67,6 @@ static class Router {
   /**
    * @public
    *
-   * Function creates starts creating new router and
-   * Returns routing creator object.
-   *
-   */
-  create: function () {
-    return Router.getRouterFactory();
-  },
-
-  /**
-   * @public
-   *
    * Function registers otherwise endpoint.
    * Returns routing creator.
    *
@@ -284,6 +273,8 @@ static class Router {
 
     if (window.history && window.history.pushState && Config.html5Mode === true) {
       Router.routerHTML5Mode = true;
+    }else{
+        System.eventsInterface.onIncompatible('HISTORY_API');
     }
 
   },
@@ -306,6 +297,8 @@ static class Router {
        Errors.throwError(Errors.messages.ROUTING_ENABLED_NOT_DEFINED, []);
      }
 
+     System.routing.create(Router.getRouterFactory());
+
      if (Router.routerHTML5Mode === false && window.location.hash.substring(0, 2) !== '#/') {
        window.location.hash = '#/';
      }
@@ -313,8 +306,28 @@ static class Router {
      Router.renderCurrentView();
 
      if (Router.routerHTML5Mode === false) {
-       $(window).bind('hashchange', Router.onHashChanges);
+       this.initHashChangeEvent();
      }
+
+  },
+
+  hashChangeInterval: null,
+  lastHashValue: null,
+  initHashChangeEvent: function(){
+
+    function hashChangeCallback(){
+
+        Log.log('Router.lastHashValue : '+Router.lastHashValue);
+        Log.log('window.location.hash : '+window.location.hash);
+
+        if(Router.lastHashValue !== window.location.hash){
+            Router.lastHashValue = window.location.hash;
+            Router.onHashChanges();
+        }
+
+    }
+
+    Router.hashChangeInterval = setInterval(hashChangeCallback, 100);
 
   },
 
@@ -323,19 +336,19 @@ static class Router {
    *
    * Event function executes when hash changes in not html5 mode
    */
-  onHashChanges: function (e) {
+  onHashChanges: function () {
 
     Log.debug('Executes Router.onHashChanges');
 
     if (window.location.hash.replace('#', '') === Router.preventReloadPage) {
       Router.preventReloadPage = null;
-      Router.fireRouteEvents(e);
+      Router.fireRouteEvents();
       return false;
     }
 
     Router.clearCacheViewData();
 
-    Router.fireRouteEvents(e);
+    Router.fireRouteEvents();
     Router.renderCurrentView();
 
   },
@@ -353,13 +366,13 @@ static class Router {
 
       if (Router.getPathName() === Router.preventReloadPage) {
         Router.preventReloadPage = null;
-        Router.fireRouteEvents({});
+        Router.fireRouteEvents();
         return false;
       }
 
       Router.clearCacheViewData();
 
-      Router.fireRouteEvents({});
+      Router.fireRouteEvents();
       Router.renderCurrentView();
 
     }
@@ -371,17 +384,17 @@ static class Router {
    *
    * Function iterate all registred events and fire them
    */
-  fireRouteEvents: function (e) {
+  fireRouteEvents: function () {
 
     var currentRoute = Router.getCurrentRoute();
 
-    $.each(Router.events, function (eventName, eventFunction) {
+    for(var eventName in Router.events){
 
-      if (eventFunction) {
-        eventFunction(e, currentRoute, app.currentController);
-      }
+        if (Router.events[eventName]) {
+            Router.events[eventName](currentRoute, app.currentController);
+        }
 
-    });
+    }
 
   },
 
@@ -886,7 +899,7 @@ static class Router {
         System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteEventWithModal);
       } else {
         System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
-        Router.refreshCurrentHyperlinkCache();
+        //Router.refreshCurrentHyperlinkCache();
       }
 
     } else {
@@ -904,27 +917,27 @@ static class Router {
    * Refresh for current route only
    *
    */
-  refreshCurrentHyperlinkCache: function () {
-
-    var currentEndpoint = Router.getCurrentViewData();
-
-    var timestamp = new Date().getTime();
-
-    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
-
-      var hyperLinkUrl = $(this).attr('href');
-
-      if (hyperLinkUrl.indexOf('?') > -1) {
-        hyperLinkUrl += '&t=' + timestamp;
-      } else {
-        hyperLinkUrl += '?t=' + timestamp;
-      }
-
-      $(this).attr('href', hyperLinkUrl);
-
-    });
-
-  },
+//  refreshCurrentHyperlinkCache: function () {
+//
+//    var currentEndpoint = Router.getCurrentViewData();
+//
+//    var timestamp = new Date().getTime();
+//
+//    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
+//
+//      var hyperLinkUrl = $(this).attr('href');
+//
+//      if (hyperLinkUrl.indexOf('?') > -1) {
+//        hyperLinkUrl += '&t=' + timestamp;
+//      } else {
+//        hyperLinkUrl += '?t=' + timestamp;
+//      }
+//
+//      $(this).attr('href', hyperLinkUrl);
+//
+//    });
+//
+//  },
 
   /**
    * @public

@@ -4,6 +4,8 @@ import Log from spike.core.Log;
 import Request from spike.core.Request;
 import Message from spike.core.Message;
 import Util from spike.core.Util;
+import Config from spike.core.System.config;
+import Errors from spike.core.Errors;
 
 static class Message {
 
@@ -18,6 +20,11 @@ static class Message {
      * Storage for translation data
      */
     messages: {},
+
+    loadLanguage: function(){
+        console.log(Config);
+        return Message.add(Config.lang, Util.bindStringParams(Config.languageFilePath, { lang: Config.lang }));
+    },
 
     /**
      * @public
@@ -42,6 +49,10 @@ static class Message {
         promise.then(function (data) {
 
             Message.setTranslation(languageName, data);
+
+            Log.log('languageName : '+languageName);
+            Log.log('Config.lang  : '+Config.lang);
+
             return data;
 
         });

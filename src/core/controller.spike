@@ -4,48 +4,32 @@ import System from spike.core.System;
 import Events from spike.core.Events;
 import Router from spike.core.Router;
 import Element from spike.core.Element;
+import Assembler from spike.core.Assembler;
 
 class Controller extends Element {
 
     scrollTop: true,
     checkNetwork: true,
 
-    Controller: function(){
-        this.getSuper();
-    },
 
     Controller: function(model){
 
         this.model = model;
         this.elementSelector = System.getView();
 
-        console.log(this);
-
         this.createTemplatePath();
         this.createTemplate();
 
     },
 
-    Controller: function(model, test){
-            console.log('x');
-
-                console.log($this);
-
-
-    },
-
     render: function(){
 
-        this.replaceWith();
+        this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
         Router.bindLinks(this);
 
         this.rendered = true;
-
-        if(this.init !== undefined){
-            this.init();
-        }
 
     }
 

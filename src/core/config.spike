@@ -5,6 +5,13 @@ class Config {
       /**
        * @public
        *
+       * Defines path to language files
+       */
+      languageFilePath: "/{lang}.json",
+
+      /**
+       * @public
+       *
        * Defines if router should work in History API mode
        */
       html5Mode: false,

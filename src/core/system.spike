@@ -9,6 +9,7 @@ import ModalInterface from spike.core.ModalInterface;
 import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
 import SysUtils from spike.core.Util;
+import Message from spike.core.Message;
 
 static class System {
 
@@ -90,8 +91,8 @@ static class System {
    **/
   execOnRenderEvent: function () {
 
-    if (Events.onRender) {
-      Events.onRender();
+    if (this.eventsInterface.onRender) {
+      this.eventsInterface.onRender();
     }
 
   },
@@ -323,27 +324,28 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
-    Router.detectHTML5Mode();
-
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
 
-
     this.verifyViews();
-    this.renderInitialView();
-    this.routing.create(Router.create());
-    this.initGlobalElements();
+    Router.detectHTML5Mode();
 
-    Router.registerRouter();
+    Message.loadLanguage().then(function(){
 
+        this.renderInitialView();
 
-    if (this.getEvents().onReady !== undefined) {
-        this.getEvents().onReady();
-    }
+        Router.registerRouter();
+        $this.initGlobalElements();
 
-    this.loader.onLoadApplication();
+        if ($this.eventsInterface.onReady !== undefined) {
+           $this.eventsInterface.onReady();
+        }
 
-    Log.ok('Spike application ready to work...');
+        $this.loader.onLoadApplication();
+
+        Log.ok('Spike application ready to work...');
+
+    });
 
   },
 
