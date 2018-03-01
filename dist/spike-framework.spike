@@ -1,6 +1,6 @@
 package spike.core;
 
-class Config {
+static class Config {
 
       /**
        * @public
@@ -210,11 +210,14 @@ static class Events {
     'unload'
   ],
 
+  __eventsReferences: {},
+
   bindEvents: function(element){
 
+    this.bindEventsForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        this.bindEventsForElement(element.childElements[i]);
+        //this.bindEventsForElement(element.childElements[i]);
 
         if(element.childElements[i].length > 0){
             this.bindEvents(element.childElements[i]);
@@ -246,12 +249,23 @@ static class Events {
             var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
 
             if (eventFunctionBody) {
-                selector.addEventListener(this.allowedEvents[i], Function('event', eventFunctionBody));
+
+                var eventFn = Function('scope', 'event', eventFunctionBody);
+                var eventRef = element.eventsSelectors[i]+'_'+this.allowedEvents[k];
+
+                if(this.__eventsReferences[eventRef]){
+                     selector.removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                }
+
+                this.__eventsReferences[eventRef] = eventFn;
+                selector.addEventListener(this.allowedEvents[k], eventFn.bind(null, element));
+
+
             }
 
         }
 
-        element.removeAttribute('spike-unbinded');
+        selector.removeAttribute('spike-unbinded');
 
     }
 
@@ -399,6 +413,18 @@ class ModalInterface {
         this.modals.push(modal);
     },
 
+    isRendered: function(modal){
+
+        for(var i = 0; i < this.modals.length; i++){
+          if(this.modals[i].getClass() === modal.getClass()){
+            return true;
+          }
+        }
+
+        return false;
+
+    },
+
     /**
      * @public
      * @toImplement
@@ -474,6 +500,7 @@ import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
 import SysUtils from spike.core.Util;
 import Message from spike.core.Message;
+import Watchers from spike.core.Watchers;
 
 static class System {
 
@@ -510,6 +537,7 @@ static class System {
    * Stores DOM elements attributes
    */
   attributes: {
+    APP: 'spike-app',
     VIEW: 'spike-view',
     MODALS: 'spike-modals',
   },
@@ -632,6 +660,7 @@ static class System {
 
     //Renders controller
     controller.render();
+    this.currentRenderedController = controller.getClass();
 
     System.execOnRenderEvent();
 
@@ -639,7 +668,7 @@ static class System {
       afterRenderCallback();
     }
 
-    Log.ok('Selectors cache usage during app lifecycle: ' + System.cacheUsageCounter);
+    Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
 
   },
 
@@ -662,11 +691,14 @@ static class System {
       Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
     }
 
+    if(this.modalInterface.isRendered(moduleClass) || this.currentRenderedController === moduleClass){
+        Log.warn('Preventing re-rendering module '+moduleClass);
+        return;
+    }
+
     Router.clearCacheViewData();
 
     var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
-
-    console.log(module);
 
     if (module.getSuper() === 'spike.core.Controller') {
       System.renderController(module, afterRenderCallback);
@@ -676,7 +708,10 @@ static class System {
 
   },
 
+  currentRenderedController: null,
+
   viewSelector: null,
+  appViewSelector: null,
 
   /**
    * @public
@@ -691,6 +726,16 @@ static class System {
     }
 
     return this.viewSelector;
+
+  },
+
+  getAppView: function(){
+
+    if(this.appViewSelector === null){
+        this.appViewSelector = document.querySelector('['+this.attributes.APP+']');
+    }
+
+    return this.appViewSelector;
 
   },
 
@@ -720,39 +765,6 @@ static class System {
 
   },
 
-  /**
-   * @public
-   *
-   * Sets plain (without Spike support) HTML template
-   * before whole application start initializing with Cordova
-   *
-   * Can be used as loading screen, splash screen etc.
-   *
-   * View is defined in @Config.initialView
-   *
-   */
-  renderInitialView: function () {
-    Log.debug('Running system.initialView');
-
-    if (!SysUtils.isNull(this.config.initialView)) {
-
-      try {
-
-        var templateHtml = Templates.templates[this.config.initialView]();
-
-        if(templateHtml){
-            System.getView().html(templateHTML);
-        }
-
-      } catch (err) {
-        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [this.config.initialView])
-      }
-
-    }
-
-
-  },
-
   loader: null,
 
   /**
@@ -772,6 +784,7 @@ static class System {
     Log.init();
 
     this.loader = Assembler.findLoaderClass();
+    this.config = Assembler.findConfigClass();
     this.loader.loadApplication();
 
     Log.debug('Invoke spike.core.System.init with params', []);
@@ -788,6 +801,9 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
+    Log.log('Destroy assembler');
+    Assembler.destroy();
+
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
 
@@ -796,9 +812,10 @@ static class System {
 
     Message.loadLanguage().then(function(){
 
-        this.renderInitialView();
+        Log.log('Translations loaded');
 
         Router.registerRouter();
+        Watchers.createWatchLoop();
         $this.initGlobalElements();
 
         if ($this.eventsInterface.onReady !== undefined) {
@@ -813,20 +830,21 @@ static class System {
 
   },
 
+  globalElements: [],
+
   /**
     Renders global components defined outside 'spike-view'
     **/
   initGlobalElements: function(){
 
-    var globalElements = this.getView().getElementsByTagName('element');
+    var globalElements = document.getElementsByTagName('spike');
 
     for(var i = 0; i < globalElements.length; i++){
 
-        var className = globalElements[i].getAttribute('name');
+        var className = globalElements[i].getAttribute('sp-element');
 
-        var globalElement = Assembler.getDotPath(className)();
-
-        globalElement.render();
+        var globalElement = Assembler.getClassInstance(className, [globalElements[i]]);
+        this.globalElements.push(globalElement);
 
     }
 
@@ -993,6 +1011,7 @@ package spike.core;
 
 import Selectors from spike.core.Selectors;
 import Util from spike.core.Util;
+import Watchers from spike.core.Watchers;
 
 static class Selectors {
 
@@ -1039,16 +1058,16 @@ static class Selectors {
 
   },
 
-  createNamesSelectors: function(templateHtml, selectors){
+  createNamesSelectors: function(element, selectors){
 
     //Retrieving list of form elements names
-    var nameList = Util.findStringBetween(templateHtml, 'name="', '"');
+    var elementsWithNames = element.querySelectorAll('[name]');
 
     //Creating names selectors functions
-    for(var i = 0; i < nameList.length; i++){
+    for(var i = 0; i < elementsWithNames.length; i++){
 
         //Creating new hash for identifier
-        var newName = name + '-' + Util.hash();
+        var newName = elementsWithNames[i].getAttribute('name') + '-' + Util.hash();
 
         selectors.names[name] = function () {
 
@@ -1064,31 +1083,29 @@ static class Selectors {
 
             return selector;
 
-
         }
 
-        //Replacing identifier with generated hash
-        templateHtml = templateHtml.replace('name="' + name + '"', 'spike-name="' + newName + '" name="' + name + '"');
+        elementsWithNames[i].setAttribute('name', newName);
+
 
     }
 
-    return templateHtml;
+    return element.innerHTML;
 
   },
 
-  createIdSelectors: function(templateHtml, selectors, eventsSelectors, linksSelectors){
+  createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-   //Retrieving list of identifiers names
-   var idList = Util.findStringBetween(templateHtml, 'id="', '"');
+   var elementsWithId = element.querySelectorAll('[id]');
 
    //Creating identifiers selectors functions
-   for(var i = 0; i < idList.length; i++){
+   for(var i = 0; i < elementsWithId.length; i++){
 
     //Creating new hash for identifier
-    var newId = idList[i] + '-' + Util.hash();
+    var newId = elementsWithId[i].id + '-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[idList[i]] = function () {
+    selectors[elementsWithId[i].id] = function () {
 
         var selector = Selectors.selectorsCache[newId];
 
@@ -1104,20 +1121,19 @@ static class Selectors {
 
     };
 
-    if(idList[i].indexOf('spike-event-') > -1){
+    if(elementsWithId[i].getAttribute('spike-unbinded') != null){
         eventsSelectors.push(newId);
     }
 
-    if(idList[i].indexOf('spike-href-') > -1){
+    if(elementsWithId[i].getAttribute('spike-href-') != null){
         linksSelectors.push(newId);
     }
 
-    //Replacing identifier with generated hash
-    templateHtml = templateHtml.replace('id="' + idList[i] + '"', 'id="' + newId + '"');
+    elementsWithId[i].id = newId;
 
    }
 
-   return templateHtml;
+   return element.innerHTML;
 
   },
 
@@ -1135,6 +1151,9 @@ static class Selectors {
    */
    createUniqueSelectors: function (templateHtml) {
 
+    var element = document.createElement('div');
+    element.innerHTML = templateHtml;
+
     var selectors = {
         names: {},
         forms: {}
@@ -1143,8 +1162,8 @@ static class Selectors {
     var eventsSelectors = [];
     var linksSelectors = [];
 
-    templateHtml = this.createNamesSelectors(templateHtml, selectors);
-    templateHtml = this.createIdSelectors(templateHtml, selectors, eventsSelectors, linksSelectors);
+    templateHtml = this.createNamesSelectors(element, selectors);
+    templateHtml = this.createIdSelectors(element, selectors, eventsSelectors, linksSelectors);
 
     return {
       html: templateHtml,
@@ -1169,7 +1188,7 @@ static class Util {
          */
         toCamelCase: function (str) {
 
-            if (Util.isEmpty(str)) {
+            if (this.isEmpty(str)) {
                 return str;
             }
 
@@ -1253,6 +1272,7 @@ static class Util {
                 }
 
             } catch (err) {
+                console.log(err);
             }
 
             return string;
@@ -1282,7 +1302,7 @@ static class Util {
          */
         isObject: function (object) {
 
-            if (Util.isNull(object)) {
+            if (this.isNull(object)) {
                 return false;
             }
 
@@ -1352,13 +1372,13 @@ static class Util {
          */
         tryParseNumber: function (obj) {
 
-            if (!Util.isEmpty(obj) && $.isNumeric(obj)) {
+            if (!this.isEmpty(obj) && this.isNumeric(obj)) {
 
-                if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1){
+                if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1 || obj.charAt(0) === '0'){
                     return obj;
                 }
 
-                if (Util.isInt(parseFloat(obj))) {
+                if (this.isInt(parseFloat(obj))) {
                     return parseInt(obj, 10);
                 } else {
                     return parseFloat(obj);
@@ -1369,6 +1389,10 @@ static class Util {
             return obj;
 
 
+        },
+
+        isNumeric: function( obj ) {
+            return ( typeof obj === "number" || typeof obj === "string" ) && !isNaN( obj - parseFloat( obj ) );
         },
 
         /**
@@ -1529,6 +1553,7 @@ static class Util {
             try {
               text = text.replace(/"/g, "&quot;").replace(/'/g, "&quot;");
             } catch (err) {
+                console.log(err);
                 Log.warn('Could not escape single quotes in string: ' + text);
             }
 
@@ -1625,18 +1650,21 @@ class Request {
         }
 
         if(config.contentType === undefined){
-            config.headers['Content-Type'] = 'application/json';
+            config.contentType = 'application/json';
         }
 
-        if(config.data === undefined){
-            config.data = {};
+        config.headers['Content-Type'] = config.contentType;
+
+        if(config.request === undefined){
+            config.request = {};
         }
 
-        if(typeof config.data === 'string'){
+        if(typeof config.request !== 'string'){
 
             try {
-                config.data = JSON.parse(config.data);
+                config.data = JSON.stringify(config.data);
             }catch(e){
+                console.error(e);
                 Errors.thrownError(Errors.JSON_PARSE_ERROR, [config.url]);
             }
 
@@ -1669,6 +1697,7 @@ class Request {
                         self.response = JSON.parse(self.xhr.responseText);
                         self.resolveThen(self.response, self.xhr, self.xhr.status);
                     }catch(e){
+                        console.error(e);
                         self.resolveCatch(self.xhr, 0, e);
                     }
 
@@ -1737,6 +1766,7 @@ class Request {
             try {
                 xhr = new ActiveXObject("Msxml2.XMLHTTP");
             } catch (e) {
+                console.log(e);
                 xhr = new ActiveXObject("Microsoft.XMLHTTP");
             }
         }
@@ -1751,6 +1781,7 @@ import Rest from spike.core.Rest;
 import Log from spike.core.Log;
 import Request from spike.core.Request;
 import Errors from spike.core.Errors;
+import Util from spike.core.Util;
 
 static class Rest {
 
@@ -2187,9 +2218,6 @@ static class Rest {
     var urlParams = propertiesObject.urlParams;
     var interceptors = propertiesObject.interceptors || [];
 
-
-    var jsonData = JSON.stringify(request);
-
     var preparedUrl = url;
 
     if (pathParams !== undefined && pathParams !== null) {
@@ -2215,7 +2243,7 @@ static class Rest {
 
     var promiseObj = {
       url: preparedUrl,
-      data: jsonData,
+      data: request,
       type: method,
       beforeSend: function () {
 
@@ -2268,6 +2296,9 @@ static class Rest {
     promiseObj.headers = headers;
 
     var promise = new Request(promiseObj);
+
+    console.log(promise);
+    console.log(promise.xhr.onreadystatechange.toString(););
 
     var requestData = {
       url: url,
@@ -2347,7 +2378,6 @@ static class Message {
     messages: {},
 
     loadLanguage: function(){
-        console.log(Config);
         return Message.add(Config.lang, Util.bindStringParams(Config.languageFilePath, { lang: Config.lang }));
     },
 
@@ -2374,9 +2404,6 @@ static class Message {
         promise.then(function (data) {
 
             Message.setTranslation(languageName, data);
-
-            Log.log('languageName : '+languageName);
-            Log.log('Config.lang  : '+Config.lang);
 
             return data;
 
@@ -2406,6 +2433,7 @@ static class Message {
             try {
                 translationData = JSON.parse(translationData);
             } catch (err) {
+                console.error(err);
                 Errors.throwError(Errors.messages.TRANSLATION_PARSING, [languageName]);
             }
 
@@ -2458,6 +2486,8 @@ import Errors from spike.core.Errors;
 import Util from spike.core.Util;
 import Log from spike.core.Log;
 import Config from spike.core.System.config;
+import Events from spike.core.Events;
+import Assembler from spike.core.Assembler;
 
 static class Router {
 
@@ -2607,7 +2637,7 @@ static class Router {
       controller: pathController,
       defaultController: pathModalDefaultController,
       modal: pathModal,
-      routingParams: routingParams,
+      routingParams: routingParams || {},
       onRouteEvent: onRouteEvent,
       pathPattern: pathPattern,
       routeName: routeName,
@@ -2769,8 +2799,8 @@ static class Router {
 
     function hashChangeCallback(){
 
-        Log.log('Router.lastHashValue : '+Router.lastHashValue);
-        Log.log('window.location.hash : '+window.location.hash);
+        //Log.log('Router.lastHashValue : '+Router.lastHashValue);
+        //Log.log('window.location.hash : '+window.location.hash);
 
         if(Router.lastHashValue !== window.location.hash){
             Router.lastHashValue = window.location.hash;
@@ -2912,6 +2942,16 @@ static class Router {
    *
    */
   getURLParams: function () {
+    return Router.getURLParams();
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getQueryParams: function () {
     return Router.getURLParams();
   },
 
@@ -3316,7 +3356,7 @@ static class Router {
    */
   getViewData: function () {
     var currentViewData = Router.getCurrentViewData();
-    return $.extend({}, currentViewData.endpoint, currentViewData.data);
+    return Assembler.extend(currentViewData.endpoint, currentViewData.data);
   },
 
   /**
@@ -3338,7 +3378,6 @@ static class Router {
   renderCurrentView: function () {
 
     var currentEndpointData = Router.getCurrentView();
-    Log.debug('current view to render {0}', [currentEndpointData]);
 
     if (currentEndpointData.isModal === true) {
 
@@ -3555,7 +3594,7 @@ static class Router {
         this.bindLinksForElement(element.childElements[i]);
 
         if(element.childElements[i].length > 0){
-            this.bindEvents(element.childElements[i]);
+            Events.bindEvents(element.childElements[i]);
         }
 
     }
@@ -3615,7 +3654,6 @@ class Element {
 
     rendered: false,
 
-    model: null,
     elementId: null,
     elementSelector: null,
 
@@ -3628,6 +3666,8 @@ class Element {
     eventsSelectors: [],
     linksSelectors: [],
 
+    templatePath: null,
+
     rootSelector: function(){
 
         if(this.elementSelector === null){
@@ -3637,31 +3677,39 @@ class Element {
         return this.elementSelector;
     },
 
-    Element: function(parentElement, model){
+    Element: function(parentElement){
+     this.Element(parentElement, null);
+    },
 
-        this.parentElement = parentElement;
-        this.model = model;
+    Element: function(parentElement, params){
+
+        this.constructor_0();
+
+        if(parentElement){
+            this.parentElement = parentElement.isClass ? parentElement : null;
+        }
+
+        this.margeParams(params);
 
         this.createTemplatePath();
         this.createTemplate();
-
-        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
-        //System.bindLinks(componentSelector);
-
-//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
-//            this.init();
-//         }
 
     },
 
-    //W templatce powinno konwertowac na ' + this.include(new app.elements.SomeElement(this, model)) + '
+    margeParams: function(params){
+
+        if(params){
+            for(var prop in params){
+                this[prop] = params[prop];
+            }
+        }
+
+    },
+
     include: function(childElement){
 
         this.childElements.push(childElement);
-        this.createTemplatePath();
-        this.createTemplate();
-
-        return this.compiledHtml;
+        return childElement.compiledHtml;
 
     },
 
@@ -3694,26 +3742,21 @@ class Element {
 
     },
 
-    render: function () {
-    },
-
-    reloadComponent: function(component, componentData){
+    reloadElement: function(element, params){
     //TODO
+    },
+
+    postConstructChildren: function(){
+
+        for(var i = 0; i < this.childElements.length; i++){
+            this.childElements[i].postConstruct();
+        }
+
 
     },
 
-    replaceWith: function () {
-
-        var elementDiv = document.createElement("div");
-        elementDiv.innerHTML = this.compiledHtml;
-        elementDiv.setAttribute('element-name', this.getClass());
-        elementDiv.setAttribute('id', this.elementId);
-
-        this.rootSelector().replaceChild(elementDiv, this.rootSelector());
-
-        this.elementSelector = null;
-
-    }
+    abstract function render;
+    abstract function postConstruct;
 
 }package spike.core;
 
@@ -3724,11 +3767,13 @@ import Element from spike.core.Element;
 
 class GlobalElement extends Element {
 
-    GlobalElement: function(){
+    GlobalElement: function(elementSelector){
 
-        this.elementSelector = document.body;
+        this.constructor_0();
+        this.elementSelector = elementSelector;
         this.createTemplatePath();
         this.createTemplate();
+        this.render();
 
     },
 
@@ -3741,11 +3786,24 @@ class GlobalElement extends Element {
 
         this.rendered = true;
 
-        if(this.init !== undefined){
-            this.init();
-        }
+        this.postConstructChildren();
+        this.postConstruct();
 
-    }
+
+    },
+
+    replaceWith: function () {
+
+            var elementDiv = document.createElement("div");
+            elementDiv.innerHTML = this.compiledHtml;
+            elementDiv.setAttribute('element-name', this.getClass());
+            elementDiv.setAttribute('id', this.elementId);
+
+            System.getAppView().replaceChild(elementDiv, this.rootSelector());
+
+          //  this.elementSelector = null;
+
+        }
 
 }package spike.core;
 
@@ -3754,31 +3812,29 @@ import Events from spike.core.Events;
 import Router from spike.core.Router;
 import Element from spike.core.Element;
 import Assembler from spike.core.Assembler;
+import Watchers from spike.core.Watchers;
 
 class Controller extends Element {
 
     scrollTop: true,
     checkNetwork: true,
 
-
-    Controller: function(model){
-
-        this.model = model;
-        this.elementSelector = System.getView();
-
-        this.createTemplatePath();
-        this.createTemplate();
-
+    Controller: function(){
     },
 
     render: function(){
 
+        this.elementSelector = System.getView();
         this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
         Router.bindLinks(this);
+        Watchers.observe(this);
 
         this.rendered = true;
+
+        this.postConstructChildren();
+        this.postConstruct();
 
     }
 
@@ -3938,6 +3994,252 @@ static class Broadcaster {
         }
 
         this.applicationEvents[eventName] = [];
+
+    }
+
+}package spike.core;
+
+import Assembler from spike.core.Assembler;
+import Log from spike.core.Log;
+import Util from spike.core.Util;
+
+static class Watchers {
+
+    watchers: {},
+
+    compileWatchers: function(scope){
+
+        var watchers = [];
+
+        if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
+            watchers = this.watchers[Assembler.sourcePath+"_"+scope.templatePath](scope);
+        }
+
+        console.log('watchers');
+        console.log(watchers);
+
+        if(watchers.length > 0){
+
+          var virtualDom = document.createElement('div');
+          virtualDom.innerHTML = scope.compiledHtml;
+          var watchElements = virtualDom.querySelectorAll('[sp-watch]');
+
+          for(var i = 0; i < watchElements.length; i++){
+
+            for(var k = 0; k < watchers.length; k++){
+
+                if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
+
+                    var currentHtml = watchElements[i].outerHTML;
+                    var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
+
+                    if(watcherHtml !== currentHtml){
+
+                        console.log(watcherHtml);
+                        console.log(currentHtml);
+
+                        Log.log('Watcher reflow needed');
+                        $this.replaceChangedElements(watcherHtml, currentHtml);
+
+                    }
+
+                }
+
+            }
+
+          }
+
+        }
+
+    },
+
+    replaceChangedElements: function(watcherHtml, currentHtml){
+
+        var watcherVirtual = document.createElement('div');
+        watcherVirtual.innerHTML = watcherHtml;
+
+        var currentVirtual = document.createElement('div');
+        currentVirtual.innerHTML = currentHtml;
+
+        var watcherElements = watcherVirtual.querySelectorAll('*');
+        Log.log('Comparing elements');
+
+        var changedElements = [];
+
+        for(var i = 0; i < watcherElements.length; i++){
+
+            var currentElementHtml = currentVirtual.querySelector('[id="'+watcherElements[i].id+'"]').outerHTML;
+            var watcherElementHtml = watcherElements[i].outerHTML;
+
+            //console.log(currentElementHtml);
+            //console.log(watcherElementHtml);
+
+            if(currentElementHtml !== watcherElementHtml){
+               changedElements.push(watcherElements[i]);
+            }
+
+
+        }
+
+        console.log('changedElements');
+        console.log(changedElements);
+
+        changedElements = $this.excludeContainingElements(changedElements);
+
+        console.log('changedElementsExcluded');
+        console.log(changedElements);
+
+        for(var i = 0; i < changedElements.length; i++){
+
+            Log.log('Element changed id: {0}', [changedElements[i].id]);
+            var element = document.getElementById(changedElements[i].id);
+
+            console.log(watcherElementHtml);
+
+            element.outerHTML = watcherElementHtml;
+
+        }
+
+    },
+
+    excludeContainingElements: function(changedElements){
+
+        var changedElementsExcluded = [];
+        for(var i = 0; i < changedElements.length; i++){
+
+            for(var k = 0; k < changedElements.length; k++){
+
+                if(!changedElements[i].contains(changedElements[k])){
+                    changedElementsExcluded.push(changedElements[i]);
+                    break;
+                }
+
+            }
+
+        }
+
+        return changedElementsExcluded;
+
+    },
+
+    fillAutoSelectors: function(watcherHtml, currentHtml){
+
+        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
+        var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
+
+        for(var i = 0; i < idListFromWatcher.length; i++){
+
+            for(var k = 0; k < idListFromCurrent.length; k++){
+
+                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+                }
+
+            }
+
+        }
+
+        var namesListFromWatcher = Util.findStringBetween(watcherHtml, 'name="','"');
+        var namesListFromCurrent = Util.findStringBetween(currentHtml, 'name="','"');
+
+        for(var i = 0; i < namesListFromWatcher.length; i++){
+
+            for(var k = 0; k < namesListFromCurrent.length; k++){
+
+                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
+                    watcherHtml = watcherHtml.replace('name="'+namesListFromWatcher[i]+'"', 'name="'+namesListFromCurrent[k]+'"');
+                }
+
+            }
+
+        }
+
+        return watcherHtml;
+
+    },
+
+    cleanAutoSelectors: function(html){
+
+        var element = document.createElement('div');
+        element.innerHTML = html;
+
+        var idElements = element.querySelectorAll('[id]');
+        for(var i = 0; i < idElements.length; i++){
+            idElements[i].setAttribute('id', '');
+        }
+
+        var nameElements = element.querySelectorAll('[name]');
+        for(var i = 0; i < nameElements.length; i++){
+            nameElements[i].setAttribute('name', '');
+        }
+
+        return element.innerHTML;
+
+    },
+
+    scopes: {},
+    observables: [],
+
+    observe: function(scope){
+        this.observables.push(scope);
+    },
+
+    excludedProperties: [
+        'childElements',
+        'parentElement',
+        'eventsSelectors',
+        'linksSelectors',
+        'compiledHtml',
+        'elementSelector',
+        'templatePath',
+        'selector'
+    ],
+
+    stringifyScope: function(scope){
+
+        var stringify = '';
+
+        for(var key in scope) {
+            if(typeof scope[key] !== 'function'){
+
+                if($this.excludedProperties.indexOf(key) == -1){
+                  stringify += key + JSON.stringify(scope[key]);
+                }
+
+            }
+
+        }
+
+        return stringify;
+
+    },
+
+    detectScopeChange: function(scope){
+
+        var stringify = $this.stringifyScope(scope);
+
+        if(stringify !== $this.scopes[scope.elementId]){
+            Log.log('scope changed');
+
+            $this.compileWatchers(scope);
+
+        }
+
+        $this.scopes[scope.elementId] = stringify;
+
+    },
+
+    createWatchLoop: function(scope){
+
+        setTimeout(function(){
+
+            for(var i = 0; i < $this.observables.length; i++){
+                $this.detectScopeChange($this.observables[i]);
+            }
+
+            $this.createWatchLoop();
+
+        }, 100)
 
     }
 

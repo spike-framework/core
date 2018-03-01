@@ -1,13 +1,247 @@
 package spike.core;
 
 import Assembler from spike.core.Assembler;
+import Log from spike.core.Log;
+import Util from spike.core.Util;
 
 static class Watchers {
 
     watchers: {},
 
-    compileWatcher: function(scope, name){
-        return this.watchers[Assembler.sourcePath+"_"+name](scope);
+    compileWatchers: function(scope){
+
+        var watchers = [];
+
+        if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
+            watchers = this.watchers[Assembler.sourcePath+"_"+scope.templatePath](scope);
+        }
+
+        console.log('watchers');
+        console.log(watchers);
+
+        if(watchers.length > 0){
+
+          var virtualDom = document.createElement('div');
+          virtualDom.innerHTML = scope.compiledHtml;
+          var watchElements = virtualDom.querySelectorAll('[sp-watch]');
+
+          for(var i = 0; i < watchElements.length; i++){
+
+            for(var k = 0; k < watchers.length; k++){
+
+                if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
+
+                    var currentHtml = watchElements[i].outerHTML;
+                    var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
+
+                    if(watcherHtml !== currentHtml){
+
+                        console.log(watcherHtml);
+                        console.log(currentHtml);
+
+                        Log.log('Watcher reflow needed');
+                        $this.replaceChangedElements(watcherHtml, currentHtml);
+
+                    }
+
+                }
+
+            }
+
+          }
+
+        }
+
     },
+
+    replaceChangedElements: function(watcherHtml, currentHtml){
+
+        var watcherVirtual = document.createElement('div');
+        watcherVirtual.innerHTML = watcherHtml;
+
+        var currentVirtual = document.createElement('div');
+        currentVirtual.innerHTML = currentHtml;
+
+        var watcherElements = watcherVirtual.querySelectorAll('*');
+        Log.log('Comparing elements');
+
+        var changedElements = [];
+
+        for(var i = 0; i < watcherElements.length; i++){
+
+            var currentElementHtml = currentVirtual.querySelector('[id="'+watcherElements[i].id+'"]').outerHTML;
+            var watcherElementHtml = watcherElements[i].outerHTML;
+
+            //console.log(currentElementHtml);
+            //console.log(watcherElementHtml);
+
+            if(currentElementHtml !== watcherElementHtml){
+               changedElements.push(watcherElements[i]);
+            }
+
+
+        }
+
+        console.log('changedElements');
+        console.log(changedElements);
+
+        changedElements = $this.excludeContainingElements(changedElements);
+
+        console.log('changedElementsExcluded');
+        console.log(changedElements);
+
+        for(var i = 0; i < changedElements.length; i++){
+
+            Log.log('Element changed id: {0}', [changedElements[i].id]);
+            var element = document.getElementById(changedElements[i].id);
+
+            console.log(watcherElementHtml);
+
+            element.outerHTML = watcherElementHtml;
+
+        }
+
+    },
+
+    excludeContainingElements: function(changedElements){
+
+        var changedElementsExcluded = [];
+        for(var i = 0; i < changedElements.length; i++){
+
+            for(var k = 0; k < changedElements.length; k++){
+
+                if(!changedElements[i].contains(changedElements[k])){
+                    changedElementsExcluded.push(changedElements[i]);
+                    break;
+                }
+
+            }
+
+        }
+
+        return changedElementsExcluded;
+
+    },
+
+    fillAutoSelectors: function(watcherHtml, currentHtml){
+
+        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
+        var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
+
+        for(var i = 0; i < idListFromWatcher.length; i++){
+
+            for(var k = 0; k < idListFromCurrent.length; k++){
+
+                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+                }
+
+            }
+
+        }
+
+        var namesListFromWatcher = Util.findStringBetween(watcherHtml, 'name="','"');
+        var namesListFromCurrent = Util.findStringBetween(currentHtml, 'name="','"');
+
+        for(var i = 0; i < namesListFromWatcher.length; i++){
+
+            for(var k = 0; k < namesListFromCurrent.length; k++){
+
+                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
+                    watcherHtml = watcherHtml.replace('name="'+namesListFromWatcher[i]+'"', 'name="'+namesListFromCurrent[k]+'"');
+                }
+
+            }
+
+        }
+
+        return watcherHtml;
+
+    },
+
+    cleanAutoSelectors: function(html){
+
+        var element = document.createElement('div');
+        element.innerHTML = html;
+
+        var idElements = element.querySelectorAll('[id]');
+        for(var i = 0; i < idElements.length; i++){
+            idElements[i].setAttribute('id', '');
+        }
+
+        var nameElements = element.querySelectorAll('[name]');
+        for(var i = 0; i < nameElements.length; i++){
+            nameElements[i].setAttribute('name', '');
+        }
+
+        return element.innerHTML;
+
+    },
+
+    scopes: {},
+    observables: [],
+
+    observe: function(scope){
+        this.observables.push(scope);
+    },
+
+    excludedProperties: [
+        'childElements',
+        'parentElement',
+        'eventsSelectors',
+        'linksSelectors',
+        'compiledHtml',
+        'elementSelector',
+        'templatePath',
+        'selector'
+    ],
+
+    stringifyScope: function(scope){
+
+        var stringify = '';
+
+        for(var key in scope) {
+            if(typeof scope[key] !== 'function'){
+
+                if($this.excludedProperties.indexOf(key) == -1){
+                  stringify += key + JSON.stringify(scope[key]);
+                }
+
+            }
+
+        }
+
+        return stringify;
+
+    },
+
+    detectScopeChange: function(scope){
+
+        var stringify = $this.stringifyScope(scope);
+
+        if(stringify !== $this.scopes[scope.elementId]){
+            Log.log('scope changed');
+
+            $this.compileWatchers(scope);
+
+        }
+
+        $this.scopes[scope.elementId] = stringify;
+
+    },
+
+    createWatchLoop: function(scope){
+
+        setTimeout(function(){
+
+            for(var i = 0; i < $this.observables.length; i++){
+                $this.detectScopeChange($this.observables[i]);
+            }
+
+            $this.createWatchLoop();
+
+        }, 100)
+
+    }
 
 }

@@ -23,6 +23,18 @@ class ModalInterface {
         this.modals.push(modal);
     },
 
+    isRendered: function(modal){
+
+        for(var i = 0; i < this.modals.length; i++){
+          if(this.modals[i].getClass() === modal.getClass()){
+            return true;
+          }
+        }
+
+        return false;
+
+    },
+
     /**
      * @public
      * @toImplement

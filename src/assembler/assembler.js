@@ -21,23 +21,9 @@ spike.core.Assembler = {
   dependenciesFn: null,
   spikeLoading: false,
 
-
-  // setConstructorsMap: function (constructorsMap) {
-  //     this.constructorsMap = constructorsMap;
-  //     this.checkIfCanBootstrap();
-  // },
-
-  // appendConstructorsFunctions: function (constructorsFunctions) {
-  //
-  //     for(var constructorFullName in constructorsFunctions){
-  //         this.constructorsFunctions[constructorFullName] = constructorsFunctions[constructorFullName];
-  //     }
-  //
-  // },
-  //
-  // getConstructorFunction: function(constructorFullName){
-  //     return new this.constructorsFunctions[constructorFullName]();
-  // },
+  throwError: function(message){
+    throw new Error('Spike Framework: '+message);
+  },
 
   resetNamespaces: function (namespacesCount, package) {
     this.totalNamespaces = namespacesCount;
@@ -54,28 +40,19 @@ spike.core.Assembler = {
 
   },
 
-
-  /**
-   var newObjectShallow = extend(object1, object2, object3);
-   var newObjectDeep = extend(true, object1, object2, object3);
-
-
-   UWAGA!!!! TRZEBA WYKLUCZYC FUNKCJE O NAZWACH getSuper i getClass BO SIE NADPISZA
-   ZROBIONE
-   SPRAWDZIC W TESTACH
-
-   */
   extend: function (from, to) {
 
     if (to !== null && to !== undefined) {
 
       var overrides = {};
+      var supers = {};
 
       for (var prop in from) {
 
         if (from.hasOwnProperty(prop)) {
 
           if (to[prop] !== undefined) {
+            supers[prop] = from[prop];
             overrides[prop] = to[prop];
           } else {
             to[prop] = from[prop];
@@ -89,7 +66,11 @@ spike.core.Assembler = {
         to[prop] = overrides[prop];
       }
 
+      to.super = supers;
+
     }
+
+    return to;
 
   },
 
@@ -120,11 +101,8 @@ spike.core.Assembler = {
   createDotPath: function (package, fillObject) {
 
     if (package.trim().length === 0) {
-      throw new Error();
+      this.throwError('FATAL No package declaration');
     }
-
-    //  package = package.substring(4, package.length);
-
 
     var createNodesFnBody = '';
     var splitPackage = package.split('.');
@@ -155,25 +133,34 @@ spike.core.Assembler = {
 
   },
 
-  createStaticClass: function (package, name, inherits, classBody) {
+  createStaticClass: function (package, name, inheritsPackage, classBody) {
 
     if (name.indexOf(package) > -1) {
       name = name.replace(package + '.', '');
     }
 
     this.namespacesCount++;
-    this.createDotPath(package + '.' + name, null);
+    var classBody = classBody();
+    if (inheritsPackage && inheritsPackage !== 'null') {
+      var inheritsClass = this.getClassByName(inheritsPackage);
+      if(inheritsClass === undefined){
+        this.throwError('Superclass '+inheritsPackage+'not found');
+      }
+
+      this.extend(inheritsClass, classBody);
+    }
 
     this.staticClasses[package + '.' + name] = classBody;
+    this.createDotPath(package + '.' + name, classBody);
 
   },
 
 
   checkIfCanBootstrap: function () {
 
-    console.log('this.spikeLoading  : ' + this.spikeLoading);
-    console.log('this.namespacesCount : ' + this.namespacesCount);
-    console.log('this.totalNamespaces : ' + this.totalNamespaces);
+    if(this.namespacesCount !== this.totalNamespaces){
+      this.throwError("FATAL Some namespaces damaged");
+    }
 
     if (this.namespacesCount === this.totalNamespaces && this.dependenciesFn) {
       this.bootstrap();
@@ -187,10 +174,6 @@ spike.core.Assembler = {
   },
 
   bootstrap: function () {
-
-    for (var className in this.staticClasses) {
-      this.createDotPath(className, this.staticClasses[className]);
-    }
 
     for (var className in this.objectiveClasses) {
       this.objectiveClasses[className]();
@@ -208,25 +191,35 @@ spike.core.Assembler = {
     if (this.templatesLoaded === false) {
 
       if (document.querySelector('[templates-src]') === null) {
-        throw new Error('Spike Framework: Cannot find script tag with templates-src definition')
+        this.throwError('Cannot find script tag with templates-src definition');
       }
 
       if (document.querySelector('[app-src]') === null) {
-        throw new Error('Spike Framework: Cannot find script tag with app-src definition')
+        this.throwError('Cannot find script tag with app-src definition')
       }
 
       var script = document.createElement("script");
       script.type = "application/javascript";
       script.src = document.querySelector('[templates-src]').getAttribute('templates-src');
       script.onload = function () {
-        self.templatesLoaded = true;
 
-        self.namespacesCount = 0;
-        self.appLoaded = true;
-        var script2 = document.createElement("script");
-        script2.type = "application/javascript";
-        script2.src = document.querySelector('[app-src]').getAttribute('app-src');
-        document.body.appendChild(script2);
+        var watchers = document.createElement("script");
+        watchers.type = "application/javascript";
+        watchers.src = document.querySelector('[watchers-src]').getAttribute('watchers-src');
+        watchers.onload = function () {
+
+          self.templatesLoaded = true;
+
+          self.namespacesCount = 0;
+          self.appLoaded = true;
+          var app = document.createElement("script");
+          app.type = "application/javascript";
+          app.src = document.querySelector('[app-src]').getAttribute('app-src');
+          document.body.appendChild(app);
+
+        };
+
+        document.body.appendChild(watchers);
 
       };
 
@@ -262,7 +255,25 @@ spike.core.Assembler = {
 
     }
 
-    throw new Error('Spike Framework: No loader defined');
+    this.throwError('No loader defined');
+
+  },
+
+  findConfigClass: function () {
+
+    for (var className in this.staticClasses) {
+
+      if (this.staticClasses.hasOwnProperty(className)) {
+
+        if (this.staticClasses[className].getSuper() === 'spike.core.Config') {
+          return this.staticClasses[className];
+        }
+
+      }
+
+    }
+
+    this.throwError('No config defined');
 
   },
 
@@ -281,15 +292,24 @@ spike.core.Assembler = {
 
     var packageName = classFullName.substring(0, classFullName.lastIndexOf('.'));
     var className = classFullName.substring(classFullName.lastIndexOf('.') + 1, classFullName.length);
-    var clazz = getObjectFromPath(packageName)[className];
 
-    return clazz;
+    return getObjectFromPath(packageName)[className];
 
   },
 
   getClassInstance: function (classFullName, argsArray) {
     var clazz = this.getClassByName(classFullName);
+
+    if(clazz === undefined){
+      this.throwError('Class '+classFullName+' not found');
+    }
+
     return new clazz(argsArray);
+  },
+
+  destroy: function(){
+    this.objectiveClasses = null;
+    this.staticClasses = null;
   }
 
 };

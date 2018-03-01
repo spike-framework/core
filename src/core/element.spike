@@ -10,7 +10,6 @@ class Element {
 
     rendered: false,
 
-    model: null,
     elementId: null,
     elementSelector: null,
 
@@ -23,6 +22,8 @@ class Element {
     eventsSelectors: [],
     linksSelectors: [],
 
+    templatePath: null,
+
     rootSelector: function(){
 
         if(this.elementSelector === null){
@@ -32,31 +33,39 @@ class Element {
         return this.elementSelector;
     },
 
-    Element: function(parentElement, model){
+    Element: function(parentElement){
+     this.Element(parentElement, null);
+    },
 
-        this.parentElement = parentElement;
-        this.model = model;
+    Element: function(parentElement, params){
+
+        this.constructor_0();
+
+        if(parentElement){
+            this.parentElement = parentElement.isClass ? parentElement : null;
+        }
+
+        this.margeParams(params);
 
         this.createTemplatePath();
         this.createTemplate();
-
-        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
-        //System.bindLinks(componentSelector);
-
-//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
-//            this.init();
-//         }
 
     },
 
-    //W templatce powinno konwertowac na ' + this.include(new app.elements.SomeElement(this, model)) + '
+    margeParams: function(params){
+
+        if(params){
+            for(var prop in params){
+                this[prop] = params[prop];
+            }
+        }
+
+    },
+
     include: function(childElement){
 
         this.childElements.push(childElement);
-        this.createTemplatePath();
-        this.createTemplate();
-
-        return this.compiledHtml;
+        return childElement.compiledHtml;
 
     },
 
@@ -89,25 +98,20 @@ class Element {
 
     },
 
-    render: function () {
-    },
-
-    reloadComponent: function(component, componentData){
+    reloadElement: function(element, params){
     //TODO
+    },
+
+    postConstructChildren: function(){
+
+        for(var i = 0; i < this.childElements.length; i++){
+            this.childElements[i].postConstruct();
+        }
+
 
     },
 
-    replaceWith: function () {
-
-        var elementDiv = document.createElement("div");
-        elementDiv.innerHTML = this.compiledHtml;
-        elementDiv.setAttribute('element-name', this.getClass());
-        elementDiv.setAttribute('id', this.elementId);
-
-        this.rootSelector().replaceChild(elementDiv, this.rootSelector());
-
-        this.elementSelector = null;
-
-    }
+    abstract function render;
+    abstract function postConstruct;
 
 }

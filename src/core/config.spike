@@ -1,6 +1,6 @@
 package spike.core;
 
-class Config {
+static class Config {
 
       /**
        * @public

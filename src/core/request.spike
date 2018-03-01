@@ -58,18 +58,21 @@ class Request {
         }
 
         if(config.contentType === undefined){
-            config.headers['Content-Type'] = 'application/json';
+            config.contentType = 'application/json';
         }
 
-        if(config.data === undefined){
-            config.data = {};
+        config.headers['Content-Type'] = config.contentType;
+
+        if(config.request === undefined){
+            config.request = {};
         }
 
-        if(typeof config.data === 'string'){
+        if(typeof config.request !== 'string'){
 
             try {
-                config.data = JSON.parse(config.data);
+                config.data = JSON.stringify(config.data);
             }catch(e){
+                console.error(e);
                 Errors.thrownError(Errors.JSON_PARSE_ERROR, [config.url]);
             }
 
@@ -102,6 +105,7 @@ class Request {
                         self.response = JSON.parse(self.xhr.responseText);
                         self.resolveThen(self.response, self.xhr, self.xhr.status);
                     }catch(e){
+                        console.error(e);
                         self.resolveCatch(self.xhr, 0, e);
                     }
 
@@ -170,6 +174,7 @@ class Request {
             try {
                 xhr = new ActiveXObject("Msxml2.XMLHTTP");
             } catch (e) {
+                console.log(e);
                 xhr = new ActiveXObject("Microsoft.XMLHTTP");
             }
         }

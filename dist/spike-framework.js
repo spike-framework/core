@@ -19,7 +19,8 @@
         spike.core.Router.onHistoryChanges();
     });
 
-})(window.history);var spike = {
+})(window.history);
+var spike = {
   core: {}
 };
 
@@ -42,23 +43,9 @@ spike.core.Assembler = {
   dependenciesFn: null,
   spikeLoading: false,
 
-
-  // setConstructorsMap: function (constructorsMap) {
-  //     this.constructorsMap = constructorsMap;
-  //     this.checkIfCanBootstrap();
-  // },
-
-  // appendConstructorsFunctions: function (constructorsFunctions) {
-  //
-  //     for(var constructorFullName in constructorsFunctions){
-  //         this.constructorsFunctions[constructorFullName] = constructorsFunctions[constructorFullName];
-  //     }
-  //
-  // },
-  //
-  // getConstructorFunction: function(constructorFullName){
-  //     return new this.constructorsFunctions[constructorFullName]();
-  // },
+  throwError: function(message){
+    throw new Error('Spike Framework: '+message);
+  },
 
   resetNamespaces: function (namespacesCount, package) {
     this.totalNamespaces = namespacesCount;
@@ -75,28 +62,19 @@ spike.core.Assembler = {
 
   },
 
-
-  /**
-   var newObjectShallow = extend(object1, object2, object3);
-   var newObjectDeep = extend(true, object1, object2, object3);
-
-
-   UWAGA!!!! TRZEBA WYKLUCZYC FUNKCJE O NAZWACH getSuper i getClass BO SIE NADPISZA
-   ZROBIONE
-   SPRAWDZIC W TESTACH
-
-   */
   extend: function (from, to) {
 
     if (to !== null && to !== undefined) {
 
       var overrides = {};
+      var supers = {};
 
       for (var prop in from) {
 
         if (from.hasOwnProperty(prop)) {
 
           if (to[prop] !== undefined) {
+            supers[prop] = from[prop];
             overrides[prop] = to[prop];
           } else {
             to[prop] = from[prop];
@@ -110,7 +88,11 @@ spike.core.Assembler = {
         to[prop] = overrides[prop];
       }
 
+      to.super = supers;
+
     }
+
+    return to;
 
   },
 
@@ -141,11 +123,8 @@ spike.core.Assembler = {
   createDotPath: function (package, fillObject) {
 
     if (package.trim().length === 0) {
-      throw new Error();
+      this.throwError('FATAL No package declaration');
     }
-
-    //  package = package.substring(4, package.length);
-
 
     var createNodesFnBody = '';
     var splitPackage = package.split('.');
@@ -176,25 +155,34 @@ spike.core.Assembler = {
 
   },
 
-  createStaticClass: function (package, name, inherits, classBody) {
+  createStaticClass: function (package, name, inheritsPackage, classBody) {
 
     if (name.indexOf(package) > -1) {
       name = name.replace(package + '.', '');
     }
 
     this.namespacesCount++;
-    this.createDotPath(package + '.' + name, null);
+    var classBody = classBody();
+    if (inheritsPackage && inheritsPackage !== 'null') {
+      var inheritsClass = this.getClassByName(inheritsPackage);
+      if(inheritsClass === undefined){
+        this.throwError('Superclass '+inheritsPackage+'not found');
+      }
+
+      this.extend(inheritsClass, classBody);
+    }
 
     this.staticClasses[package + '.' + name] = classBody;
+    this.createDotPath(package + '.' + name, classBody);
 
   },
 
 
   checkIfCanBootstrap: function () {
 
-    console.log('this.spikeLoading  : ' + this.spikeLoading);
-    console.log('this.namespacesCount : ' + this.namespacesCount);
-    console.log('this.totalNamespaces : ' + this.totalNamespaces);
+    if(this.namespacesCount !== this.totalNamespaces){
+      this.throwError("FATAL Some namespaces damaged");
+    }
 
     if (this.namespacesCount === this.totalNamespaces && this.dependenciesFn) {
       this.bootstrap();
@@ -208,10 +196,6 @@ spike.core.Assembler = {
   },
 
   bootstrap: function () {
-
-    for (var className in this.staticClasses) {
-      this.createDotPath(className, this.staticClasses[className]);
-    }
 
     for (var className in this.objectiveClasses) {
       this.objectiveClasses[className]();
@@ -229,25 +213,35 @@ spike.core.Assembler = {
     if (this.templatesLoaded === false) {
 
       if (document.querySelector('[templates-src]') === null) {
-        throw new Error('Spike Framework: Cannot find script tag with templates-src definition')
+        this.throwError('Cannot find script tag with templates-src definition');
       }
 
       if (document.querySelector('[app-src]') === null) {
-        throw new Error('Spike Framework: Cannot find script tag with app-src definition')
+        this.throwError('Cannot find script tag with app-src definition')
       }
 
       var script = document.createElement("script");
       script.type = "application/javascript";
       script.src = document.querySelector('[templates-src]').getAttribute('templates-src');
       script.onload = function () {
-        self.templatesLoaded = true;
 
-        self.namespacesCount = 0;
-        self.appLoaded = true;
-        var script2 = document.createElement("script");
-        script2.type = "application/javascript";
-        script2.src = document.querySelector('[app-src]').getAttribute('app-src');
-        document.body.appendChild(script2);
+        var watchers = document.createElement("script");
+        watchers.type = "application/javascript";
+        watchers.src = document.querySelector('[watchers-src]').getAttribute('watchers-src');
+        watchers.onload = function () {
+
+          self.templatesLoaded = true;
+
+          self.namespacesCount = 0;
+          self.appLoaded = true;
+          var app = document.createElement("script");
+          app.type = "application/javascript";
+          app.src = document.querySelector('[app-src]').getAttribute('app-src');
+          document.body.appendChild(app);
+
+        };
+
+        document.body.appendChild(watchers);
 
       };
 
@@ -283,7 +277,25 @@ spike.core.Assembler = {
 
     }
 
-    throw new Error('Spike Framework: No loader defined');
+    this.throwError('No loader defined');
+
+  },
+
+  findConfigClass: function () {
+
+    for (var className in this.staticClasses) {
+
+      if (this.staticClasses.hasOwnProperty(className)) {
+
+        if (this.staticClasses[className].getSuper() === 'spike.core.Config') {
+          return this.staticClasses[className];
+        }
+
+      }
+
+    }
+
+    this.throwError('No config defined');
 
   },
 
@@ -302,20 +314,29 @@ spike.core.Assembler = {
 
     var packageName = classFullName.substring(0, classFullName.lastIndexOf('.'));
     var className = classFullName.substring(classFullName.lastIndexOf('.') + 1, classFullName.length);
-    var clazz = getObjectFromPath(packageName)[className];
 
-    return clazz;
+    return getObjectFromPath(packageName)[className];
 
   },
 
   getClassInstance: function (classFullName, argsArray) {
     var clazz = this.getClassByName(classFullName);
+
+    if(clazz === undefined){
+      this.throwError('Class '+classFullName+' not found');
+    }
+
     return new clazz(argsArray);
+  },
+
+  destroy: function(){
+    this.objectiveClasses = null;
+    this.staticClasses = null;
   }
 
 };
 
-spike.core.Assembler.resetNamespaces(21, 'spike.core');spike.core.Assembler.defineNamespace('spike.core.Config',function(){spike.core.Config=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Config with arguments count: '+args.length);}};spike.core.Config.prototype.constructor_0=function(){var $this=this;};spike.core.Config.prototype.languageFilePath= "/{lang}.json";spike.core.Config.prototype.html5Mode= false;spike.core.Config.prototype.mobileRun= false;spike.core.Config.prototype.showLog= true;spike.core.Config.prototype.showObj= true;spike.core.Config.prototype.showDebug= true;spike.core.Config.prototype.showWarn= true;spike.core.Config.prototype.showOk= true;spike.core.Config.prototype.mainController= null;spike.core.Config.prototype.initialView= null;spike.core.Config.prototype.rootPath= 'app';spike.core.Config.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Config.prototype.getClass=function(){var $this=this; return 'spike.core.Config'; };});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',{messages: {
+spike.core.Assembler.resetNamespaces(22, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
 
 CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
 REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
@@ -347,7 +368,7 @@ SPIKE_APP_NOT_DEFINED: 'No DOM element with {0} or {1} attribute specified',
 REQUEST_WRONG_PARAMS: 'Request url and type not defined',
 JSON_PARSE_ERROR: 'JSON parse error during execution {0}'
 
-},errors: [],throwError: function (errorMessage, errorMessageBinding) {var $this=this;
+},errors: [],isClass: true,throwError: function (errorMessage, errorMessageBinding) {var $this=this;
 
 var error = 'Spike Framework: ' + spike.core.Util.bindStringParams(errorMessage, errorMessageBinding);
 this.errors.push(error);
@@ -362,7 +383,7 @@ console.error('Error ' + i + ': ' + this.errors[i]);
 
 },throwWarn: function (warnMessage, warnMessageBinding) {var $this=this;
 spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnMessage, warnMessageBinding));
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Errors'; },});spike.core.Assembler.createStaticClass('spike.core','Events', 'null',{allowedEvents: [
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Errors'; },}});spike.core.Assembler.createStaticClass('spike.core','Events', 'null',function(){ return {allowedEvents: [
 'click',
 'change',
 'keyup',
@@ -385,11 +406,11 @@ spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnM
 'toggle',
 'load',
 'unload'
-],bindEvents: function(element){var $this=this;
+],__eventsReferences: {},isClass: true,bindEvents: function(element){var $this=this;
 
+this.bindEventsForElement(element);
 for(var i = 0; i < element.childElements.length; i++){
 
-this.bindEventsForElement(element.childElements[i]);
 
 if(element.childElements[i].length > 0){
 this.bindEvents(element.childElements[i]);
@@ -408,16 +429,27 @@ for (var k = 0; k < this.allowedEvents.length; k++) {
 var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
 
 if (eventFunctionBody) {
-selector.addEventListener(this.allowedEvents[i], Function('event', eventFunctionBody));
+
+var eventFn = Function('scope', 'event', eventFunctionBody);
+var eventRef = element.eventsSelectors[i]+'_'+this.allowedEvents[k];
+
+if(this.__eventsReferences[eventRef]){
+selector.removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+}
+
+this.__eventsReferences[eventRef] = eventFn;
+selector.addEventListener(this.allowedEvents[k], eventFn.bind(null, element));
+
+
 }
 
 }
 
-element.removeAttribute('spike-unbinded');
+selector.removeAttribute('spike-unbinded');
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+args.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
 
 };spike.core.EventsInterface.prototype.onRender=function(){var $this=this;
 
@@ -428,14 +460,24 @@ element.removeAttribute('spike-unbinded');
 };spike.core.EventsInterface.prototype.onBack=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onDeviceReady=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onReady=function(){var $this=this;
-};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+args.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
+};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+args.length);}};spike.core.RoutingInterface.prototype.RoutingInterface=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+arguments.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.isClass= true;spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
 
-};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+args.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
+};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+args.length);}};spike.core.LoaderInterface.prototype.LoaderInterface=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+arguments.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.isClass= true;spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
 
 };spike.core.LoaderInterface.prototype.onLoadApplication=function(){var $this=this;
-};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+args.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
+};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+args.length);}};spike.core.ModalInterface.prototype.ModalInterface=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+arguments.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.isClass= true;spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
 this.clearDestroyedModals();
 this.modals.push(modal);
+};spike.core.ModalInterface.prototype.isRendered=function(modal){var $this=this;
+
+for(var i = 0; i < this.modals.length; i++){
+if(this.modals[i].getClass() === modal.getClass()){
+return true;
+}
+}
+
+return false;
+
 };spike.core.ModalInterface.prototype.onShow=function(modal){var $this=this;
 modal.rootSelector().style = 'display: block;';
 };spike.core.ModalInterface.prototype.onHide=function(modal){var $this=this;
@@ -460,10 +502,11 @@ modals.push(this.modals[i]);
 
 this.modals = modals;
 
-};spike.core.ModalInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.ModalInterface.prototype.getClass=function(){var $this=this; return 'spike.core.ModalInterface'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.System', 'null',{config: null,eventsInterface: null,modalInterface: null,routing: null,idCounter: 1,attributes: {
+};spike.core.ModalInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.ModalInterface.prototype.getClass=function(){var $this=this; return 'spike.core.ModalInterface'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.System', 'null',function(){ return {config: null,eventsInterface: null,modalInterface: null,routing: null,idCounter: 1,attributes: {
+APP: 'spike-app',
 VIEW: 'spike-view',
 MODALS: 'spike-modals',
-},version: '3.0.0',currentController: null,previousController: null,viewSelector: null,modalsSelector: null,loader: null,setConfig: function(configObject){var $this=this;
+},version: '3.0.0',currentController: null,previousController: null,currentRenderedController: null,viewSelector: null,appViewSelector: null,modalsSelector: null,loader: null,globalElements: [],isClass: true,setConfig: function(configObject){var $this=this;
 this.config = configObject;
 },setRouting: function(routing){var $this=this;
 this.routing = routing;
@@ -524,6 +567,7 @@ this.modalInterface.invalidateAll();
 spike.core.Selectors.clearSelectorsCache();
 
 controller.render();
+this.currentRenderedController = controller.getClass();
 
 spike.core.System.execOnRenderEvent();
 
@@ -531,7 +575,7 @@ if (afterRenderCallback) {
 afterRenderCallback();
 }
 
-spike.core.Log.ok('spike.core.Selectors cache usage during app lifecycle: ' + spike.core.System.cacheUsageCounter);
+spike.core.Log.ok('spike.core.Selectors cache usage during app lifecycle: ' + spike.core.Selectors.cacheUsageCounter);
 
 },render: function (moduleClass, moduleInitialModel, afterRenderCallback) {var $this=this;
 
@@ -539,11 +583,14 @@ if (!moduleClass) {
 spike.core.Errors.throwError(spike.core.Errors.messages.MODULE_NOT_EXIST);
 }
 
+if(this.modalInterface.isRendered(moduleClass) || this.currentRenderedController === moduleClass){
+spike.core.Log.warn('Preventing re-rendering module '+moduleClass);
+return;
+}
+
 spike.core.Router.clearCacheViewData();
 
 var module = spike.core.Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
-
-console.log(module);
 
 if (module.getSuper() === 'spike.core.Controller') {
 spike.core.System.renderController(module, afterRenderCallback);
@@ -559,6 +606,14 @@ this.viewSelector = document.querySelector('['+this.attributes.VIEW+']');
 
 return this.viewSelector;
 
+},getAppView: function(){var $this=this;
+
+if(this.appViewSelector === null){
+this.appViewSelector = document.querySelector('['+this.attributes.APP+']');
+}
+
+return this.appViewSelector;
+
 },getModalsView: function(){var $this=this;
 
 if(this.modalsSelector === null){
@@ -573,31 +628,12 @@ if(this.getView() === null || this.getModalsView() === null){
 spike.core.Errors.throwError(spike.core.Errors.messages.SPIKE_APP_NOT_DEFINED, [this.attributes.VIEW, this.attributes.MODALS]);
 }
 
-},renderInitialView: function () {var $this=this;
-spike.core.Log.debug('Running system.initialView');
-
-if (!spike.core.Util.isNull(this.config.initialView)) {
-
-try {
-
-var templateHtml = Templates.templates[this.config.initialView]();
-
-if(templateHtml){
-spike.core.System.getView().html(templateHTML);
-}
-
-} catch (err) {
-spike.core.Errors.throwError(spike.core.Errors.messages.INITIAL_VIEW_ERROR, [this.config.initialView])
-}
-
-}
-
-
 },init: function () {var $this=this;
 
 spike.core.Log.init();
 
 this.loader = spike.core.Assembler.findLoaderClass();
+this.config = spike.core.Assembler.findConfigClass();
 this.loader.loadApplication();
 
 spike.core.Log.debug('Invoke spike.core.System.init with params', []);
@@ -614,6 +650,9 @@ if(this.eventsInterface === null){
 this.setEventsInterface(new spike.core.EventsInterface([]));
 }
 
+spike.core.Log.log('Destroy assembler');
+spike.core.Assembler.destroy();
+
 spike.core.Log.warn('Spike version: {0}', [spike.core.System.version]);
 spike.core.Log.ok('Spike application initializing...');
 
@@ -622,9 +661,10 @@ spike.core.Router.detectHTML5Mode();
 
 spike.core.Message.loadLanguage().then(function(){
 
-this.renderInitialView();
+spike.core.Log.log('Translations loaded');
 
 spike.core.Router.registerRouter();
+spike.core.Watchers.createWatchLoop();
 $this.initGlobalElements();
 
 if ($this.eventsInterface.onReady !== undefined) {
@@ -639,19 +679,18 @@ spike.core.Log.ok('Spike application ready to work...');
 
 },initGlobalElements: function(){var $this=this;
 
-var globalElements = this.getView().getElementsByTagName('element');
+var globalElements = document.getElementsByTagName('spike');
 
 for(var i = 0; i < globalElements.length; i++){
 
-var className = globalElements[i].getAttribute('name');
+var className = globalElements[i].getAttribute('sp-element');
 
-var globalElement = spike.core.Assembler.getDotPath(className)();
-
-globalElement.render();
+var globalElement = spike.core.Assembler.getClassInstance(className, [globalElements[i]]);
+this.globalElements.push(globalElement);
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.System'; },});spike.core.Assembler.createStaticClass('spike.core','Log', 'null',{init: function(){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.System'; },}});spike.core.Assembler.createStaticClass('spike.core','Log', 'null',function(){ return {isClass: true,init: function(){var $this=this;
 if (!window.console) window.console = {};
 if (!window.console.log) window.console.log = function () { };
 },obj: function (jsObject) {var $this=this;
@@ -724,7 +763,7 @@ color = 'black';
 
 console.log('%c' + spike.core.Util.currentDateLog() + ' Spike Framework: ' + message, 'color: ' + color);
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Log'; },});spike.core.Assembler.createStaticClass('spike.core','spike.core.Selectors', 'null',{cacheUsageCounter: 0,selectorsCache: {},clearSelectorsCache: function () {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Log'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Selectors', 'null',function(){ return {cacheUsageCounter: 0,selectorsCache: {},isClass: true,clearSelectorsCache: function () {var $this=this;
 this.selectorsCache = {};
 },clearSelectorInCache: function (selectorId) {var $this=this;
 
@@ -732,13 +771,13 @@ if (this.selectorsCache[selectorId]) {
 this.selectorsCache[selectorId] = null;
 }
 
-},createNamesSelectors: function(templateHtml, selectors){var $this=this;
+},createNamesSelectors: function(element, selectors){var $this=this;
 
-var nameList = spike.core.Util.findStringBetween(templateHtml, 'name="', '"');
+var elementsWithNames = element.querySelectorAll('[name]');
 
-for(var i = 0; i < nameList.length; i++){
+for(var i = 0; i < elementsWithNames.length; i++){
 
-var newName = name + '-' + spike.core.Util.hash();
+var newName = elementsWithNames[i].getAttribute('name') + '-' + spike.core.Util.hash();
 
 selectors.names[name] = function () {
 
@@ -754,24 +793,24 @@ spike.core.Selectors.cacheUsageCounter++;
 
 return selector;
 
+}
+
+elementsWithNames[i].setAttribute('name', newName);
+
 
 }
 
-templateHtml = templateHtml.replace('name="' + name + '"', 'spike-name="' + newName + '" name="' + name + '"');
+return element.innerHTML;
 
-}
+},createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){var $this=this;
 
-return templateHtml;
+var elementsWithId = element.querySelectorAll('[id]');
 
-},createIdSelectors: function(templateHtml, selectors, eventsSelectors, linksSelectors){var $this=this;
+for(var i = 0; i < elementsWithId.length; i++){
 
-var idList = spike.core.Util.findStringBetween(templateHtml, 'id="', '"');
+var newId = elementsWithId[i].id + '-' + spike.core.Util.hash();
 
-for(var i = 0; i < idList.length; i++){
-
-var newId = idList[i] + '-' + spike.core.Util.hash();
-
-selectors[idList[i]] = function () {
+selectors[elementsWithId[i].id] = function () {
 
 var selector = spike.core.Selectors.selectorsCache[newId];
 
@@ -787,21 +826,24 @@ return selector;
 
 };
 
-if(idList[i].indexOf('spike-event-') > -1){
+if(elementsWithId[i].getAttribute('spike-unbinded') != null){
 eventsSelectors.push(newId);
 }
 
-if(idList[i].indexOf('spike-href-') > -1){
+if(elementsWithId[i].getAttribute('spike-href-') != null){
 linksSelectors.push(newId);
 }
 
-templateHtml = templateHtml.replace('id="' + idList[i] + '"', 'id="' + newId + '"');
+elementsWithId[i].id = newId;
 
 }
 
-return templateHtml;
+return element.innerHTML;
 
 },createUniqueSelectors: function (templateHtml) {var $this=this;
+
+var element = document.createElement('div');
+element.innerHTML = templateHtml;
 
 var selectors = {
 names: {},
@@ -811,8 +853,8 @@ forms: {}
 var eventsSelectors = [];
 var linksSelectors = [];
 
-templateHtml = this.createNamesSelectors(templateHtml, selectors);
-templateHtml = this.createIdSelectors(templateHtml, selectors, eventsSelectors, linksSelectors);
+templateHtml = this.createNamesSelectors(element, selectors);
+templateHtml = this.createIdSelectors(element, selectors, eventsSelectors, linksSelectors);
 
 return {
 html: templateHtml,
@@ -821,9 +863,9 @@ eventsSelectors: eventsSelectors,
 linksSelectors: linksSelectors
 };
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',{toCamelCase: function (str) {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
 
-if (Util.isEmpty(str)) {
+if (this.isEmpty(str)) {
 return str;
 }
 
@@ -866,6 +908,7 @@ string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
 }
 
 } catch (err) {
+console.log(err);
 }
 
 return string;
@@ -875,7 +918,7 @@ var getType = {};
 return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
 },isObject: function (object) {var $this=this;
 
-if (Util.isNull(object)) {
+if (this.isNull(object)) {
 return false;
 }
 
@@ -915,13 +958,13 @@ return false;
 
 },tryParseNumber: function (obj) {var $this=this;
 
-if (!Util.isEmpty(obj) && $.isNumeric(obj)) {
+if (!this.isEmpty(obj) && this.isNumeric(obj)) {
 
-if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1){
+if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1 || obj.charAt(0) === '0'){
 return obj;
 }
 
-if (Util.isInt(parseFloat(obj))) {
+if (this.isInt(parseFloat(obj))) {
 return parseInt(obj, 10);
 } else {
 return parseFloat(obj);
@@ -932,6 +975,8 @@ return parseFloat(obj);
 return obj;
 
 
+},isNumeric: function( obj ) {var $this=this;
+return ( typeof obj === "number" || typeof obj === "string" ) && !isNaN( obj - parseFloat( obj ) );
 },isInt: function (n) {var $this=this;
 return Number(n) === n && n % 1 === 0;
 },isFloat: function (n) {var $this=this;
@@ -1001,6 +1046,7 @@ return text;
 try {
 text = text.replace(/"/g, "&quot;").replace(/'/g, "&quot;");
 } catch (err) {
+console.log(err);
 Log.warn('Could not escape single quotes in string: ' + text);
 }
 
@@ -1032,7 +1078,7 @@ string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
 
 return string;
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+args.length);}};spike.core.Request.prototype.constructor_1=function(config){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+args.length);}};spike.core.Request.prototype.Request=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+arguments.length);}};spike.core.Request.prototype.constructor_1=function(config){var $this=this;
 
 this.config = this.setConfig(config);
 this.xhr = this.createXHR();
@@ -1049,7 +1095,7 @@ LOADING: 3,
 HEADERS_RECEIVED: 2,
 OPENED: 1,
 UNSENT: 0
-};spike.core.Request.prototype.setConfig=function(config){var $this=this;
+};spike.core.Request.prototype.isClass= true;spike.core.Request.prototype.setConfig=function(config){var $this=this;
 
 if(config === undefined || config === null){
 spike.core.Errors.throwError(spike.core.Errors.messages.REQUEST_WRONG_PARAMS, []);
@@ -1064,18 +1110,21 @@ config.headers = {};
 }
 
 if(config.contentType === undefined){
-config.headers['Content-Type'] = 'application/json';
+config.contentType = 'application/json';
 }
 
-if(config.data === undefined){
-config.data = {};
+config.headers['Content-Type'] = config.contentType;
+
+if(config.request === undefined){
+config.request = {};
 }
 
-if(typeof config.data === 'string'){
+if(typeof config.request !== 'string'){
 
 try {
-config.data = JSON.parse(config.data);
+config.data = JSON.stringify(config.data);
 }catch(e){
+console.error(e);
 spike.core.Errors.thrownError(spike.core.Errors.JSON_PARSE_ERROR, [config.url]);
 }
 
@@ -1106,6 +1155,7 @@ try {
 self.response = JSON.parse(self.xhr.responseText);
 self.resolveThen(self.response, self.xhr, self.xhr.status);
 }catch(e){
+console.error(e);
 self.resolveCatch(self.xhr, 0, e);
 }
 
@@ -1162,13 +1212,14 @@ xhr = new XMLHttpRequest();
 try {
 xhr = new ActiveXObject("Msxml2.XMLHTTP");
 } catch (e) {
+console.log(e);
 xhr = new ActiveXObject("Microsoft.XMLHTTP");
 }
 }
 
 return xhr;
 
-};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.Rest', 'null',{cacheData: {},interceptors: {},globalInterceptors: {},interceptor: function (interceptorName, interceptorFunction, isGlobal) {var $this=this;
+};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.Rest', 'null',function(){ return {cacheData: {},interceptors: {},globalInterceptors: {},isClass: true,interceptor: function (interceptorName, interceptorFunction, isGlobal) {var $this=this;
 
 if (isGlobal) {
 
@@ -1243,7 +1294,7 @@ return promise;
 
 var data = spike.core.Rest.cacheData[url + '_' + method];
 
-if (Util.isNull(data)) {
+if (spike.core.Util.isNull(data)) {
 return false;
 }
 
@@ -1342,23 +1393,23 @@ var interceptors = propertiesObject.interceptors || [];
 var preparedUrl = url;
 
 if (pathParams !== undefined && pathParams !== null) {
-preparedUrl = Util.preparePathDottedParams(url, pathParams);
+preparedUrl = spike.core.Util.preparePathDottedParams(url, pathParams);
 
 if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
 spike.core.Errors.throwWarn(spike.core.Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
-preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+preparedUrl = spike.core.Util.removeUndefinedPathParams(preparedUrl);
 }
 
 }
 
 if (urlParams !== undefined && urlParams !== null) {
-preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+preparedUrl = spike.core.Util.prepareUrlParams(preparedUrl, urlParams);
 }
 
 var dataType = "json";
 var contentType = "application/json; charset=utf-8";
 
-if (!Util.isNull(propertiesObject.cache) && Util.isNull(spike.core.Rest.cacheData[url + '_' + method])) {
+if (!spike.core.Util.isNull(propertiesObject.cache) && spike.core.Util.isNull(spike.core.Rest.cacheData[url + '_' + method])) {
 spike.core.Rest.createCacheObject(url, method, propertiesObject.cache);
 }
 
@@ -1370,7 +1421,7 @@ beforeSend: function () {
 },
 complete: function (xhr) {
 
-if (!Util.isNull(propertiesObject.cache)) {
+if (!spike.core.Util.isNull(propertiesObject.cache)) {
 spike.core.Rest.fillCache(url, method, xhr.responseJSON);
 }
 
@@ -1440,42 +1491,39 @@ var headers = propertiesObject.headers;
 var urlParams = propertiesObject.urlParams;
 var interceptors = propertiesObject.interceptors || [];
 
-
-var jsonData = JSON.stringify(request);
-
 var preparedUrl = url;
 
 if (pathParams !== undefined && pathParams !== null) {
-preparedUrl = Util.preparePathDottedParams(url, pathParams);
+preparedUrl = spike.core.Util.preparePathDottedParams(url, pathParams);
 
 if (preparedUrl.indexOf('/undefined') > -1 || preparedUrl.indexOf('/null') > -1) {
 spike.core.Errors.throwWarn(spike.core.Errors.messages.REST_API_NULL_PATHPARAM, [preparedUrl]);
-preparedUrl = Util.removeUndefinedPathParams(preparedUrl);
+preparedUrl = spike.core.Util.removeUndefinedPathParams(preparedUrl);
 }
 
 }
 
 if (urlParams !== undefined && urlParams !== null) {
-preparedUrl = Util.prepareUrlParams(preparedUrl, urlParams);
+preparedUrl = spike.core.Util.prepareUrlParams(preparedUrl, urlParams);
 }
 
 var dataType = "json";
 var contentType = "application/json; charset=utf-8";
 
-if (!Util.isNull(propertiesObject.cache) && Util.isNull(spike.core.Rest.cacheData[url + '_' + method])) {
+if (!spike.core.Util.isNull(propertiesObject.cache) && spike.core.Util.isNull(spike.core.Rest.cacheData[url + '_' + method])) {
 spike.core.Rest.createCacheObject(url, method, propertiesObject.cache);
 }
 
 var promiseObj = {
 url: preparedUrl,
-data: jsonData,
+data: request,
 type: method,
 beforeSend: function () {
 
 },
 complete: function (xhr) {
 
-if (!Util.isNull(propertiesObject.cache)) {
+if (!spike.core.Util.isNull(propertiesObject.cache)) {
 spike.core.Rest.fillCache(url, method, xhr.responseJSON);
 }
 
@@ -1522,6 +1570,9 @@ promiseObj.headers = headers;
 
 var promise = new spike.core.Request([promiseObj]);
 
+console.log(promise);
+console.log(promise.xhr.onreadystatechange.toString(););
+
 var requestData = {
 url: url,
 method: method,
@@ -1557,8 +1608,7 @@ cachePeriod: cache === true ? null : cache,
 data: null
 };
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Rest'; },});spike.core.Assembler.createStaticClass('spike.core','spike.core.Message', 'null',{waitingForTranslations: {},messages: {},loadLanguage: function(){var $this=this;
-console.log(spike.core.System.config);
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Rest'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Message', 'null',function(){ return {waitingForTranslations: {},messages: {},isClass: true,loadLanguage: function(){var $this=this;
 return spike.core.Message.add(spike.core.System.config.lang, spike.core.Util.bindStringParams(spike.core.System.config.languageFilePath, { lang: spike.core.System.config.lang }));
 },add: function (languageName, languageFilePath) {var $this=this;
 
@@ -1574,9 +1624,6 @@ type: 'GET'
 promise.then(function (data) {
 
 spike.core.Message.setTranslation(languageName, data);
-
-spike.core.Log.log('languageName : '+languageName);
-spike.core.Log.log('spike.core.System.config.lang  : '+spike.core.System.config.lang);
 
 return data;
 
@@ -1604,6 +1651,7 @@ if (typeof translationData === 'string') {
 try {
 translationData = JSON.parse(translationData);
 } catch (err) {
+console.error(err);
 spike.core.Errors.throwError(spike.core.Errors.messages.TRANSLATION_PARSING, [languageName]);
 }
 
@@ -1623,9 +1671,9 @@ message = spike.core.Util.bindTranslationParams(message, arrayOrMapParams);
 }
 
 return message || messageName;
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Message'; },});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',{templates: {},compileTemplate: function(scope, name){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},isClass: true,compileTemplate: function(scope, name){var $this=this;
 return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope);
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Templates'; },});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',{preventReloadPage: null,events: {},otherwiseReplacement: '!',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,getRouterFactory: function () {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Templates'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',function(){ return {preventReloadPage: null,events: {},otherwiseReplacement: '!',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,isClass: true,getRouterFactory: function () {var $this=this;
 return {
 path: spike.core.Router.pathFunction,
 other: spike.core.Router.otherFunction
@@ -1667,7 +1715,7 @@ pathValue: pathValue,
 controller: pathController,
 defaultController: pathModalDefaultController,
 modal: pathModal,
-routingParams: routingParams,
+routingParams: routingParams || {},
 onRouteEvent: onRouteEvent,
 pathPattern: pathPattern,
 routeName: routeName,
@@ -1764,8 +1812,6 @@ this.initHashChangeEvent();
 
 function hashChangeCallback(){
 
-spike.core.Log.log('spike.core.Router.lastHashValue : '+spike.core.Router.lastHashValue);
-spike.core.Log.log('window.location.hash : '+window.location.hash);
 
 if(spike.core.Router.lastHashValue !== window.location.hash){
 spike.core.Router.lastHashValue = window.location.hash;
@@ -1850,6 +1896,8 @@ return false;
 return true;
 
 },getURLParams: function () {var $this=this;
+return spike.core.Router.getURLParams();
+},getQueryParams: function () {var $this=this;
 return spike.core.Router.getURLParams();
 },getURLParams: function () {var $this=this;
 
@@ -2085,13 +2133,12 @@ window.location.hash = path;
 history.pushState({state: path}, null, path);
 },getViewData: function () {var $this=this;
 var currentViewData = spike.core.Router.getCurrentViewData();
-return $.extend({}, currentViewData.endpoint, currentViewData.data);
+return spike.core.Assembler.extend(currentViewData.endpoint, currentViewData.data);
 },reloadView: function () {var $this=this;
 spike.core.Router.renderCurrentView();
 },renderCurrentView: function () {var $this=this;
 
 var currentEndpointData = spike.core.Router.getCurrentView();
-spike.core.Log.debug('current view to render {0}', [currentEndpointData]);
 
 if (currentEndpointData.isModal === true) {
 
@@ -2180,7 +2227,7 @@ for(var i = 0; i < element.childElements.length; i++){
 this.bindLinksForElement(element.childElements[i]);
 
 if(element.childElements[i].length > 0){
-this.bindEvents(element.childElements[i]);
+spike.core.Events.bindEvents(element.childElements[i]);
 }
 
 }
@@ -2221,30 +2268,40 @@ spike.core.Router.redirect(link);
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+args.length);}};spike.core.Element.prototype.constructor_2=function(parentElement,model){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+args.length);}};spike.core.Element.prototype.Element=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
+this.Element(parentElement, null);
+};spike.core.Element.prototype.constructor_2=function(parentElement,params){var $this=this;
 
-this.parentElement = parentElement;
-this.model = model;
+this.constructor_0();
+
+if(parentElement){
+this.parentElement = parentElement.isClass ? parentElement : null;
+}
+
+this.margeParams(params);
 
 this.createTemplatePath();
 this.createTemplate();
 
-
-
-};spike.core.Element.prototype.constructor_0=function(){var $this=this;};spike.core.Element.prototype.rendered= false;spike.core.Element.prototype.model= null;spike.core.Element.prototype.elementId= null;spike.core.Element.prototype.elementSelector= null;spike.core.Element.prototype.compiledHtml= null;spike.core.Element.prototype.parentElement= null;spike.core.Element.prototype.childElements= [];spike.core.Element.prototype.selector= {};spike.core.Element.prototype.eventsSelectors= [];spike.core.Element.prototype.linksSelectors= [];spike.core.Element.prototype.rootSelector=function(){var $this=this;
+};spike.core.Element.prototype.constructor_0=function(){var $this=this;};spike.core.Element.prototype.rendered= false;spike.core.Element.prototype.elementId= null;spike.core.Element.prototype.elementSelector= null;spike.core.Element.prototype.compiledHtml= null;spike.core.Element.prototype.parentElement= null;spike.core.Element.prototype.childElements= [];spike.core.Element.prototype.selector= {};spike.core.Element.prototype.eventsSelectors= [];spike.core.Element.prototype.linksSelectors= [];spike.core.Element.prototype.templatePath= null;spike.core.Element.prototype.isClass= true;spike.core.Element.prototype.rootSelector=function(){var $this=this;
 
 if(this.elementSelector === null){
 this.elementSelector = document.getElementById(this.elementId);
 }
 
 return this.elementSelector;
+};spike.core.Element.prototype.margeParams=function(params){var $this=this;
+
+if(params){
+for(var prop in params){
+this[prop] = params[prop];
+}
+}
+
 };spike.core.Element.prototype.include=function(childElement){var $this=this;
 
 this.childElements.push(childElement);
-this.createTemplatePath();
-this.createTemplate();
-
-return this.compiledHtml;
+return childElement.compiledHtml;
 
 };spike.core.Element.prototype.createTemplatePath=function(){var $this=this;
 
@@ -2271,27 +2328,23 @@ this.selector = selectorsObj.selectors;
 this.eventsSelectors = selectorsObj.eventsSelectors;
 this.linksSelectors = selectorsObj.linksSelectors;
 
-};spike.core.Element.prototype.render=function(){var $this=this;
-};spike.core.Element.prototype.reloadComponent=function(component, componentData){var $this=this;
+};spike.core.Element.prototype.reloadElement=function(element, params){var $this=this;
+};spike.core.Element.prototype.postConstructChildren=function(){var $this=this;
 
-};spike.core.Element.prototype.replaceWith=function(){var $this=this;
+for(var i = 0; i < this.childElements.length; i++){
+this.childElements[i].postConstruct();
+}
 
-var elementDiv = document.createElement("div");
-elementDiv.innerHTML = this.compiledHtml;
-elementDiv.setAttribute('element-name', this.getClass());
-elementDiv.setAttribute('id', this.elementId);
 
-this.rootSelector().replaceChild(elementDiv, this.rootSelector());
+};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementSelector){var $this=this;
 
-this.elementSelector = null;
-
-};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+args.length);}};spike.core.GlobalElement.prototype.constructor_0=function(){var $this=this;
-
-this.elementSelector = document.body;
+this.constructor_0();
+this.elementSelector = elementSelector;
 this.createTemplatePath();
 this.createTemplate();
+this.render();
 
-};spike.core.GlobalElement.prototype.render=function(){var $this=this;
+};spike.core.GlobalElement.prototype.constructor_0=function(){var $this=this;};spike.core.GlobalElement.prototype.isClass= true;spike.core.GlobalElement.prototype.render=function(){var $this=this;
 
 this.replaceWith();
 
@@ -2300,28 +2353,36 @@ spike.core.Router.bindLinks(this);
 
 this.rendered = true;
 
-if(this.init !== undefined){
-this.init();
-}
+this.postConstructChildren();
+this.postConstruct();
 
-};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+args.length);}};spike.core.Controller.prototype.constructor_1=function(model){var $this=this;
 
-this.model = model;
+};spike.core.GlobalElement.prototype.replaceWith=function(){var $this=this;
+
+var elementDiv = document.createElement("div");
+elementDiv.innerHTML = this.compiledHtml;
+elementDiv.setAttribute('element-name', this.getClass());
+elementDiv.setAttribute('id', this.elementId);
+
+spike.core.System.getAppView().replaceChild(elementDiv, this.rootSelector());
+
+
+};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+args.length);}};spike.core.Controller.prototype.Controller=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
+};spike.core.Controller.prototype.scrollTop= true;spike.core.Controller.prototype.checkNetwork= true;spike.core.Controller.prototype.isClass= true;spike.core.Controller.prototype.render=function(){var $this=this;
+
 this.elementSelector = spike.core.System.getView();
-
-this.createTemplatePath();
-this.createTemplate();
-
-};spike.core.Controller.prototype.constructor_0=function(){var $this=this;};spike.core.Controller.prototype.scrollTop= true;spike.core.Controller.prototype.checkNetwork= true;spike.core.Controller.prototype.render=function(){var $this=this;
-
 this.rootSelector().innerHTML = this.compiledHtml;
 
 spike.core.Events.bindEvents(this);
 spike.core.Router.bindLinks(this);
+spike.core.Watchers.observe(this);
 
 this.rendered = true;
 
-};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+args.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
+this.postConstructChildren();
+this.postConstruct();
+
+};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+args.length);}};spike.core.Modal.prototype.Modal=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+arguments.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
 
 this.parentElement = spike.core.System.getModalsView();
 this.model = model;
@@ -2331,13 +2392,13 @@ this.createTemplate();
 
 
 
-};spike.core.Modal.prototype.constructor_0=function(){var $this=this;};spike.core.Modal.prototype.destroyed= false;spike.core.Modal.prototype.show=function(){var $this=this;
+};spike.core.Modal.prototype.constructor_0=function(){var $this=this;};spike.core.Modal.prototype.destroyed= false;spike.core.Modal.prototype.isClass= true;spike.core.Modal.prototype.show=function(){var $this=this;
 spike.core.System.modalInterface.onShow();
 };spike.core.Modal.prototype.hide=function(){var $this=this;
 spike.core.System.modalInterface.onHide();
 };spike.core.Modal.prototype.destroy=function(){var $this=this;
 this.destroyed = true;
-};spike.core.Modal.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Modal.prototype.getClass=function(){var $this=this; return 'spike.core.Modal'; };});spike.core.Assembler.createStaticClass('spike.core','Broadcaster', 'null',{applicationEvents: {},register: function (eventName) {var $this=this;
+};spike.core.Modal.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Modal.prototype.getClass=function(){var $this=this; return 'spike.core.Modal'; };});spike.core.Assembler.createStaticClass('spike.core','Broadcaster', 'null',function(){ return {applicationEvents: {},isClass: true,register: function (eventName) {var $this=this;
 
 if (!spike.core.Util.isNull(this.applicationEvents[eventName])) {
 spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_ALREADY_EXIST, [eventName]);
@@ -2387,4 +2448,215 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
+'childElements',
+'parentElement',
+'eventsSelectors',
+'linksSelectors',
+'compiledHtml',
+'elementSelector',
+'templatePath',
+'selector'
+],isClass: true,compileWatchers: function(scope){var $this=this;
+
+var watchers = [];
+
+if(this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath]){
+watchers = this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath](scope);
+}
+
+console.log('watchers');
+console.log(watchers);
+
+if(watchers.length > 0){
+
+var virtualDom = document.createElement('div');
+virtualDom.innerHTML = scope.compiledHtml;
+var watchElements = virtualDom.querySelectorAll('[sp-watch]');
+
+for(var i = 0; i < watchElements.length; i++){
+
+for(var k = 0; k < watchers.length; k++){
+
+if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
+
+var currentHtml = watchElements[i].outerHTML;
+var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
+
+if(watcherHtml !== currentHtml){
+
+console.log(watcherHtml);
+console.log(currentHtml);
+
+spike.core.Log.log('Watcher reflow needed');
+$this.replaceChangedElements(watcherHtml, currentHtml);
+
+}
+
+}
+
+}
+
+}
+
+}
+
+},replaceChangedElements: function(watcherHtml, currentHtml){var $this=this;
+
+var watcherVirtual = document.createElement('div');
+watcherVirtual.innerHTML = watcherHtml;
+
+var currentVirtual = document.createElement('div');
+currentVirtual.innerHTML = currentHtml;
+
+var watcherElements = watcherVirtual.querySelectorAll('*');
+spike.core.Log.log('Comparing elements');
+
+var changedElements = [];
+
+for(var i = 0; i < watcherElements.length; i++){
+
+var currentElementHtml = currentVirtual.querySelector('[id="'+watcherElements[i].id+'"]').outerHTML;
+var watcherElementHtml = watcherElements[i].outerHTML;
+
+
+if(currentElementHtml !== watcherElementHtml){
+changedElements.push(watcherElements[i]);
+}
+
+
+}
+
+console.log('changedElements');
+console.log(changedElements);
+
+changedElements = $this.excludeContainingElements(changedElements);
+
+console.log('changedElementsExcluded');
+console.log(changedElements);
+
+for(var i = 0; i < changedElements.length; i++){
+
+spike.core.Log.log('Element changed id: {0}', [changedElements[i].id]);
+var element = document.getElementById(changedElements[i].id);
+
+console.log(watcherElementHtml);
+
+element.outerHTML = watcherElementHtml;
+
+}
+
+},excludeContainingElements: function(changedElements){var $this=this;
+
+var changedElementsExcluded = [];
+for(var i = 0; i < changedElements.length; i++){
+
+for(var k = 0; k < changedElements.length; k++){
+
+if(!changedElements[i].contains(changedElements[k])){
+changedElementsExcluded.push(changedElements[i]);
+break;
+}
+
+}
+
+}
+
+return changedElementsExcluded;
+
+},fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
+
+var idListFromWatcher = spike.core.Util.findStringBetween(watcherHtml, 'id="','"');
+var idListFromCurrent = spike.core.Util.findStringBetween(currentHtml, 'id="','"');
+
+for(var i = 0; i < idListFromWatcher.length; i++){
+
+for(var k = 0; k < idListFromCurrent.length; k++){
+
+if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+}
+
+}
+
+}
+
+var namesListFromWatcher = spike.core.Util.findStringBetween(watcherHtml, 'name="','"');
+var namesListFromCurrent = spike.core.Util.findStringBetween(currentHtml, 'name="','"');
+
+for(var i = 0; i < namesListFromWatcher.length; i++){
+
+for(var k = 0; k < namesListFromCurrent.length; k++){
+
+if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
+watcherHtml = watcherHtml.replace('name="'+namesListFromWatcher[i]+'"', 'name="'+namesListFromCurrent[k]+'"');
+}
+
+}
+
+}
+
+return watcherHtml;
+
+},cleanAutoSelectors: function(html){var $this=this;
+
+var element = document.createElement('div');
+element.innerHTML = html;
+
+var idElements = element.querySelectorAll('[id]');
+for(var i = 0; i < idElements.length; i++){
+idElements[i].setAttribute('id', '');
+}
+
+var nameElements = element.querySelectorAll('[name]');
+for(var i = 0; i < nameElements.length; i++){
+nameElements[i].setAttribute('name', '');
+}
+
+return element.innerHTML;
+
+},observe: function(scope){var $this=this;
+this.observables.push(scope);
+},stringifyScope: function(scope){var $this=this;
+
+var stringify = '';
+
+for(var key in scope) {
+if(typeof scope[key] !== 'function'){
+
+if($this.excludedProperties.indexOf(key) == -1){
+stringify += key + JSON.stringify(scope[key]);
+}
+
+}
+
+}
+
+return stringify;
+
+},detectScopeChange: function(scope){var $this=this;
+
+var stringify = $this.stringifyScope(scope);
+
+if(stringify !== $this.scopes[scope.elementId]){
+spike.core.Log.log('scope changed');
+
+$this.compileWatchers(scope);
+
+}
+
+$this.scopes[scope.elementId] = stringify;
+
+},createWatchLoop: function(scope){var $this=this;
+
+setTimeout(function(){
+
+for(var i = 0; i < $this.observables.length; i++){
+$this.detectScopeChange($this.observables[i]);
+}
+
+$this.createWatchLoop();
+
+}, 100)
+
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Watchers'; },}});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});

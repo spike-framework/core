@@ -10,6 +10,7 @@ import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
 import SysUtils from spike.core.Util;
 import Message from spike.core.Message;
+import Watchers from spike.core.Watchers;
 
 static class System {
 
@@ -46,6 +47,7 @@ static class System {
    * Stores DOM elements attributes
    */
   attributes: {
+    APP: 'spike-app',
     VIEW: 'spike-view',
     MODALS: 'spike-modals',
   },
@@ -168,6 +170,7 @@ static class System {
 
     //Renders controller
     controller.render();
+    this.currentRenderedController = controller.getClass();
 
     System.execOnRenderEvent();
 
@@ -175,7 +178,7 @@ static class System {
       afterRenderCallback();
     }
 
-    Log.ok('Selectors cache usage during app lifecycle: ' + System.cacheUsageCounter);
+    Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
 
   },
 
@@ -198,11 +201,14 @@ static class System {
       Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
     }
 
+    if(this.modalInterface.isRendered(moduleClass) || this.currentRenderedController === moduleClass){
+        Log.warn('Preventing re-rendering module '+moduleClass);
+        return;
+    }
+
     Router.clearCacheViewData();
 
     var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
-
-    console.log(module);
 
     if (module.getSuper() === 'spike.core.Controller') {
       System.renderController(module, afterRenderCallback);
@@ -212,7 +218,10 @@ static class System {
 
   },
 
+  currentRenderedController: null,
+
   viewSelector: null,
+  appViewSelector: null,
 
   /**
    * @public
@@ -227,6 +236,16 @@ static class System {
     }
 
     return this.viewSelector;
+
+  },
+
+  getAppView: function(){
+
+    if(this.appViewSelector === null){
+        this.appViewSelector = document.querySelector('['+this.attributes.APP+']');
+    }
+
+    return this.appViewSelector;
 
   },
 
@@ -256,39 +275,6 @@ static class System {
 
   },
 
-  /**
-   * @public
-   *
-   * Sets plain (without Spike support) HTML template
-   * before whole application start initializing with Cordova
-   *
-   * Can be used as loading screen, splash screen etc.
-   *
-   * View is defined in @Config.initialView
-   *
-   */
-  renderInitialView: function () {
-    Log.debug('Running system.initialView');
-
-    if (!SysUtils.isNull(this.config.initialView)) {
-
-      try {
-
-        var templateHtml = Templates.templates[this.config.initialView]();
-
-        if(templateHtml){
-            System.getView().html(templateHTML);
-        }
-
-      } catch (err) {
-        Errors.throwError(Errors.messages.INITIAL_VIEW_ERROR, [this.config.initialView])
-      }
-
-    }
-
-
-  },
-
   loader: null,
 
   /**
@@ -308,6 +294,7 @@ static class System {
     Log.init();
 
     this.loader = Assembler.findLoaderClass();
+    this.config = Assembler.findConfigClass();
     this.loader.loadApplication();
 
     Log.debug('Invoke spike.core.System.init with params', []);
@@ -324,6 +311,9 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
+    Log.log('Destroy assembler');
+    Assembler.destroy();
+
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
 
@@ -332,9 +322,10 @@ static class System {
 
     Message.loadLanguage().then(function(){
 
-        this.renderInitialView();
+        Log.log('Translations loaded');
 
         Router.registerRouter();
+        Watchers.createWatchLoop();
         $this.initGlobalElements();
 
         if ($this.eventsInterface.onReady !== undefined) {
@@ -349,20 +340,21 @@ static class System {
 
   },
 
+  globalElements: [],
+
   /**
     Renders global components defined outside 'spike-view'
     **/
   initGlobalElements: function(){
 
-    var globalElements = this.getView().getElementsByTagName('element');
+    var globalElements = document.getElementsByTagName('spike');
 
     for(var i = 0; i < globalElements.length; i++){
 
-        var className = globalElements[i].getAttribute('name');
+        var className = globalElements[i].getAttribute('sp-element');
 
-        var globalElement = Assembler.getDotPath(className)();
-
-        globalElement.render();
+        var globalElement = Assembler.getClassInstance(className, [globalElements[i]]);
+        this.globalElements.push(globalElement);
 
     }
 

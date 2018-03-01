@@ -7,11 +7,13 @@ import Element from spike.core.Element;
 
 class GlobalElement extends Element {
 
-    GlobalElement: function(){
+    GlobalElement: function(elementSelector){
 
-        this.elementSelector = document.body;
+        this.constructor_0();
+        this.elementSelector = elementSelector;
         this.createTemplatePath();
         this.createTemplate();
+        this.render();
 
     },
 
@@ -24,10 +26,23 @@ class GlobalElement extends Element {
 
         this.rendered = true;
 
-        if(this.init !== undefined){
-            this.init();
-        }
+        this.postConstructChildren();
+        this.postConstruct();
 
-    }
+
+    },
+
+    replaceWith: function () {
+
+            var elementDiv = document.createElement("div");
+            elementDiv.innerHTML = this.compiledHtml;
+            elementDiv.setAttribute('element-name', this.getClass());
+            elementDiv.setAttribute('id', this.elementId);
+
+            System.getAppView().replaceChild(elementDiv, this.rootSelector());
+
+          //  this.elementSelector = null;
+
+        }
 
 }

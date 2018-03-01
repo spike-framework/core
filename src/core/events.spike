@@ -32,11 +32,14 @@ static class Events {
     'unload'
   ],
 
+  __eventsReferences: {},
+
   bindEvents: function(element){
 
+    this.bindEventsForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        this.bindEventsForElement(element.childElements[i]);
+        //this.bindEventsForElement(element.childElements[i]);
 
         if(element.childElements[i].length > 0){
             this.bindEvents(element.childElements[i]);
@@ -68,12 +71,23 @@ static class Events {
             var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
 
             if (eventFunctionBody) {
-                selector.addEventListener(this.allowedEvents[i], Function('event', eventFunctionBody));
+
+                var eventFn = Function('scope', 'event', eventFunctionBody);
+                var eventRef = element.eventsSelectors[i]+'_'+this.allowedEvents[k];
+
+                if(this.__eventsReferences[eventRef]){
+                     selector.removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                }
+
+                this.__eventsReferences[eventRef] = eventFn;
+                selector.addEventListener(this.allowedEvents[k], eventFn.bind(null, element));
+
+
             }
 
         }
 
-        element.removeAttribute('spike-unbinded');
+        selector.removeAttribute('spike-unbinded');
 
     }
 

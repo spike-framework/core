@@ -4,6 +4,7 @@ import Rest from spike.core.Rest;
 import Log from spike.core.Log;
 import Request from spike.core.Request;
 import Errors from spike.core.Errors;
+import Util from spike.core.Util;
 
 static class Rest {
 
@@ -440,9 +441,6 @@ static class Rest {
     var urlParams = propertiesObject.urlParams;
     var interceptors = propertiesObject.interceptors || [];
 
-
-    var jsonData = JSON.stringify(request);
-
     var preparedUrl = url;
 
     if (pathParams !== undefined && pathParams !== null) {
@@ -468,7 +466,7 @@ static class Rest {
 
     var promiseObj = {
       url: preparedUrl,
-      data: jsonData,
+      data: request,
       type: method,
       beforeSend: function () {
 
@@ -521,6 +519,9 @@ static class Rest {
     promiseObj.headers = headers;
 
     var promise = new Request(promiseObj);
+
+    console.log(promise);
+    console.log(promise.xhr.onreadystatechange.toString(););
 
     var requestData = {
       url: url,

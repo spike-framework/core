@@ -2,6 +2,7 @@ package spike.core;
 
 import Selectors from spike.core.Selectors;
 import Util from spike.core.Util;
+import Watchers from spike.core.Watchers;
 
 static class Selectors {
 
@@ -48,16 +49,16 @@ static class Selectors {
 
   },
 
-  createNamesSelectors: function(templateHtml, selectors){
+  createNamesSelectors: function(element, selectors){
 
     //Retrieving list of form elements names
-    var nameList = Util.findStringBetween(templateHtml, 'name="', '"');
+    var elementsWithNames = element.querySelectorAll('[name]');
 
     //Creating names selectors functions
-    for(var i = 0; i < nameList.length; i++){
+    for(var i = 0; i < elementsWithNames.length; i++){
 
         //Creating new hash for identifier
-        var newName = name + '-' + Util.hash();
+        var newName = elementsWithNames[i].getAttribute('name') + '-' + Util.hash();
 
         selectors.names[name] = function () {
 
@@ -73,31 +74,29 @@ static class Selectors {
 
             return selector;
 
-
         }
 
-        //Replacing identifier with generated hash
-        templateHtml = templateHtml.replace('name="' + name + '"', 'spike-name="' + newName + '" name="' + name + '"');
+        elementsWithNames[i].setAttribute('name', newName);
+
 
     }
 
-    return templateHtml;
+    return element.innerHTML;
 
   },
 
-  createIdSelectors: function(templateHtml, selectors, eventsSelectors, linksSelectors){
+  createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-   //Retrieving list of identifiers names
-   var idList = Util.findStringBetween(templateHtml, 'id="', '"');
+   var elementsWithId = element.querySelectorAll('[id]');
 
    //Creating identifiers selectors functions
-   for(var i = 0; i < idList.length; i++){
+   for(var i = 0; i < elementsWithId.length; i++){
 
     //Creating new hash for identifier
-    var newId = idList[i] + '-' + Util.hash();
+    var newId = elementsWithId[i].id + '-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[idList[i]] = function () {
+    selectors[elementsWithId[i].id] = function () {
 
         var selector = Selectors.selectorsCache[newId];
 
@@ -113,20 +112,19 @@ static class Selectors {
 
     };
 
-    if(idList[i].indexOf('spike-event-') > -1){
+    if(elementsWithId[i].getAttribute('spike-unbinded') != null){
         eventsSelectors.push(newId);
     }
 
-    if(idList[i].indexOf('spike-href-') > -1){
+    if(elementsWithId[i].getAttribute('spike-href-') != null){
         linksSelectors.push(newId);
     }
 
-    //Replacing identifier with generated hash
-    templateHtml = templateHtml.replace('id="' + idList[i] + '"', 'id="' + newId + '"');
+    elementsWithId[i].id = newId;
 
    }
 
-   return templateHtml;
+   return element.innerHTML;
 
   },
 
@@ -144,6 +142,9 @@ static class Selectors {
    */
    createUniqueSelectors: function (templateHtml) {
 
+    var element = document.createElement('div');
+    element.innerHTML = templateHtml;
+
     var selectors = {
         names: {},
         forms: {}
@@ -152,8 +153,8 @@ static class Selectors {
     var eventsSelectors = [];
     var linksSelectors = [];
 
-    templateHtml = this.createNamesSelectors(templateHtml, selectors);
-    templateHtml = this.createIdSelectors(templateHtml, selectors, eventsSelectors, linksSelectors);
+    templateHtml = this.createNamesSelectors(element, selectors);
+    templateHtml = this.createIdSelectors(element, selectors, eventsSelectors, linksSelectors);
 
     return {
       html: templateHtml,

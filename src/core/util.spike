@@ -11,7 +11,7 @@ static class Util {
          */
         toCamelCase: function (str) {
 
-            if (Util.isEmpty(str)) {
+            if (this.isEmpty(str)) {
                 return str;
             }
 
@@ -95,6 +95,7 @@ static class Util {
                 }
 
             } catch (err) {
+                console.log(err);
             }
 
             return string;
@@ -124,7 +125,7 @@ static class Util {
          */
         isObject: function (object) {
 
-            if (Util.isNull(object)) {
+            if (this.isNull(object)) {
                 return false;
             }
 
@@ -194,13 +195,13 @@ static class Util {
          */
         tryParseNumber: function (obj) {
 
-            if (!Util.isEmpty(obj) && $.isNumeric(obj)) {
+            if (!this.isEmpty(obj) && this.isNumeric(obj)) {
 
-                if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1){
+                if(obj.indexOf('e') > -1 || obj.indexOf('E') > -1 || obj.charAt(0) === '0'){
                     return obj;
                 }
 
-                if (Util.isInt(parseFloat(obj))) {
+                if (this.isInt(parseFloat(obj))) {
                     return parseInt(obj, 10);
                 } else {
                     return parseFloat(obj);
@@ -211,6 +212,10 @@ static class Util {
             return obj;
 
 
+        },
+
+        isNumeric: function( obj ) {
+            return ( typeof obj === "number" || typeof obj === "string" ) && !isNaN( obj - parseFloat( obj ) );
         },
 
         /**
@@ -371,6 +376,7 @@ static class Util {
             try {
               text = text.replace(/"/g, "&quot;").replace(/'/g, "&quot;");
             } catch (err) {
+                console.log(err);
                 Log.warn('Could not escape single quotes in string: ' + text);
             }
 

@@ -22,7 +22,6 @@ static class Message {
     messages: {},
 
     loadLanguage: function(){
-        console.log(Config);
         return Message.add(Config.lang, Util.bindStringParams(Config.languageFilePath, { lang: Config.lang }));
     },
 
@@ -49,9 +48,6 @@ static class Message {
         promise.then(function (data) {
 
             Message.setTranslation(languageName, data);
-
-            Log.log('languageName : '+languageName);
-            Log.log('Config.lang  : '+Config.lang);
 
             return data;
 
@@ -81,6 +77,7 @@ static class Message {
             try {
                 translationData = JSON.parse(translationData);
             } catch (err) {
+                console.error(err);
                 Errors.throwError(Errors.messages.TRANSLATION_PARSING, [languageName]);
             }
 

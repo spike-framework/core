@@ -5,31 +5,29 @@ import Events from spike.core.Events;
 import Router from spike.core.Router;
 import Element from spike.core.Element;
 import Assembler from spike.core.Assembler;
+import Watchers from spike.core.Watchers;
 
 class Controller extends Element {
 
     scrollTop: true,
     checkNetwork: true,
 
-
-    Controller: function(model){
-
-        this.model = model;
-        this.elementSelector = System.getView();
-
-        this.createTemplatePath();
-        this.createTemplate();
-
+    Controller: function(){
     },
 
     render: function(){
 
+        this.elementSelector = System.getView();
         this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
         Router.bindLinks(this);
+        Watchers.observe(this);
 
         this.rendered = true;
+
+        this.postConstructChildren();
+        this.postConstruct();
 
     }
 

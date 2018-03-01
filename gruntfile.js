@@ -46,8 +46,8 @@ var spike = {
         './src/core/globalElement.spike',
         './src/core/controller.spike',
         './src/core/modal.spike',
-        './src/core/broadcaster.spike'
-
+        './src/core/broadcaster.spike',
+        './src/core/watchers.spike'
     ],
 
     build: [
@@ -85,8 +85,8 @@ module.exports = function (grunt) {
                         expand: true,
                         cwd: './dist',
                         src: ['spike-framework.js'],
-                        dest: 'F:\\starter\\dist'
-                       // dest: 'D:\\xampp\\htdocs\\starter\\dist'
+                        //dest: 'F:\\starter\\dist'
+                        dest: 'F:\\ac3\\dist'
                     }
                 ],
             }
@@ -147,8 +147,8 @@ module.exports = function (grunt) {
                 command: spike.docs.commandGenerate
             },
             transpile: {
-                command: "java -jar F:\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
-              //  command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-compiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+                command: "java -jar F:\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+              //  command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
             }
         },
 

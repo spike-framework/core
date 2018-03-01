@@ -6,6 +6,8 @@ import Errors from spike.core.Errors;
 import Util from spike.core.Util;
 import Log from spike.core.Log;
 import Config from spike.core.System.config;
+import Events from spike.core.Events;
+import Assembler from spike.core.Assembler;
 
 static class Router {
 
@@ -155,7 +157,7 @@ static class Router {
       controller: pathController,
       defaultController: pathModalDefaultController,
       modal: pathModal,
-      routingParams: routingParams,
+      routingParams: routingParams || {},
       onRouteEvent: onRouteEvent,
       pathPattern: pathPattern,
       routeName: routeName,
@@ -317,8 +319,8 @@ static class Router {
 
     function hashChangeCallback(){
 
-        Log.log('Router.lastHashValue : '+Router.lastHashValue);
-        Log.log('window.location.hash : '+window.location.hash);
+        //Log.log('Router.lastHashValue : '+Router.lastHashValue);
+        //Log.log('window.location.hash : '+window.location.hash);
 
         if(Router.lastHashValue !== window.location.hash){
             Router.lastHashValue = window.location.hash;
@@ -460,6 +462,16 @@ static class Router {
    *
    */
   getURLParams: function () {
+    return Router.getURLParams();
+  },
+
+  /**
+   * @public
+   *
+   * Function returns object with params stored in current browser URL
+   *
+   */
+  getQueryParams: function () {
     return Router.getURLParams();
   },
 
@@ -864,7 +876,7 @@ static class Router {
    */
   getViewData: function () {
     var currentViewData = Router.getCurrentViewData();
-    return $.extend({}, currentViewData.endpoint, currentViewData.data);
+    return Assembler.extend(currentViewData.endpoint, currentViewData.data);
   },
 
   /**
@@ -886,7 +898,6 @@ static class Router {
   renderCurrentView: function () {
 
     var currentEndpointData = Router.getCurrentView();
-    Log.debug('current view to render {0}', [currentEndpointData]);
 
     if (currentEndpointData.isModal === true) {
 
@@ -1103,7 +1114,7 @@ static class Router {
         this.bindLinksForElement(element.childElements[i]);
 
         if(element.childElements[i].length > 0){
-            this.bindEvents(element.childElements[i]);
+            Events.bindEvents(element.childElements[i]);
         }
 
     }
