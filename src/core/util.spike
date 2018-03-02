@@ -371,6 +371,16 @@ static class Util {
             return text;
         },
 
+        hashString: function(str) {
+            var hash = 5381, i    = str.length;
+
+            while(i) {
+                hash = (hash * 33) ^ str.charCodeAt(--i);
+            }
+
+            return hash >>> 0;
+        },
+
         escapeQuotes: function (text) {
 
             try {

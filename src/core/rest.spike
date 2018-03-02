@@ -520,9 +520,6 @@ static class Rest {
 
     var promise = new Request(promiseObj);
 
-    console.log(promise);
-    console.log(promise.xhr.onreadystatechange.toString(););
-
     var requestData = {
       url: url,
       method: method,
