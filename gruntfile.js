@@ -36,6 +36,7 @@ var spike = {
         './src/core/system.spike',
         './src/core/log.spike',
         './src/core/selectors.spike',
+        './src/core/set.spike',
         './src/core/util.spike',
         './src/core/request.spike',
         './src/core/rest.spike',
@@ -47,11 +48,13 @@ var spike = {
         './src/core/controller.spike',
         './src/core/modal.spike',
         './src/core/broadcaster.spike',
+        './src/core/reconcile.spike',
         './src/core/watchers.spike'
+
     ],
 
     build: [
-        './src/assembler/additions.js',
+        './src/assembler/history.js',
         './src/assembler/assembler.js',
         './dist/spike-framework.js'
     ]

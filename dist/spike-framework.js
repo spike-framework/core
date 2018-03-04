@@ -336,7 +336,7 @@ spike.core.Assembler = {
 
 };
 
-spike.core.Assembler.resetNamespaces(22, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
+spike.core.Assembler.resetNamespaces(24, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
 
 CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
 REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
@@ -863,7 +863,31 @@ eventsSelectors: eventsSelectors,
 linksSelectors: linksSelectors
 };
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.defineNamespace('spike.core.Set',function(){spike.core.Set=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Set with arguments count: '+args.length);}};spike.core.Set.prototype.Set=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Set with arguments count: '+arguments.length);}};spike.core.Set.prototype.constructor_1=function(hashFunction){var $this=this;
+this._hashFunction = hashFunction || JSON.stringify;
+this._values = {};
+this._size = 0;
+};spike.core.Set.prototype.constructor_0=function(){var $this=this;};spike.core.Set.prototype.isClass= true;spike.core.Set.prototype.add=function(value){var $this=this;
+if (!this.contains(value)) {
+this._values[this._hashFunction(value)] = value;
+this._size++;
+}
+};spike.core.Set.prototype.remove=function(value){var $this=this;
+if (this.contains(value)) {
+delete this._values[this._hashFunction(value)];
+this._size--;
+}
+};spike.core.Set.prototype.contains=function(value){var $this=this;
+return typeof this._values[this._hashFunction(value)] !== "undefined";
+};spike.core.Set.prototype.size=function(){var $this=this;
+return this._size;
+};spike.core.Set.prototype.each=function(iteratorFunction, thisObj){var $this=this;
+for (var value in this._values) {
+iteratorFunction.call(thisObj, this._values[value]);
+}
+};spike.core.Set.prototype.print=function(){var $this=this;
+console.log(this._values);
+};spike.core.Set.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Set.prototype.getClass=function(){var $this=this; return 'spike.core.Set'; };});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
 
 if (this.isEmpty(str)) {
 return str;
@@ -2465,7 +2489,102 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Reconcile', 'null',function(){ return {watcherList: [],currentList: [],isClass: true,diff: function (watcher, current, diffActions) {var $this=this;
+
+if (diffActions === undefined) {
+diffActions = new Set();
+}
+
+var currentList = [];
+var watcherList = [];
+
+this.createMap(currentList, current);
+this.createMap(watcherList, watcher);
+
+var removedElementsIds = this.getRemovedElements(watcherList, currentList);
+
+for (var i = 0; i < removedElementsIds.length; i++) {
+diffActions.add({
+action: 'remove',
+id: removedElementsIds[i]
+});
+}
+
+
+var addedElementsIds = this.getAddedElements(watcherList, currentList);
+
+for (var i = 0; i < addedElementsIds.length; i++) {
+diffActions.add({
+action: 'insert',
+id: addedElementsIds[i]
+});
+}
+
+if (watcher.nodeType === current.nodeType && (watcher.nodeType === 3 || watcher.nodeType === 8)
+&& (watcher.id === current.id) && watcher.innerHTML !== current.innerHTML) {
+
+diffActions.add({
+action: 'text',
+element: watcher,
+target: current
+});
+
+}
+
+if (watcher.children.length === 0 && current.children.length === 0 && watcher.innerHTML !== current.innerHTML && (watcher.id === current.id)) {
+
+diffActions.add({
+action: 'content',
+element: watcher,
+target: current
+});
+
+}
+
+for (var i = 0; i < watcher.children.length; i++) {
+
+if (current.children[i]) {
+this.diff(watcher.children[i], current.children[i], diffActions);
+}
+
+}
+
+return diffActions;
+
+},getRemovedElements: function (elements, targets) {var $this=this;
+return elements.filter(function (i) {
+return targets.indexOf(i) < 0;
+});
+},getAddedElements: function (elements, targets) {var $this=this;
+return targets.filter(function (i) {
+return elements.indexOf(i) < 0;
+});
+},createMap: function (list, node) {var $this=this;
+
+if (node.children.length > 0) {
+
+for (var i = 0; i < node.children.length; i++) {
+list.push(node.children[i].id);
+}
+
+}
+
+},applyDiff: function (diffActions, target) {var $this=this;
+
+diffActions.each(function(diffAction){
+
+
+switch (diffAction.action) {
+case 'remove' :
+break;
+case 'add' :
+
+break;
+}
+
+});
+
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
 'childElements',
 'parentElement',
 'eventsSelectors',
@@ -2500,10 +2619,7 @@ if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 var currentHtml = watchElements[i].outerHTML;
 var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
-if(watcherHtml !== currentHtml){
-
-console.log(watcherHtml);
-console.log(currentHtml);
+if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
 
 spike.core.Log.log('Watcher reflow needed');
 $this.replaceChangedElements(watcherHtml, currentHtml);
@@ -2524,114 +2640,11 @@ var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
 var currentVirtual = document.createElement('div');
-currentVirtual.innerHTML = currentHtml;
+currentVirtual.innerHTML =currentHtml;
 
-var watcherElements = watcherVirtual.querySelectorAll('*');
-spike.core.Log.log('Comparing elements');
-
-this.makeChangeStructureElements(watcherVirtual, currentVirtual);
-
-
-
-},makeChangeStructureElements: function(watcherVirtual, currentVirtual){var $this=this;
-
-console.log('makeChangeStructureElements');
-console.log(changedElementsStructure);
-
-$this.traverseAndMakeChangesInStructure(watcherVirtual, currentVirtual);
-
-
-},traverseAndMakeChangesInStructure: function(element, element2) {var $this=this;
-console.log('traverse');
-console.log(element);
-console.log(element2);
-
-for (var i = 0; i < element.children.length; i++) {
-this.traverseAndMakeChangesInStructure(element.children[i], element2.children[i]);
-}
-
-
-console.log(' after traverse:');
-console.log(element);
-
-},makeChangeElements: function(changedElements){var $this=this;
-
-console.log('makeChangeElements');
-console.log(changedElements);
-
-for(var i = 0; i < changedElements.length; i++){
-
-spike.core.Log.log('Element changed id: {0}', [changedElements[i].id]);
-var element = document.getElementById(changedElements[i].id);
-
-console.log('changedElement html '+changedElements[i].outerHTML);
-console.log(element);
-
-element.outerHTML = changedElements[i].outerHTML;
-
-
-}
-
-},excludeContainingElementsWithStructure: function(changedElements, changedElementsStructure){var $this=this;
-
-
-var changedElementsExcluded = [];
-
-if(changedElements.length === 1){
-changedElementsExcluded = changedElements
-}else{
-
-for(var i = 0; i < changedElements.length; i++){
-
-for(var k = 0; k < changedElements.length; k++){
-
-if(!changedElements[i].contains(changedElements[k])){
-changedElementsExcluded.push(changedElements[i]);
-break;
-}
-
-}
-
-}
-
-}
-
-for(var i = 0; i < changedElementsExcluded.length; i++){
-
-for(var k = 0; k < changedElementsStructure.length; k++){
-
-if(changedElementsStructure[k].contains(changedElementsExcluded[i])){
-changedElementsExcluded.splice(i, 1);
-break;
-}
-
-}
-
-}
-
-return changedElementsExcluded;
-
-},excludeContainingElements: function(changedElements){var $this=this;
-
-if(changedElements.length === 1){
-return changedElements;
-}
-
-var changedElementsExcluded = [];
-for(var i = 0; i < changedElements.length; i++){
-
-for(var k = 0; k < changedElements.length; k++){
-
-if(!changedElements[i].contains(changedElements[k])){
-changedElementsExcluded.push(changedElements[i]);
-break;
-}
-
-}
-
-}
-
-return changedElementsExcluded;
+var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+console.log(changes);
+Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
 
 },fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
 

@@ -34,10 +34,7 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
-                    if(watcherHtml !== currentHtml){
-
-                        console.log(watcherHtml);
-                        console.log(currentHtml);
+                    if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
                         $this.replaceChangedElements(watcherHtml, currentHtml);
@@ -60,159 +57,11 @@ static class Watchers {
         watcherVirtual.innerHTML = watcherHtml;
 
         var currentVirtual = document.createElement('div');
-        currentVirtual.innerHTML = currentHtml;
+        currentVirtual.innerHTML =currentHtml;
 
-        var watcherElements = watcherVirtual.querySelectorAll('*');
-        Log.log('Comparing elements');
-
-        this.makeChangeStructureElements(watcherVirtual, currentVirtual);
-
-//        var changedElementsStructure = [];
-//        var changedElements = [];
-//
-//        for(var i = 0; i < watcherElements.length; i++){
-//
-//            var currentElement = currentVirtual.querySelector('[id="'+watcherElements[i].id+'"]');
-//
-//            if(currentElement.querySelectorAll('*').length !== watcherElements[i].querySelectorAll('*').length){
-//                changedElementsStructure.push(watcherElements[i]);
-//            }else {
-//
-//                console.log(currentElement.outerHTML);
-//                console.log(watcherElements[i].outerHTML);
-//
-//                if(Util.hashString(currentElement.outerHTML) !== Util.hashString(watcherElements[i].outerHTML)){
-//                    changedElements.push(watcherElements[i]);
-//                }
-//
-//            }
-//
-//
-//        }
-//
-//        console.log('changedElements');
-//        console.log(changedElements);
-//
-//        console.log('changedElementsStructure');
-//        console.log(changedElementsStructure);
-//
-//        changedElementsStructure = $this.excludeContainingElements(changedElementsStructure);
-//        this.makeChangeStructureElements(changedElementsStructure, watcherVirtual, currentVirtual);
-//
-//        changedElements = $this.excludeContainingElementsWithStructure(changedElements, changedElementsStructure);
-//        this.makeChangeElements(changedElements);
-
-
-    },
-
-    makeChangeStructureElements: function(watcherVirtual, currentVirtual){
-
-        console.log('makeChangeStructureElements');
-        console.log(changedElementsStructure);
-
-        $this.traverseAndMakeChangesInStructure(watcherVirtual, currentVirtual);
-
-
-    },
-
-    traverseAndMakeChangesInStructure: function(element, element2) {
-          console.log('traverse');
-          console.log(element);
-          console.log(element2);
-
-          for (var i = 0; i < element.children.length; i++) {
-            this.traverseAndMakeChangesInStructure(element.children[i], element2.children[i]);
-          }
-
-
-          console.log(' after traverse:');
-          console.log(element);
-
-    },
-
-
-    makeChangeElements: function(changedElements){
-
-            console.log('makeChangeElements');
-            console.log(changedElements);
-
-        for(var i = 0; i < changedElements.length; i++){
-
-            Log.log('Element changed id: {0}', [changedElements[i].id]);
-            var element = document.getElementById(changedElements[i].id);
-
-            console.log('changedElement html '+changedElements[i].outerHTML);
-            console.log(element);
-
-            element.outerHTML = changedElements[i].outerHTML;
-
-
-        }
-
-    },
-
-    excludeContainingElementsWithStructure: function(changedElements, changedElementsStructure){
-
-
-        var changedElementsExcluded = [];
-
-        if(changedElements.length === 1){
-            changedElementsExcluded = changedElements
-        }else{
-
-            for(var i = 0; i < changedElements.length; i++){
-
-                for(var k = 0; k < changedElements.length; k++){
-
-                    if(!changedElements[i].contains(changedElements[k])){
-                        changedElementsExcluded.push(changedElements[i]);
-                        break;
-                    }
-
-                }
-
-            }
-
-        }
-
-        for(var i = 0; i < changedElementsExcluded.length; i++){
-
-            for(var k = 0; k < changedElementsStructure.length; k++){
-
-                if(changedElementsStructure[k].contains(changedElementsExcluded[i])){
-                    changedElementsExcluded.splice(i, 1);
-                    break;
-                }
-
-            }
-
-        }
-
-        return changedElementsExcluded;
-
-    },
-
-    excludeContainingElements: function(changedElements){
-
-        if(changedElements.length === 1){
-            return changedElements;
-        }
-
-        var changedElementsExcluded = [];
-        for(var i = 0; i < changedElements.length; i++){
-
-            for(var k = 0; k < changedElements.length; k++){
-
-                if(!changedElements[i].contains(changedElements[k])){
-                    changedElementsExcluded.push(changedElements[i]);
-                    break;
-                }
-
-            }
-
-        }
-
-        return changedElementsExcluded;
+        var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+        console.log(changes);
+        Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
 
     },
 

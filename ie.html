@@ -13,56 +13,163 @@
 
 <script type="text/javascript">
 
-    spike.core.Controller = function () {
-        var $this = this;
-        this.getSuper();
-    };
-    spike.core.Controller_1 = function (model) {
-        var $this = this;
-        this.model = model;
 
-        console.log(this);
+  var Reconcile = {
 
-        this.createTemplatePath();
-        this.createTemplate();
-    };
+    watcherList: [],
+    currentList: [],
 
-    spike.core.Controller_2 = function (model, test) {
-        var $this = this;
-        console.log('x');
+    diff: function (watcher, current, diffActions) {
 
-        console.log($this);
+      if (diffActions === undefined) {
+        diffActions = new Set();
+      }
+
+      var currentList = [];
+      var watcherList = [];
+
+      this.createMap(currentList, current);
+      this.createMap(watcherList, watcher);
+
+      var removedElementsIds = this.getRemovedElements(watcherList, currentList);
+      //console.log('removedElementsIds');
+      //console.log(removedElementsIds);
+
+      for (var i = 0; i < removedElementsIds.length; i++) {
+        diffActions.add({
+          action: 'remove',
+          id: removedElementsIds[i]
+        });
+      }
 
 
-    };
-    spike.core.Controller.prototype.scrollTop = true;
-    spike.core.Controller.prototype.checkNetwork = true;
-    spike.core.Controller.prototype.render = function () {
-        var $this = this;
+      var addedElementsIds = this.getAddedElements(watcherList, currentList);
+      //console.log('addedElementsIds');
+      //console.log(addedElementsIds);
 
-        this.replaceWith();
+      for (var i = 0; i < addedElementsIds.length; i++) {
+        diffActions.add({
+          action: 'insert',
+          id: addedElementsIds[i]
+        });
+      }
 
-        spike.core.Events.bindEvents(this);
-        spike.core.Router.bindLinks(this);
+      //Is text node
+      if (watcher.nodeType === current.nodeType && (watcher.nodeType === 3 || watcher.nodeType === 8)
+        && (watcher.id === current.id) && watcher.innerHTML !== current.innerHTML) {
 
-        this.rendered = true;
+        diffActions.add({
+          action: 'text',
+          element: watcher,
+          target: current
+        });
 
-        if (this.init !== undefined) {
-            this.init();
+      }
+
+      //Has another content and same id
+      if (watcher.children.length === 0 && current.children.length === 0 && watcher.innerHTML !== current.innerHTML && (watcher.id === current.id)) {
+
+        diffActions.add({
+          action: 'content',
+          element: watcher,
+          target: current
+        });
+
+      }
+
+      for (var i = 0; i < watcher.children.length; i++) {
+
+        if (current.children[i]) {
+          this.diff(watcher.children[i], current.children[i], diffActions);
         }
 
-    };
-    spike.core.Controller.prototype.getSuper = function () {
-        var $this = this;
-        return 'spike.core.Element';
-    };
-    spike.core.Controller.prototype.getClass = function () {
-        var $this = this;
-        return 'spike.core.Controller';
-    };
+      }
 
-     spike.core.Assembler.extend(spike.core.Controller.prototype, spike.core.Controller_1.prototype);
-      spike.core.Assembler.extend(spike.core.Controller.prototype, spike.core.Controller_2.prototype);
+      return diffActions;
+
+    },
+
+    getRemovedElements: function (elements, targets) {
+      return elements.filter(function (i) {
+        return targets.indexOf(i) < 0;
+      });
+    },
+
+    getAddedElements: function (elements, targets) {
+      return targets.filter(function (i) {
+        return elements.indexOf(i) < 0;
+      });
+    },
+
+    createMap: function (list, node) {
+
+      if (node.children.length > 0) {
+
+        for (var i = 0; i < node.children.length; i++) {
+          list.push(node.children[i].id);
+        }
+
+      }
+
+    },
+
+    applyDiff: function (diffActions, target) {
+
+      diffActions.each(function(diffAction){
+
+        // console.log(diffAction);
+
+        switch (diffAction.action) {
+          case 'remove' :
+            //document.getElementById(diffActions[i].id).remove();
+            break;
+          case 'add' :
+
+            break;
+        }
+
+      });
+
+    }
+
+  };
+
+
+  function test(name, from, to) {
+
+    console.log('TEST ' + name);
+    var watcherVirtual = document.createElement('div');
+    watcherVirtual.innerHTML = from;//watcherHtml;
+
+    var currentVirtual = document.createElement('div');
+    currentVirtual.innerHTML = to;//currentHtml;
+
+    var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+    changes.print();
+
+    Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
+
+
+
+  }
+
+  test('Remove item',
+    '<ul id="list"><li id="x1">Ewelina</li></ul>',
+    '<ul id="list"></ul>'
+  );
+
+
+
+   test('Add item',
+     '<ul id="list"><li id="x1">Ewelina</li></ul>',
+     '<ul id="list"><li id="x2">Dawid</li><li id="x1">Ewelina</li></ul>'
+   );
+
+   test('Change item content',
+     '<ul id="list"><li id="x1">Ewelina</li></ul>',
+     '<ul id="list"><li id="x1">Dawid</li></ul>'
+   );
+
 
 </script>
 </body>
