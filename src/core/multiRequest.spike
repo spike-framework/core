@@ -1,0 +1,47 @@
+package spike.core;
+
+import Log from spike.core.Log;
+
+class MultiRequest {
+
+    responseData: [],
+    alwaysCallbacks: [],
+
+    countResponses: 0,
+    promisesLength: 0,
+
+    MultiRequest: function(promises){
+
+        $this.promisesLength = promises.length;
+
+        for(var i = 0; i < promises.length; i++){
+
+            $this.promises[i].always(function(xhr, response, status){
+                $this.countResponses++;
+
+                $this.responseData.push(xhr, response, status);
+
+                if($this.countResponses === promisesLength){
+                    $this.resolveAlways();
+                }
+
+            });
+
+        }
+
+    },
+
+    always: function (callback) {
+        $this.alwaysCallbacks.push(callback);
+        return $this;
+    },
+
+    resolveAlways: function(){
+
+        for(var i = 0; i < $this.alwaysCallbacks.length; i++){
+            $this.alwaysCallbacks[i].apply($this.responseData);
+        }
+
+    }
+
+}

@@ -18,6 +18,7 @@ class Request {
     xhr: null,
     catchCallbacks: [],
     thenCallbacks: [],
+    alwaysCallbacks: [],
     response: null,
 
     responseType: 'json',
@@ -94,31 +95,36 @@ class Request {
 
         this.xhr.open(this.config.type, this.config.url, true);
 
-        var self = this;
         this.xhr.onreadystatechange = function() {
 
-             if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 200) {
+             if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 200) {
 
-                if(self.responseType === 'json'){
+                if($this.responseType === 'json'){
 
                     try {
-                        self.response = JSON.parse(self.xhr.responseText);
-                        self.resolveThen(self.response, self.xhr, self.xhr.status);
+                        $this.response = JSON.parse($this.xhr.responseText);
+                        $this.resolveThen($this.response, $this.xhr, $this.xhr.status);
+                        $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                     }catch(e){
                         console.error(e);
-                        self.resolveCatch(self.xhr, 0, e);
+                        $this.resolveCatch($this.xhr, 0, e);
+                        $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                     }
 
 
-                }else if(self.responseType === 'xml'){
-                    self.resolveThen(self.xhr.responseXML, self.xhr, self.xhr.status);
+                }else if($this.responseType === 'xml'){
+                    $this.resolveThen($this.xhr.responseXML, $this.xhr, $this.xhr.status);
+                    $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                 }
 
-              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 204){
-                self.resolveThen(null, self.xhr, self.xhr.status);
-              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status !== 200){
-                self.resolveCatch(self.xhr, self.xhr.status, new Error('Response error: '+self.xhr.status));
+              }else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 204){
+                $this.resolveThen(null, $this.xhr, $this.xhr.status);
+                $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
+              }else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status !== 200){
+                $this.resolveCatch($this.xhr, $this.xhr.status, new Error('Response error: '+$this.xhr.status));
+                $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
               }
+
 
         };
 
@@ -135,6 +141,19 @@ class Request {
 
         if(this.config.headers['Content-Type'].indexOf('xml') > -1){
             this.responseType = 'xml';
+        }
+
+    },
+
+    always: function (callback) {
+        this.alwaysCallbacks.push(callback);
+        return this;
+    },
+
+    resolveAlways: function(response, xhr, status){
+
+        for(var i = 0; i < this.alwaysCallbacks.length; i++){
+            this.alwaysCallbacks[i](response, xhr, status);
         }
 
     },
@@ -174,7 +193,7 @@ class Request {
             try {
                 xhr = new ActiveXObject("Msxml2.XMLHTTP");
             } catch (e) {
-                console.log(e);
+                console.warn(e);
                 xhr = new ActiveXObject("Microsoft.XMLHTTP");
             }
         }

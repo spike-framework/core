@@ -372,6 +372,7 @@ static class Util {
         },
 
         hashString: function(str) {
+
             var hash = 5381, i    = str.length;
 
             while(i) {

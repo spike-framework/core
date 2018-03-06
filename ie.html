@@ -14,140 +14,177 @@
 <script type="text/javascript">
 
 
-  var Reconcile = {
+  window.iso = window.iso || {};
 
-    watcherList: [],
-    currentList: [],
+  (function(o) {
 
-    diff: function (watcher, current, diffActions) {
+    //Define a reconciliation algorithm for the DOM
+    //Recurse through the source dom tree and apply changes to the target
+    o.mergeNodes = function(source, target, removeAttributes) {
 
-      if (diffActions === undefined) {
-        diffActions = new Set();
-      }
+      //Update comments and text nodes
+      if ((source.nodeType  === 3 && target.nodeType === 3) || (source.nodeType === 8 && target.nodeType === 8)) {
 
-      var currentList = [];
-      var watcherList = [];
+        //Compare and update
+        if (target.nodeValue !== source.nodeValue) {
+          console.log('> Updating comment/text value - source:' + source.nodeValue + ', target:' + target.nodeValue);
 
-      this.createMap(currentList, current);
-      this.createMap(watcherList, watcher);
-
-      var removedElementsIds = this.getRemovedElements(watcherList, currentList);
-      //console.log('removedElementsIds');
-      //console.log(removedElementsIds);
-
-      for (var i = 0; i < removedElementsIds.length; i++) {
-        diffActions.add({
-          action: 'remove',
-          id: removedElementsIds[i]
-        });
-      }
-
-
-      var addedElementsIds = this.getAddedElements(watcherList, currentList);
-      //console.log('addedElementsIds');
-      //console.log(addedElementsIds);
-
-      for (var i = 0; i < addedElementsIds.length; i++) {
-        diffActions.add({
-          action: 'insert',
-          id: addedElementsIds[i]
-        });
-      }
-
-      //Is text node
-      if (watcher.nodeType === current.nodeType && (watcher.nodeType === 3 || watcher.nodeType === 8)
-        && (watcher.id === current.id) && watcher.innerHTML !== current.innerHTML) {
-
-        diffActions.add({
-          action: 'text',
-          element: watcher,
-          target: current
-        });
-
-      }
-
-      //Has another content and same id
-      if (watcher.children.length === 0 && current.children.length === 0 && watcher.innerHTML !== current.innerHTML && (watcher.id === current.id)) {
-
-        diffActions.add({
-          action: 'content',
-          element: watcher,
-          target: current
-        });
-
-      }
-
-      for (var i = 0; i < watcher.children.length; i++) {
-
-        if (current.children[i]) {
-          this.diff(watcher.children[i], current.children[i], diffActions);
+          target.nodeValue = source.nodeValue;
         }
 
+        //No attributes or child elements, so we are done
+        return;
       }
 
-      return diffActions;
+      //Update any attributes
+      if (source.attributes && target.attributes) {
 
-    },
+        var attributes = source.attributes,
+          value,
+          name;
 
-    getRemovedElements: function (elements, targets) {
-      return elements.filter(function (i) {
-        return targets.indexOf(i) < 0;
-      });
-    },
+        //Add / update attributes
+        for (var i=0, len=attributes.length; i<len; i++) {
 
-    getAddedElements: function (elements, targets) {
-      return targets.filter(function (i) {
-        return elements.indexOf(i) < 0;
-      });
-    },
+          value = attributes[i].nodeValue;
+          name = attributes[i].nodeName;
 
-    createMap: function (list, node) {
+          if (target.getAttribute(name) !== value) {
 
-      if (node.children.length > 0) {
-
-        for (var i = 0; i < node.children.length; i++) {
-          list.push(node.children[i].id);
+            console.log('+ Set attribute value for:' + name + ' - source:'+ attributes[i].nodeValue + ', target:' + target.attributes[i].nodeValue);
+            target.setAttribute(name, value);
+          }
         }
 
+        //Remove attributes
+        if (removeAttributes){
+          attributes = target.attributes;
+
+          for (var i=0, len=attributes.length; i<len; i++) {
+
+            name = attributes[i].nodeName;
+
+            if (source.getAttribute(name) === null) {
+
+              console.log('- remove target attribute:' + name);
+              target.removeAttribute(name);
+            }
+          }
+        }
       }
 
-    },
+      //Return if equal after attribute update
+      if (source.isEqualNode(target)) return;
 
-    applyDiff: function (diffActions, target) {
+      //Insert, delete and move child nodes based on predicted id
+      //Resetting any model binding attributes in the loop below
+      if (source.childNodes && target.childNodes) {
 
-      diffActions.each(function(diffAction){
+        var	map = mapElements(target.childNodes),
+          tags = {},
+          nodes = source.childNodes;
 
-        // console.log(diffAction);
+        //Now loop through each source node and get the relevant target node
+        for (var i=0, len=nodes.length; i<len; i++) {
 
-        switch (diffAction.action) {
-          case 'remove' :
-            //document.getElementById(diffActions[i].id).remove();
-            break;
-          case 'add' :
+          var node = nodes[i],
+            bound = target.childNodes[i],
+            id = (node.id) ? node.id : generateId(node, tags);
 
-            break;
+          //Check if the node has an id
+          //If exists in target map, then move that node to the correct position
+          //This will usually be the same node, which means no dom move is necessary
+          //Otherwise clone the node from the source (ie new inserts)
+          var existing = map[id];
+
+          if (existing) {
+
+            if (existing !== bound) {
+
+              console.log('^ Move node with id:' + id + ' before:' + bound);
+              target.insertBefore(existing, bound);
+            }
+          }
+          else {
+
+            console.log('+ Clone and added node with id: ' + id);
+            target.insertBefore(node.cloneNode(true), bound);
+          }
         }
 
-      });
+        //Remove any tail nodes in the target
+        while (target.childNodes.length > source.childNodes.length) {
 
+          var remove = target.childNodes[target.childNodes.length -1];
+
+          console.log('- Remove node: ' + remove);
+
+          target.removeChild(remove);
+        }
+      }
+
+      //Iterate through any child nodes
+      var length = source.childNodes.length;
+
+      if (length) {
+
+        for (var i = 0; i<length; i++) {
+          o.mergeNodes(source.childNodes[i], target.childNodes[i], removeAttributes);
+        }
+      }
     }
 
-  };
+    //Return a map of live elements and their ids, or generate a predicatable id if one does not exist
+    function mapElements(nodes) {
 
+      var map = {},
+        tags = {},
+        node;
+
+      for (var i=0, len=nodes.length; i<len; i++) {
+
+        node = nodes[i];
+
+        //Use the id provided or generate and id based on existing usage
+        map[(node.id) ? node.id : generateId(node, tags)] = node;
+      }
+
+      return map;
+    }
+
+    //Create a unique id, using the tags collection for disambiguation
+    function generateId(node, tags) {
+
+      //Get the tag or create one from other node types
+      var tag = (node.tagName) ? node.tagName : 'x' + node.nodeType;
+
+      //Set the counter to zero
+      if (!tags[tag]) tags[tag] = 0;
+
+      //Increment the counter for that tag
+      tags[tag]++;
+
+      return tag + tags[tag];
+    }
+
+  })(window.iso);
 
   function test(name, from, to) {
 
     console.log('TEST ' + name);
     var watcherVirtual = document.createElement('div');
-    watcherVirtual.innerHTML = from;//watcherHtml;
+    watcherVirtual.innerHTML = to;//watcherHtml;
 
     var currentVirtual = document.createElement('div');
-    currentVirtual.innerHTML = to;//currentHtml;
+    currentVirtual.innerHTML = from;//currentHtml;
 
-    var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
-    changes.print();
+    window.iso.mergeNodes(watcherVirtual, currentVirtual);
+    console.log(currentVirtual);
 
-    Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
+//    var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+//    changes.print();
+//
+//    Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
 
 
 

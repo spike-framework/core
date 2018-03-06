@@ -336,7 +336,249 @@ spike.core.Assembler = {
 
 };
 
-spike.core.Assembler.resetNamespaces(24, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
+function escape(s) {
+  var n = s;
+  n = n.replace(/&/g, '&amp;');
+  n = n.replace(/</g, '&lt;');
+  n = n.replace(/>/g, '&gt;');
+  n = n.replace(/"/g, '&quot;');
+
+  return n;
+}
+
+function diff(source, base) {
+
+  var actions = [];
+
+  if (compareTextNodes(actions, source, base)) {
+    return actions;
+  }
+
+  compareAttributes(actions, source, base);
+
+  if (source.childNodes && base.childNodes) {
+
+    var notDeleted = compareChildren(actions, source, base);
+    console.log('notDeleted');
+    console.log(notDeleted);
+
+    for (var i = 0; i < notDeleted.length; i++) {
+
+      var childDiffs = diff(notDeleted[i].source, notDeleted[i].base);
+
+      if (childDiffs.length > 0) {
+        actions = actions.concat(childDiffs);
+      }
+
+    }
+
+  }
+
+  return actions;
+
+}
+
+function compareChildren(actions, source, base) {
+
+  var childrenMap = mapChildren(source.childNodes, base.childNodes);
+
+  console.log('childrenMap');
+  console.log(childrenMap);
+
+  for(var i = 0; i < childrenMap.deleted.length; i++){
+
+    actions.push({
+      action: 'remove',
+      element: childrenMap.deleted[i]
+    });
+
+  }
+
+  for(var i = 0; i < childrenMap.added.length; i++){
+
+    actions.push({
+      action: 'add',
+      element: childrenMap.added[i]
+    });
+
+  }
+
+  return childrenMap.none;
+
+}
+
+function getId(node){
+  return node.id ? node.id : 'node-'+spike.core.Util.hash();
+}
+
+function mapChildren(sourceChildren, baseChildren) {
+
+  var sourceMap = {};
+  var baseMap = {};
+  var merged = {};
+  var deleted = [];
+  var added = [];
+  var none = {};
+
+  for (var i = 0; i < sourceChildren.length; i++) {
+
+    //sourceChildren[i].id = getId(sourceChildren[i]);
+
+    sourceMap[sourceChildren[i].id] = sourceChildren[i];
+    merged[sourceChildren[i].id] = 'none';
+
+    if(!none[sourceChildren[i].id]){
+      none[sourceChildren[i].id] = {
+        source: null,
+        base: null
+      }
+    }
+
+    none[sourceChildren[i].id].source = sourceChildren[i];
+
+  }
+
+  for (var i = 0; i < baseChildren.length; i++) {
+
+    //baseChildren[i].id = getId(baseChildren[i]);
+
+    baseMap[baseChildren[i].id] = baseChildren[i];
+    merged[baseChildren[i].id] = 'none';
+
+    if(!none[baseChildren[i].id]){
+      none[baseChildren[i].id] = {
+        source: null,
+        base: null
+      }
+    }
+
+    none[baseChildren[i].id].base = baseChildren[i];
+
+  }
+
+  console.log(sourceMap);
+  console.log(baseMap);
+
+  for (var id in sourceMap) {
+
+    if (!baseMap[id]) {
+      merged[id] = 'delete';
+      delete none[id];
+      deleted.push(sourceMap[id]);
+    }
+
+  }
+
+  for (var id in baseMap) {
+
+    if (!sourceMap[id]) {
+      merged[id] = 'add';
+      delete none[id];
+      added.push(baseMap[id]);
+    }
+
+  }
+
+  var noneArr = [];
+  for(var id in none){
+    noneArr.push(none[id]);
+  }
+
+
+  return {
+    deleted: deleted,
+    none: noneArr,
+    added: added
+  }
+
+}
+
+function compareTextNodes(actions, source, base) {
+
+  if (source.nodeType === base.nodeType && (source.nodeType === 3 || source.nodeType === 8)) {
+    if (base.nodeValue !== source.nodeValue) {
+      actions.push({
+        action: 'changeText'
+      });
+      return true;
+    }
+  }
+
+  return false;
+}
+function compareAttributes(actions, source, base) {
+
+  // look for differences between the nodes by their attributes
+  if (source.attributes && base.attributes) {
+    var attributes = source.attributes,
+      value,
+      name;
+
+    // iterate over the source attributes that we want to copy over to the new base node
+    for (var i = attributes.length; i--;) {
+      value = attributes[i].nodeValue;
+      name = attributes[i].nodeName;
+
+      var val = base.getAttribute(name);
+      if (val !== value) {
+        if (val == null) {
+          actions.push({
+            'action': 'setAttribute',
+            'name': name,
+            'element': base,
+            'baseIndex': index,
+            'sourceIndex': index,
+            '_inserted': value
+          });
+        } else {
+          // if the attribute happens to be a style
+          // only generate style Updates
+          if (name === 'style') {
+            actions.push({
+              'action': 'setAttribute',
+              'name': name,
+              'element': base,
+              'baseIndex': index,
+              'sourceIndex': index,
+              '_deleted': val,
+              '_inserted': value
+            });
+          }
+        }
+      }
+    }
+
+    // iterate over attributes to remove that the source no longer has
+    attributes = base.attributes;
+    for (var i = attributes.length; i--;) {
+      name = attributes[i].nodeName;
+      if (source.getAttribute(name) === null) {
+        actions.push({
+          'action': 'removeAttribute',
+          'name': name,
+          'baseIndex': index,
+          'sourceIndex': index,
+          '_deleted': attributes[i].nodeValue
+        });
+      }
+    }
+  }
+
+}
+
+function apply(actions, target) {
+
+  for (var i = 0; i < actions.length; i++) {
+
+    switch (actions[i].action) {
+      case 'changeText' :
+        break;
+    }
+
+  }
+
+}
+spike.core.Assembler.resetNamespaces(23, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
 
 CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
 REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
@@ -863,31 +1105,7 @@ eventsSelectors: eventsSelectors,
 linksSelectors: linksSelectors
 };
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.defineNamespace('spike.core.Set',function(){spike.core.Set=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Set with arguments count: '+args.length);}};spike.core.Set.prototype.Set=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Set with arguments count: '+arguments.length);}};spike.core.Set.prototype.constructor_1=function(hashFunction){var $this=this;
-this._hashFunction = hashFunction || JSON.stringify;
-this._values = {};
-this._size = 0;
-};spike.core.Set.prototype.constructor_0=function(){var $this=this;};spike.core.Set.prototype.isClass= true;spike.core.Set.prototype.add=function(value){var $this=this;
-if (!this.contains(value)) {
-this._values[this._hashFunction(value)] = value;
-this._size++;
-}
-};spike.core.Set.prototype.remove=function(value){var $this=this;
-if (this.contains(value)) {
-delete this._values[this._hashFunction(value)];
-this._size--;
-}
-};spike.core.Set.prototype.contains=function(value){var $this=this;
-return typeof this._values[this._hashFunction(value)] !== "undefined";
-};spike.core.Set.prototype.size=function(){var $this=this;
-return this._size;
-};spike.core.Set.prototype.each=function(iteratorFunction, thisObj){var $this=this;
-for (var value in this._values) {
-iteratorFunction.call(thisObj, this._values[value]);
-}
-};spike.core.Set.prototype.print=function(){var $this=this;
-console.log(this._values);
-};spike.core.Set.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Set.prototype.getClass=function(){var $this=this; return 'spike.core.Set'; };});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
 
 if (this.isEmpty(str)) {
 return str;
@@ -1066,6 +1284,7 @@ text += possible.charAt(Math.floor(Math.random() * possible.length));
 
 return text;
 },hashString: function(str) {var $this=this;
+
 var hash = 5381, i    = str.length;
 
 while(i) {
@@ -1110,13 +1329,13 @@ string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
 
 return string;
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
 OPENED: 1,
 UNSENT: 0
-};this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+args.length);}};spike.core.Request.prototype.Request=function(){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
+};this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+args.length);}};spike.core.Request.prototype.Request=function(){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
@@ -1133,7 +1352,7 @@ this.setHeaders();
 this.config.beforeSend();
 this.xhr.send(this.config.data);
 
-};spike.core.Request.prototype.constructor_0=function(){var $this=this;};spike.core.Request.prototype.config= null;spike.core.Request.prototype.xhr= null;spike.core.Request.prototype.catchCallbacks= [];spike.core.Request.prototype.thenCallbacks= [];spike.core.Request.prototype.response= null;spike.core.Request.prototype.responseType= 'json';spike.core.Request.prototype.STATUS= {
+};spike.core.Request.prototype.constructor_0=function(){var $this=this;};spike.core.Request.prototype.config= null;spike.core.Request.prototype.xhr= null;spike.core.Request.prototype.catchCallbacks= [];spike.core.Request.prototype.thenCallbacks= [];spike.core.Request.prototype.alwaysCallbacks= [];spike.core.Request.prototype.response= null;spike.core.Request.prototype.responseType= 'json';spike.core.Request.prototype.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
@@ -1188,31 +1407,36 @@ return config;
 
 this.xhr.open(this.config.type, this.config.url, true);
 
-var self = this;
 this.xhr.onreadystatechange = function() {
 
-if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 200) {
+if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 200) {
 
-if(self.responseType === 'json'){
+if($this.responseType === 'json'){
 
 try {
-self.response = JSON.parse(self.xhr.responseText);
-self.resolveThen(self.response, self.xhr, self.xhr.status);
+$this.response = JSON.parse($this.xhr.responseText);
+$this.resolveThen($this.response, $this.xhr, $this.xhr.status);
+$this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
 }catch(e){
 console.error(e);
-self.resolveCatch(self.xhr, 0, e);
+$this.resolveCatch($this.xhr, 0, e);
+$this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
 }
 
 
-}else if(self.responseType === 'xml'){
-self.resolveThen(self.xhr.responseXML, self.xhr, self.xhr.status);
+}else if($this.responseType === 'xml'){
+$this.resolveThen($this.xhr.responseXML, $this.xhr, $this.xhr.status);
+$this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
 }
 
-}else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 204){
-self.resolveThen(null, self.xhr, self.xhr.status);
-}else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status !== 200){
-self.resolveCatch(self.xhr, self.xhr.status, new Error('Response error: '+self.xhr.status));
+}else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 204){
+$this.resolveThen(null, $this.xhr, $this.xhr.status);
+$this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
+}else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status !== 200){
+$this.resolveCatch($this.xhr, $this.xhr.status, new Error('Response error: '+$this.xhr.status));
+$this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
 }
+
 
 };
 
@@ -1227,6 +1451,15 @@ this.xhr.setRequestHeader(headerName, this.config.headers[headerName]);
 
 if(this.config.headers['Content-Type'].indexOf('xml') > -1){
 this.responseType = 'xml';
+}
+
+};spike.core.Request.prototype.always=function(callback){var $this=this;
+this.alwaysCallbacks.push(callback);
+return this;
+};spike.core.Request.prototype.resolveAlways=function(response, xhr, status){var $this=this;
+
+for(var i = 0; i < this.alwaysCallbacks.length; i++){
+this.alwaysCallbacks[i](response, xhr, status);
 }
 
 };spike.core.Request.prototype.then=function(callback){var $this=this;
@@ -1256,14 +1489,42 @@ xhr = new XMLHttpRequest();
 try {
 xhr = new ActiveXObject("Msxml2.XMLHTTP");
 } catch (e) {
-console.log(e);
+console.warn(e);
 xhr = new ActiveXObject("Microsoft.XMLHTTP");
 }
 }
 
 return xhr;
 
-};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.Rest', 'null',function(){ return {cacheData: {},interceptors: {},globalInterceptors: {},isClass: true,interceptor: function (interceptorName, interceptorFunction, isGlobal) {var $this=this;
+};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.defineNamespace('spike.core.MultiRequest',function(){spike.core.MultiRequest=function(args){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+args.length);}};spike.core.MultiRequest.prototype.MultiRequest=function(){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+arguments.length);}};spike.core.MultiRequest.prototype.constructor_1=function(promises){var $this=this;
+
+$this.promisesLength = promises.length;
+
+for(var i = 0; i < promises.length; i++){
+
+$this.promises[i].always(function(xhr, response, status){
+$this.countResponses++;
+
+$this.responseData.push(xhr, response, status);
+
+if($this.countResponses === promisesLength){
+$this.resolveAlways();
+}
+
+});
+
+}
+
+};spike.core.MultiRequest.prototype.constructor_0=function(){var $this=this;};spike.core.MultiRequest.prototype.responseData= [];spike.core.MultiRequest.prototype.alwaysCallbacks= [];spike.core.MultiRequest.prototype.countResponses= 0;spike.core.MultiRequest.prototype.promisesLength= 0;spike.core.MultiRequest.prototype.isClass= true;spike.core.MultiRequest.prototype.always=function(callback){var $this=this;
+$this.alwaysCallbacks.push(callback);
+return $this;
+};spike.core.MultiRequest.prototype.resolveAlways=function(){var $this=this;
+
+for(var i = 0; i < $this.alwaysCallbacks.length; i++){
+$this.alwaysCallbacks[i].apply($this.responseData);
+}
+
+};spike.core.MultiRequest.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.MultiRequest.prototype.getClass=function(){var $this=this; return 'spike.core.MultiRequest'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.Rest', 'null',function(){ return {cacheData: {},interceptors: {},globalInterceptors: {},isClass: true,interceptor: function (interceptorName, interceptorFunction, isGlobal) {var $this=this;
 
 if (isGlobal) {
 
@@ -2489,102 +2750,7 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Reconcile', 'null',function(){ return {watcherList: [],currentList: [],isClass: true,diff: function (watcher, current, diffActions) {var $this=this;
-
-if (diffActions === undefined) {
-diffActions = new Set();
-}
-
-var currentList = [];
-var watcherList = [];
-
-this.createMap(currentList, current);
-this.createMap(watcherList, watcher);
-
-var removedElementsIds = this.getRemovedElements(watcherList, currentList);
-
-for (var i = 0; i < removedElementsIds.length; i++) {
-diffActions.add({
-action: 'remove',
-id: removedElementsIds[i]
-});
-}
-
-
-var addedElementsIds = this.getAddedElements(watcherList, currentList);
-
-for (var i = 0; i < addedElementsIds.length; i++) {
-diffActions.add({
-action: 'insert',
-id: addedElementsIds[i]
-});
-}
-
-if (watcher.nodeType === current.nodeType && (watcher.nodeType === 3 || watcher.nodeType === 8)
-&& (watcher.id === current.id) && watcher.innerHTML !== current.innerHTML) {
-
-diffActions.add({
-action: 'text',
-element: watcher,
-target: current
-});
-
-}
-
-if (watcher.children.length === 0 && current.children.length === 0 && watcher.innerHTML !== current.innerHTML && (watcher.id === current.id)) {
-
-diffActions.add({
-action: 'content',
-element: watcher,
-target: current
-});
-
-}
-
-for (var i = 0; i < watcher.children.length; i++) {
-
-if (current.children[i]) {
-this.diff(watcher.children[i], current.children[i], diffActions);
-}
-
-}
-
-return diffActions;
-
-},getRemovedElements: function (elements, targets) {var $this=this;
-return elements.filter(function (i) {
-return targets.indexOf(i) < 0;
-});
-},getAddedElements: function (elements, targets) {var $this=this;
-return targets.filter(function (i) {
-return elements.indexOf(i) < 0;
-});
-},createMap: function (list, node) {var $this=this;
-
-if (node.children.length > 0) {
-
-for (var i = 0; i < node.children.length; i++) {
-list.push(node.children[i].id);
-}
-
-}
-
-},applyDiff: function (diffActions, target) {var $this=this;
-
-diffActions.each(function(diffAction){
-
-
-switch (diffAction.action) {
-case 'remove' :
-break;
-case 'add' :
-
-break;
-}
-
-});
-
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
 'childElements',
 'parentElement',
 'eventsSelectors',
@@ -2601,9 +2767,6 @@ if(this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath]){
 watchers = this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath](scope);
 }
 
-console.log('watchers');
-console.log(watchers);
-
 if(watchers.length > 0){
 
 var virtualDom = document.createElement('div');
@@ -2619,10 +2782,11 @@ if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 var currentHtml = watchElements[i].outerHTML;
 var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
+
 if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
 
 spike.core.Log.log('Watcher reflow needed');
-$this.replaceChangedElements(watcherHtml, currentHtml);
+$this.replaceChangedElements(watcherHtml, watchElements[i]);
 
 }
 
@@ -2634,29 +2798,35 @@ $this.replaceChangedElements(watcherHtml, currentHtml);
 
 }
 
-},replaceChangedElements: function(watcherHtml, currentHtml){var $this=this;
+},replaceChangedElements: function(watcherHtml, currentElement){var $this=this;
 
 var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
-var currentVirtual = document.createElement('div');
-currentVirtual.innerHTML =currentHtml;
+console.log('apply changes');
+console.log(watcherVirtual.firstChild);
+console.log(currentElement);
 
-var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+var changes = diff(currentElement, watcherVirtual.firstChild);
 console.log(changes);
-Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
+
+
 
 },fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
 
 var idListFromWatcher = spike.core.Util.findStringBetween(watcherHtml, 'id="','"');
 var idListFromCurrent = spike.core.Util.findStringBetween(currentHtml, 'id="','"');
+var replaced = {};
 
 for(var i = 0; i < idListFromWatcher.length; i++){
 
 for(var k = 0; k < idListFromCurrent.length; k++){
 
-if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
 watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+replaced[idListFromCurrent[k]] = true;
+}else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
+watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+spike.core.Util.hash()+'"');
 }
 
 }
@@ -2720,11 +2890,9 @@ return stringify;
 
 var stringify = $this.stringifyScope(scope);
 
-if(stringify !== $this.scopes[scope.elementId]){
+if($this.scopes[scope.elementId] && stringify !== $this.scopes[scope.elementId]){
 spike.core.Log.log('scope changed');
-
 $this.compileWatchers(scope);
-
 }
 
 $this.scopes[scope.elementId] = stringify;

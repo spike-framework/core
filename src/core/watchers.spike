@@ -3,6 +3,7 @@ package spike.core;
 import Assembler from spike.core.Assembler;
 import Log from spike.core.Log;
 import Util from spike.core.Util;
+import Reconcile from spike.core.Reconcile;
 
 static class Watchers {
 
@@ -15,9 +16,6 @@ static class Watchers {
         if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
             watchers = this.watchers[Assembler.sourcePath+"_"+scope.templatePath](scope);
         }
-
-        console.log('watchers');
-        console.log(watchers);
 
         if(watchers.length > 0){
 
@@ -34,10 +32,13 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
+                   // console.log(currentHtml);
+                  //  console.log(watcherHtml);
+
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
-                        $this.replaceChangedElements(watcherHtml, currentHtml);
+                        $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
                     }
 
@@ -51,17 +52,21 @@ static class Watchers {
 
     },
 
-    replaceChangedElements: function(watcherHtml, currentHtml){
+    replaceChangedElements: function(watcherHtml, currentElement){
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
-        var currentVirtual = document.createElement('div');
-        currentVirtual.innerHTML =currentHtml;
+        console.log('apply changes');
+        console.log(watcherVirtual.firstChild);
+        console.log(currentElement);
 
-        var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+        var changes = diff(currentElement, watcherVirtual.firstChild);
         console.log(changes);
-        Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
+
+       // apply(changes, document.getElementById(currentElement.id));
+
+      //  Reconcile.applyChanges(watcherVirtual.firstChild, document.getElementById(currentElement.id));
 
     },
 
@@ -69,13 +74,17 @@ static class Watchers {
 
         var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
         var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
+        var replaced = {};
 
         for(var i = 0; i < idListFromWatcher.length; i++){
 
             for(var k = 0; k < idListFromCurrent.length; k++){
 
-                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
                     watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+                    replaced[idListFromCurrent[k]] = true;
+                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
+                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+Util.hash()+'"');
                 }
 
             }
@@ -161,11 +170,9 @@ static class Watchers {
 
         var stringify = $this.stringifyScope(scope);
 
-        if(stringify !== $this.scopes[scope.elementId]){
+        if($this.scopes[scope.elementId] && stringify !== $this.scopes[scope.elementId]){
             Log.log('scope changed');
-
             $this.compileWatchers(scope);
-
         }
 
         $this.scopes[scope.elementId] = stringify;

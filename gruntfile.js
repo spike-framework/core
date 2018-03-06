@@ -36,9 +36,9 @@ var spike = {
         './src/core/system.spike',
         './src/core/log.spike',
         './src/core/selectors.spike',
-        './src/core/set.spike',
         './src/core/util.spike',
         './src/core/request.spike',
+        './src/core/multiRequest.spike',
         './src/core/rest.spike',
         './src/core/message.spike',
         './src/core/templates.spike',
@@ -48,7 +48,7 @@ var spike = {
         './src/core/controller.spike',
         './src/core/modal.spike',
         './src/core/broadcaster.spike',
-        './src/core/reconcile.spike',
+        //'./src/core/reconcile.spike',
         './src/core/watchers.spike'
 
     ],
@@ -56,6 +56,7 @@ var spike = {
     build: [
         './src/assembler/history.js',
         './src/assembler/assembler.js',
+        './src/assembler/reconcile.js',
         './dist/spike-framework.js'
     ]
 

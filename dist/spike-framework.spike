@@ -1177,49 +1177,6 @@ static class Selectors {
 
 }package spike.core;
 
-class Set {
-
-    Set: function(hashFunction) {
-      this._hashFunction = hashFunction || JSON.stringify;
-      this._values = {};
-      this._size = 0;
-    },
-
-    add: function(value) {
-      if (!this.contains(value)) {
-        this._values[this._hashFunction(value)] = value;
-        this._size++;
-      }
-    },
-
-    remove: function(value) {
-      if (this.contains(value)) {
-        delete this._values[this._hashFunction(value)];
-        this._size--;
-      }
-    },
-
-    contains: function(value) {
-      return typeof this._values[this._hashFunction(value)] !== "undefined";
-    },
-
-    size: function() {
-      return this._size;
-    },
-
-    each: function(iteratorFunction, thisObj) {
-      for (var value in this._values) {
-        iteratorFunction.call(thisObj, this._values[value]);
-      }
-    },
-
-    print: function(){
-      console.log(this._values);
-    }
-
-}
-package spike.core;
-
 static class Util {
 
         /**
@@ -1592,6 +1549,7 @@ static class Util {
         },
 
         hashString: function(str) {
+
             var hash = 5381, i    = str.length;
 
             while(i) {
@@ -1663,6 +1621,7 @@ class Request {
     xhr: null,
     catchCallbacks: [],
     thenCallbacks: [],
+    alwaysCallbacks: [],
     response: null,
 
     responseType: 'json',
@@ -1739,31 +1698,36 @@ class Request {
 
         this.xhr.open(this.config.type, this.config.url, true);
 
-        var self = this;
         this.xhr.onreadystatechange = function() {
 
-             if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 200) {
+             if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 200) {
 
-                if(self.responseType === 'json'){
+                if($this.responseType === 'json'){
 
                     try {
-                        self.response = JSON.parse(self.xhr.responseText);
-                        self.resolveThen(self.response, self.xhr, self.xhr.status);
+                        $this.response = JSON.parse($this.xhr.responseText);
+                        $this.resolveThen($this.response, $this.xhr, $this.xhr.status);
+                        $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                     }catch(e){
                         console.error(e);
-                        self.resolveCatch(self.xhr, 0, e);
+                        $this.resolveCatch($this.xhr, 0, e);
+                        $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                     }
 
 
-                }else if(self.responseType === 'xml'){
-                    self.resolveThen(self.xhr.responseXML, self.xhr, self.xhr.status);
+                }else if($this.responseType === 'xml'){
+                    $this.resolveThen($this.xhr.responseXML, $this.xhr, $this.xhr.status);
+                    $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
                 }
 
-              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status === 204){
-                self.resolveThen(null, self.xhr, self.xhr.status);
-              }else if(self.xhr.readyState === self.STATUS.DONE && self.xhr.status !== 200){
-                self.resolveCatch(self.xhr, self.xhr.status, new Error('Response error: '+self.xhr.status));
+              }else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 204){
+                $this.resolveThen(null, $this.xhr, $this.xhr.status);
+                $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
+              }else if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status !== 200){
+                $this.resolveCatch($this.xhr, $this.xhr.status, new Error('Response error: '+$this.xhr.status));
+                $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
               }
+
 
         };
 
@@ -1780,6 +1744,19 @@ class Request {
 
         if(this.config.headers['Content-Type'].indexOf('xml') > -1){
             this.responseType = 'xml';
+        }
+
+    },
+
+    always: function (callback) {
+        this.alwaysCallbacks.push(callback);
+        return this;
+    },
+
+    resolveAlways: function(response, xhr, status){
+
+        for(var i = 0; i < this.alwaysCallbacks.length; i++){
+            this.alwaysCallbacks[i](response, xhr, status);
         }
 
     },
@@ -1819,12 +1796,58 @@ class Request {
             try {
                 xhr = new ActiveXObject("Msxml2.XMLHTTP");
             } catch (e) {
-                console.log(e);
+                console.warn(e);
                 xhr = new ActiveXObject("Microsoft.XMLHTTP");
             }
         }
 
         return xhr;
+
+    }
+
+}package spike.core;
+
+import Log from spike.core.Log;
+
+class MultiRequest {
+
+    responseData: [],
+    alwaysCallbacks: [],
+
+    countResponses: 0,
+    promisesLength: 0,
+
+    MultiRequest: function(promises){
+
+        $this.promisesLength = promises.length;
+
+        for(var i = 0; i < promises.length; i++){
+
+            $this.promises[i].always(function(xhr, response, status){
+                $this.countResponses++;
+
+                $this.responseData.push(xhr, response, status);
+
+                if($this.countResponses === promisesLength){
+                    $this.resolveAlways();
+                }
+
+            });
+
+        }
+
+    },
+
+    always: function (callback) {
+        $this.alwaysCallbacks.push(callback);
+        return $this;
+    },
+
+    resolveAlways: function(){
+
+        for(var i = 0; i < $this.alwaysCallbacks.length; i++){
+            $this.alwaysCallbacks[i].apply($this.responseData);
+        }
 
     }
 
@@ -4049,168 +4072,10 @@ static class Broadcaster {
 
 }package spike.core;
 
-import Log from spike.core.Log;
-
-static class Reconcile {
-
-  watcherList: [],
-  currentList: [],
-
-  diff: function (watcher, current, diffActions) {
-
-    if (diffActions === undefined) {
-      diffActions = new Set();
-    }
-
-    var currentList = [];
-    var watcherList = [];
-
-    this.createMap(currentList, current);
-    this.createMap(watcherList, watcher);
-
-    var removedElementsIds = this.getRemovedElements(watcherList, currentList);
-    //console.log('removedElementsIds');
-    //console.log(removedElementsIds);
-
-    for (var i = 0; i < removedElementsIds.length; i++) {
-      diffActions.add({
-        action: 'remove',
-        id: removedElementsIds[i]
-      });
-    }
-
-
-    var addedElementsIds = this.getAddedElements(watcherList, currentList);
-    //console.log('addedElementsIds');
-    //console.log(addedElementsIds);
-
-    for (var i = 0; i < addedElementsIds.length; i++) {
-      diffActions.add({
-        action: 'insert',
-        id: addedElementsIds[i]
-      });
-    }
-
-    //Is text node
-    if (watcher.nodeType === current.nodeType && (watcher.nodeType === 3 || watcher.nodeType === 8)
-      && (watcher.id === current.id) && watcher.innerHTML !== current.innerHTML) {
-
-      diffActions.add({
-        action: 'text',
-        element: watcher,
-        target: current
-      });
-
-    }
-
-    //Has another content and same id
-    if (watcher.children.length === 0 && current.children.length === 0 && watcher.innerHTML !== current.innerHTML && (watcher.id === current.id)) {
-
-      diffActions.add({
-        action: 'content',
-        element: watcher,
-        target: current
-      });
-
-    }
-
-    for (var i = 0; i < watcher.children.length; i++) {
-
-      if (current.children[i]) {
-        this.diff(watcher.children[i], current.children[i], diffActions);
-      }
-
-    }
-
-    return diffActions;
-
-  },
-
-  getRemovedElements: function (elements, targets) {
-    return elements.filter(function (i) {
-      return targets.indexOf(i) < 0;
-    });
-  },
-
-  getAddedElements: function (elements, targets) {
-    return targets.filter(function (i) {
-      return elements.indexOf(i) < 0;
-    });
-  },
-
-  createMap: function (list, node) {
-
-    if (node.children.length > 0) {
-
-      for (var i = 0; i < node.children.length; i++) {
-        list.push(node.children[i].id);
-      }
-
-    }
-
-  },
-
-  applyDiff: function (diffActions, target) {
-
-    diffActions.each(function(diffAction){
-
-     // console.log(diffAction);
-
-      switch (diffAction.action) {
-        case 'remove' :
-          //document.getElementById(diffActions[i].id).remove();
-          break;
-        case 'add' :
-
-          break;
-      }
-
-    });
-
-  }
-
-}
-
-//
-//function test(name, from, to) {
-//
-//  console.log('TEST ' + name);
-//  var watcherVirtual = document.createElement('div');
-//  watcherVirtual.innerHTML = from;//watcherHtml;
-//
-//  var currentVirtual = document.createElement('div');
-//  currentVirtual.innerHTML = to;//currentHtml;
-//
-//  var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
-//  changes.print();
-//
-//  Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
-//
-//
-//
-//}
-//
-//test('Remove item',
-//  '<ul id="list"><li id="x1">Ewelina</li></ul>',
-//  '<ul id="list"></ul>'
-//);
-
-
-//
-// test('Add item',
-//   '<ul id="list"><li id="x1">Ewelina</li></ul>',
-//   '<ul id="list"><li id="x2">Dawid</li><li id="x1">Ewelina</li></ul>'
-// );
-//
-// test('Change item content',
-//   '<ul id="list"><li id="x1">Ewelina</li></ul>',
-//   '<ul id="list"><li id="x1">Dawid</li></ul>'
-// );
-package spike.core;
-
 import Assembler from spike.core.Assembler;
 import Log from spike.core.Log;
 import Util from spike.core.Util;
+import Reconcile from spike.core.Reconcile;
 
 static class Watchers {
 
@@ -4223,9 +4088,6 @@ static class Watchers {
         if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
             watchers = this.watchers[Assembler.sourcePath+"_"+scope.templatePath](scope);
         }
-
-        console.log('watchers');
-        console.log(watchers);
 
         if(watchers.length > 0){
 
@@ -4242,10 +4104,13 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
+                   // console.log(currentHtml);
+                  //  console.log(watcherHtml);
+
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
-                        $this.replaceChangedElements(watcherHtml, currentHtml);
+                        $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
                     }
 
@@ -4259,17 +4124,21 @@ static class Watchers {
 
     },
 
-    replaceChangedElements: function(watcherHtml, currentHtml){
+    replaceChangedElements: function(watcherHtml, currentElement){
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
-        var currentVirtual = document.createElement('div');
-        currentVirtual.innerHTML =currentHtml;
+        console.log('apply changes');
+        console.log(watcherVirtual.firstChild);
+        console.log(currentElement);
 
-        var changes = Reconcile.diff(watcherVirtual.firstChild, currentVirtual.firstChild);
+        var changes = diff(currentElement, watcherVirtual.firstChild);
         console.log(changes);
-        Reconcile.applyDiff(changes, document.getElementById(currentVirtual.firstChild.id));
+
+       // apply(changes, document.getElementById(currentElement.id));
+
+      //  Reconcile.applyChanges(watcherVirtual.firstChild, document.getElementById(currentElement.id));
 
     },
 
@@ -4277,13 +4146,17 @@ static class Watchers {
 
         var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
         var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
+        var replaced = {};
 
         for(var i = 0; i < idListFromWatcher.length; i++){
 
             for(var k = 0; k < idListFromCurrent.length; k++){
 
-                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1){
+                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
                     watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
+                    replaced[idListFromCurrent[k]] = true;
+                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
+                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+Util.hash()+'"');
                 }
 
             }
@@ -4369,11 +4242,9 @@ static class Watchers {
 
         var stringify = $this.stringifyScope(scope);
 
-        if(stringify !== $this.scopes[scope.elementId]){
+        if($this.scopes[scope.elementId] && stringify !== $this.scopes[scope.elementId]){
             Log.log('scope changed');
-
             $this.compileWatchers(scope);
-
         }
 
         $this.scopes[scope.elementId] = stringify;
