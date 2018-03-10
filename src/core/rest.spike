@@ -400,7 +400,7 @@ static class Rest {
 
 
     promiseObj.headers = headers;
-
+    promiseObj.alias = propertiesObject.alias;
 
     var promise = new Request(promiseObj);
 
@@ -517,6 +517,7 @@ static class Rest {
 
     headers = newHeaders;
     promiseObj.headers = headers;
+    promiseObj.alias = propertiesObject.alias;
 
     var promise = new Request(promiseObj);
 

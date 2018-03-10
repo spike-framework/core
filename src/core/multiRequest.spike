@@ -1,6 +1,7 @@
 package spike.core;
 
 import Log from spike.core.Log;
+import Request from spike.core.Request;
 
 class MultiRequest {
 
@@ -10,19 +11,31 @@ class MultiRequest {
     countResponses: 0,
     promisesLength: 0,
 
+    resolved: false,
+
     MultiRequest: function(promises){
 
         $this.promisesLength = promises.length;
 
         for(var i = 0; i < promises.length; i++){
 
-            $this.promises[i].always(function(xhr, response, status){
+            promises[i].always(function(xhr, response, status){
                 $this.countResponses++;
 
-                $this.responseData.push(xhr, response, status);
+                if(this instanceof Request){
 
-                if($this.countResponses === promisesLength){
+                    if(xhr.response){
+                        xhr.response = JSON.parse(xhr.response);
+                    }
+
+                    $this.responseData.push(xhr);
+                }else{
+                    $this.responseData.push(xhr);
+                }
+
+                if($this.resolved == false && $this.countResponses === $this.promisesLength){
                     $this.resolveAlways();
+                    $this.resolved = true;
                 }
 
             });
@@ -32,6 +45,7 @@ class MultiRequest {
     },
 
     always: function (callback) {
+        console.log('always adding')
         $this.alwaysCallbacks.push(callback);
         return $this;
     },
@@ -39,7 +53,7 @@ class MultiRequest {
     resolveAlways: function(){
 
         for(var i = 0; i < $this.alwaysCallbacks.length; i++){
-            $this.alwaysCallbacks[i].apply($this.responseData);
+            $this.alwaysCallbacks[i].apply($this, [$this.responseData]);
         }
 
     }

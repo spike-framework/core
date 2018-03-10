@@ -76,10 +76,11 @@ class Element {
         var elementPath = this.getClass().split('.');
 
         for(var i = 0; i < elementPath.length; i++){
-            this.templatePath += elementPath[i].toLowerCase()+'_';
+            this.templatePath += elementPath[i]+'_';
         }
 
         this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
+        this.templatePath = this.templatePath.toLowerCase();
 
         return this.templatePath;
 
@@ -113,5 +114,6 @@ class Element {
 
     abstract function render;
     abstract function postConstruct;
+    abstract function destroy;
 
 }

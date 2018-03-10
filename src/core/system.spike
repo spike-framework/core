@@ -170,7 +170,12 @@ static class System {
 
     //Renders controller
     controller.render();
-    this.currentRenderedController = controller.getClass();
+
+    if(this.currentRenderedController){
+        this.currentRenderedController.destroy();
+    }
+
+    this.currentRenderedController = controller;
 
     System.execOnRenderEvent();
 
@@ -201,7 +206,7 @@ static class System {
       Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
     }
 
-    if(this.modalInterface.isRendered(moduleClass) || this.currentRenderedController === moduleClass){
+    if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
         Log.warn('Preventing re-rendering module '+moduleClass);
         return;
     }
@@ -324,13 +329,13 @@ static class System {
 
         Log.log('Translations loaded');
 
+        if ($this.eventsInterface.onReady !== undefined) {
+            $this.eventsInterface.onReady();
+        }
+
         Router.registerRouter();
         Watchers.createWatchLoop();
         $this.initGlobalElements();
-
-        if ($this.eventsInterface.onReady !== undefined) {
-           $this.eventsInterface.onReady();
-        }
 
         $this.loader.onLoadApplication();
 

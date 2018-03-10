@@ -4,6 +4,7 @@ import System from spike.core.System;
 import Events from spike.core.Events;
 import Router from spike.core.Router;
 import Element from spike.core.Element;
+import Watchers from spike.core.Watchers;
 
 class GlobalElement extends Element {
 
@@ -23,6 +24,7 @@ class GlobalElement extends Element {
 
         Events.bindEvents(this);
         Router.bindLinks(this);
+        Watchers.observe(this);
 
         this.rendered = true;
 
@@ -43,6 +45,10 @@ class GlobalElement extends Element {
 
           //  this.elementSelector = null;
 
-        }
+    },
+
+    destroy: function(){
+        Watchers.unobserve(this);
+    }
 
 }

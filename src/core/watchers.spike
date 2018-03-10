@@ -9,7 +9,11 @@ static class Watchers {
 
     watchers: {},
 
-    compileWatchers: function(scope){
+    update: function(scope, watcherName){
+        this.compileWatchers(scope, watcherName);
+    },
+
+    compileWatchers: function(scope, watcherName){
 
         var watchers = [];
 
@@ -21,7 +25,13 @@ static class Watchers {
 
           var virtualDom = document.createElement('div');
           virtualDom.innerHTML = scope.compiledHtml;
-          var watchElements = virtualDom.querySelectorAll('[sp-watch]');
+          var watchElements = [];
+
+          if(watcherName){
+            watchElements = virtualDom.querySelectorAll('[sp-watch="'+watcherName+'"]');
+          }else {
+            watchElements = virtualDom.querySelectorAll('[sp-watch]');
+          }
 
           for(var i = 0; i < watchElements.length; i++){
 
@@ -31,9 +41,6 @@ static class Watchers {
 
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
-                   // console.log(currentHtml);
-                  //  console.log(watcherHtml);
 
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
@@ -57,16 +64,8 @@ static class Watchers {
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
-        console.log('apply changes');
-        console.log(watcherVirtual.firstChild);
-        console.log(currentElement);
-
-        var changes = diff(currentElement, watcherVirtual.firstChild);
-        console.log(changes);
-
-       // apply(changes, document.getElementById(currentElement.id));
-
-      //  Reconcile.applyChanges(watcherVirtual.firstChild, document.getElementById(currentElement.id));
+        var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+        Reconcile.apply(changes, document.getElementById(currentElement.id));
 
     },
 
@@ -136,6 +135,20 @@ static class Watchers {
         this.observables.push(scope);
     },
 
+    unobserve: function(scope){
+
+        var index = -1;
+        for(var i = 0; i < this.observables.length; i++){
+
+            if(this.observables[i].getClass() === scope.getClass() && this.observables[i].elementId === scope.elementId){
+                this.observables.splice(i, 1);
+                break;
+            }
+
+        }
+
+    },
+
     excludedProperties: [
         'childElements',
         'parentElement',
@@ -166,12 +179,13 @@ static class Watchers {
 
     },
 
+
     detectScopeChange: function(scope){
 
         var stringify = $this.stringifyScope(scope);
 
-        if($this.scopes[scope.elementId] && stringify !== $this.scopes[scope.elementId]){
-            Log.log('scope changed');
+        if(stringify !== $this.scopes[scope.elementId]){
+            Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
         }
 

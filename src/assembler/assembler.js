@@ -246,7 +246,7 @@ spike.core.Assembler = {
 
           }
 
-          loader = new loader([]);
+          loader = new loader();
           return loader;
 
         }

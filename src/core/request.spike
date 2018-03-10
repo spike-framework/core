@@ -36,11 +36,13 @@ class Request {
         this.config = this.setConfig(config);
         this.xhr = this.createXHR();
 
+        this.xhr.alias = this.config.alias;
         this.setEvents();
         this.setHeaders();
 
         this.config.beforeSend();
         this.xhr.send(this.config.data);
+
 
     },
 
@@ -102,6 +104,7 @@ class Request {
                 if($this.responseType === 'json'){
 
                     try {
+                        $this.xhr.responseJSON = JSON.parse($this.xhr.responseText);
                         $this.response = JSON.parse($this.xhr.responseText);
                         $this.resolveThen($this.response, $this.xhr, $this.xhr.status);
                         $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);

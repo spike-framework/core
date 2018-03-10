@@ -30,7 +30,7 @@ static class Router {
    * @public
    * Declares string which is used as 'OTHERWISE' URL
    */
-  otherwiseReplacement: '!',
+  otherwisePath: '/',
 
   /**
    * @public
@@ -74,8 +74,9 @@ static class Router {
    *
    * @param pathObject
    */
-  otherFunction: function (pathObject) {
-    return Router.pathFunction(Router.otherwiseReplacement, pathObject);
+  otherFunction: function (pathValue) {
+    Router.otherwisePath = pathValue;
+    return Router.getRouterFactory();
   },
 
   /**
@@ -362,6 +363,8 @@ static class Router {
    */
   onHistoryChanges: function () {
 
+    console.log('onHistoryChanges '+Router.routerHTML5Mode);
+
     if (Router.routerHTML5Mode === true) {
 
       Log.debug('Executes Router.onHistoryChanges');
@@ -605,38 +608,27 @@ static class Router {
 
     var currentEndpointObject = Router.getCurrentViewData();
 
+    if(currentEndpointObject.endpoint == null && currentEndpointObject.data == null){
+        Router.redirect(Router.otherwisePath);
+        return;
+    }
+
     var currentEndpointData = currentEndpointObject.data;
     var currentEndpoint = currentEndpointObject.endpoint;
 
-    if (currentEndpointData === null && Router.endpoints[Router.otherwiseReplacement]) {
-
-      currentEndpointData = {
-        controller: Router.endpoints[Router.otherwiseReplacement].controller,
-        modal: Router.endpoints[Router.otherwiseReplacement].modal,
-        defaultController: Router.endpoints[Router.otherwiseReplacement].defaultController,
-        isModal: Router.endpoints[Router.otherwiseReplacement].isModal,
-        routingParams: Router.endpoints[Router.otherwiseReplacement].routingParams,
-        onRouteEvent: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
-        onRouteEventWithModal: Router.endpoints[Router.otherwiseReplacement].onRouteEvent,
-      };
-
+    if (currentEndpointData.isModal === true && !Util.isEmpty(app.previousController)) {
+      currentEndpointData.controller = app.previousController;
     } else {
+      currentEndpointData.controller = currentEndpoint.controller;
+    }
 
-      if (currentEndpointData.isModal === true && !Util.isEmpty(app.previousController)) {
-        currentEndpointData.controller = app.previousController;
-      } else {
-        currentEndpointData.controller = currentEndpoint.controller;
-      }
-
-      currentEndpointData.defaultController = currentEndpoint.defaultController;
-      currentEndpointData.modal = currentEndpoint.modal;
-      currentEndpointData.isModal = currentEndpoint.isModal;
-      currentEndpointData.routingParams = currentEndpoint.routingParams;
-      currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
-      currentEndpointData.onRouteEventWithModal = function () {
-        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
-      }
-
+    currentEndpointData.defaultController = currentEndpoint.defaultController;
+    currentEndpointData.modal = currentEndpoint.modal;
+    currentEndpointData.isModal = currentEndpoint.isModal;
+    currentEndpointData.routingParams = currentEndpoint.routingParams;
+    currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
+    currentEndpointData.onRouteEventWithModal = function () {
+      System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
     }
 
     Router.setCacheViewData('VIEW', currentEndpointData);
@@ -899,6 +891,10 @@ static class Router {
 
     var currentEndpointData = Router.getCurrentView();
 
+    if(currentEndpointData === undefined){
+        return;
+    }
+
     if (currentEndpointData.isModal === true) {
 
       Log.debug('rendering controller & modal, previous controller: ' + app.previousController);
@@ -920,35 +916,6 @@ static class Router {
     app.previousController = currentEndpointData.controller;
 
   },
-
-  /**
-   * @public
-   *
-   * Refresh all hyperlinks on page redirecting to modals
-   * Refresh for current route only
-   *
-   */
-//  refreshCurrentHyperlinkCache: function () {
-//
-//    var currentEndpoint = Router.getCurrentViewData();
-//
-//    var timestamp = new Date().getTime();
-//
-//    $('a[href*="' + Router.getPathValueWithoutParams(currentEndpoint.endpoint.pathValue) + '"]').each(function () {
-//
-//      var hyperLinkUrl = $(this).attr('href');
-//
-//      if (hyperLinkUrl.indexOf('?') > -1) {
-//        hyperLinkUrl += '&t=' + timestamp;
-//      } else {
-//        hyperLinkUrl += '?t=' + timestamp;
-//      }
-//
-//      $(this).attr('href', hyperLinkUrl);
-//
-//    });
-//
-//  },
 
   /**
    * @public

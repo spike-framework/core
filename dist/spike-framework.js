@@ -1,25 +1,3 @@
-(function (history) {
-
-    var pushState = history.pushState;
-
-    history.pushState = function (state) {
-
-        if (typeof history.onpushstate === "function") {
-            history.onpushstate({state: state});
-        }
-
-        var result = pushState.apply(history, arguments);
-        spike.core.Router.onHistoryChanges();
-
-        return result;
-
-    };
-
-    window.addEventListener('popstate', function (e) {
-        spike.core.Router.onHistoryChanges();
-    });
-
-})(window.history);
 var spike = {
   core: {}
 };
@@ -268,7 +246,7 @@ spike.core.Assembler = {
 
           }
 
-          loader = new loader([]);
+          loader = new loader();
           return loader;
 
         }
@@ -336,249 +314,7 @@ spike.core.Assembler = {
 
 };
 
-function escape(s) {
-  var n = s;
-  n = n.replace(/&/g, '&amp;');
-  n = n.replace(/</g, '&lt;');
-  n = n.replace(/>/g, '&gt;');
-  n = n.replace(/"/g, '&quot;');
-
-  return n;
-}
-
-function diff(source, base) {
-
-  var actions = [];
-
-  if (compareTextNodes(actions, source, base)) {
-    return actions;
-  }
-
-  compareAttributes(actions, source, base);
-
-  if (source.childNodes && base.childNodes) {
-
-    var notDeleted = compareChildren(actions, source, base);
-    console.log('notDeleted');
-    console.log(notDeleted);
-
-    for (var i = 0; i < notDeleted.length; i++) {
-
-      var childDiffs = diff(notDeleted[i].source, notDeleted[i].base);
-
-      if (childDiffs.length > 0) {
-        actions = actions.concat(childDiffs);
-      }
-
-    }
-
-  }
-
-  return actions;
-
-}
-
-function compareChildren(actions, source, base) {
-
-  var childrenMap = mapChildren(source.childNodes, base.childNodes);
-
-  console.log('childrenMap');
-  console.log(childrenMap);
-
-  for(var i = 0; i < childrenMap.deleted.length; i++){
-
-    actions.push({
-      action: 'remove',
-      element: childrenMap.deleted[i]
-    });
-
-  }
-
-  for(var i = 0; i < childrenMap.added.length; i++){
-
-    actions.push({
-      action: 'add',
-      element: childrenMap.added[i]
-    });
-
-  }
-
-  return childrenMap.none;
-
-}
-
-function getId(node){
-  return node.id ? node.id : 'node-'+spike.core.Util.hash();
-}
-
-function mapChildren(sourceChildren, baseChildren) {
-
-  var sourceMap = {};
-  var baseMap = {};
-  var merged = {};
-  var deleted = [];
-  var added = [];
-  var none = {};
-
-  for (var i = 0; i < sourceChildren.length; i++) {
-
-    //sourceChildren[i].id = getId(sourceChildren[i]);
-
-    sourceMap[sourceChildren[i].id] = sourceChildren[i];
-    merged[sourceChildren[i].id] = 'none';
-
-    if(!none[sourceChildren[i].id]){
-      none[sourceChildren[i].id] = {
-        source: null,
-        base: null
-      }
-    }
-
-    none[sourceChildren[i].id].source = sourceChildren[i];
-
-  }
-
-  for (var i = 0; i < baseChildren.length; i++) {
-
-    //baseChildren[i].id = getId(baseChildren[i]);
-
-    baseMap[baseChildren[i].id] = baseChildren[i];
-    merged[baseChildren[i].id] = 'none';
-
-    if(!none[baseChildren[i].id]){
-      none[baseChildren[i].id] = {
-        source: null,
-        base: null
-      }
-    }
-
-    none[baseChildren[i].id].base = baseChildren[i];
-
-  }
-
-  console.log(sourceMap);
-  console.log(baseMap);
-
-  for (var id in sourceMap) {
-
-    if (!baseMap[id]) {
-      merged[id] = 'delete';
-      delete none[id];
-      deleted.push(sourceMap[id]);
-    }
-
-  }
-
-  for (var id in baseMap) {
-
-    if (!sourceMap[id]) {
-      merged[id] = 'add';
-      delete none[id];
-      added.push(baseMap[id]);
-    }
-
-  }
-
-  var noneArr = [];
-  for(var id in none){
-    noneArr.push(none[id]);
-  }
-
-
-  return {
-    deleted: deleted,
-    none: noneArr,
-    added: added
-  }
-
-}
-
-function compareTextNodes(actions, source, base) {
-
-  if (source.nodeType === base.nodeType && (source.nodeType === 3 || source.nodeType === 8)) {
-    if (base.nodeValue !== source.nodeValue) {
-      actions.push({
-        action: 'changeText'
-      });
-      return true;
-    }
-  }
-
-  return false;
-}
-function compareAttributes(actions, source, base) {
-
-  // look for differences between the nodes by their attributes
-  if (source.attributes && base.attributes) {
-    var attributes = source.attributes,
-      value,
-      name;
-
-    // iterate over the source attributes that we want to copy over to the new base node
-    for (var i = attributes.length; i--;) {
-      value = attributes[i].nodeValue;
-      name = attributes[i].nodeName;
-
-      var val = base.getAttribute(name);
-      if (val !== value) {
-        if (val == null) {
-          actions.push({
-            'action': 'setAttribute',
-            'name': name,
-            'element': base,
-            'baseIndex': index,
-            'sourceIndex': index,
-            '_inserted': value
-          });
-        } else {
-          // if the attribute happens to be a style
-          // only generate style Updates
-          if (name === 'style') {
-            actions.push({
-              'action': 'setAttribute',
-              'name': name,
-              'element': base,
-              'baseIndex': index,
-              'sourceIndex': index,
-              '_deleted': val,
-              '_inserted': value
-            });
-          }
-        }
-      }
-    }
-
-    // iterate over attributes to remove that the source no longer has
-    attributes = base.attributes;
-    for (var i = attributes.length; i--;) {
-      name = attributes[i].nodeName;
-      if (source.getAttribute(name) === null) {
-        actions.push({
-          'action': 'removeAttribute',
-          'name': name,
-          'baseIndex': index,
-          'sourceIndex': index,
-          '_deleted': attributes[i].nodeValue
-        });
-      }
-    }
-  }
-
-}
-
-function apply(actions, target) {
-
-  for (var i = 0; i < actions.length; i++) {
-
-    switch (actions[i].action) {
-      case 'changeText' :
-        break;
-    }
-
-  }
-
-}
-spike.core.Assembler.resetNamespaces(23, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
+spike.core.Assembler.resetNamespaces(24, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",isClass: true,getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
 
 CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
 REST_API_NULL_PATHPARAM: 'REST endpoint has undefined or null path params: {0}',
@@ -691,7 +427,7 @@ selector.removeAttribute('spike-unbinded');
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+__args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
 
 };spike.core.EventsInterface.prototype.onRender=function(){var $this=this;
 
@@ -702,12 +438,12 @@ selector.removeAttribute('spike-unbinded');
 };spike.core.EventsInterface.prototype.onBack=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onDeviceReady=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onReady=function(){var $this=this;
-};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+args.length);}};spike.core.RoutingInterface.prototype.RoutingInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+arguments.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.isClass= true;spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
+};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+__args.length);}};spike.core.RoutingInterface.prototype.RoutingInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+arguments.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.isClass= true;spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
 
-};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+args.length);}};spike.core.LoaderInterface.prototype.LoaderInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+arguments.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.isClass= true;spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
+};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+__args.length);}};spike.core.LoaderInterface.prototype.LoaderInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+arguments.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.isClass= true;spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
 
 };spike.core.LoaderInterface.prototype.onLoadApplication=function(){var $this=this;
-};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){this.modals= [];this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+args.length);}};spike.core.ModalInterface.prototype.ModalInterface=function(){this.modals= [];this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+arguments.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.isClass= true;spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
+};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.modals= [];this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+__args.length);}};spike.core.ModalInterface.prototype.ModalInterface=function(){this.modals= [];this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+arguments.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.isClass= true;spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
 this.clearDestroyedModals();
 this.modals.push(modal);
 };spike.core.ModalInterface.prototype.isRendered=function(modal){var $this=this;
@@ -809,7 +545,12 @@ this.modalInterface.invalidateAll();
 spike.core.Selectors.clearSelectorsCache();
 
 controller.render();
-this.currentRenderedController = controller.getClass();
+
+if(this.currentRenderedController){
+this.currentRenderedController.destroy();
+}
+
+this.currentRenderedController = controller;
 
 spike.core.System.execOnRenderEvent();
 
@@ -825,7 +566,7 @@ if (!moduleClass) {
 spike.core.Errors.throwError(spike.core.Errors.messages.MODULE_NOT_EXIST);
 }
 
-if(this.modalInterface.isRendered(moduleClass) || this.currentRenderedController === moduleClass){
+if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
 spike.core.Log.warn('Preventing re-rendering module '+moduleClass);
 return;
 }
@@ -881,15 +622,15 @@ this.loader.loadApplication();
 spike.core.Log.debug('Invoke spike.core.System.init with params', []);
 
 if(this.config === null){
-this.setConfig(new spike.core.Config([]));
+this.setConfig(new spike.core.Config());
 }
 
 if(this.modalInterface === null){
-this.setModalInterface(new spike.core.ModalInterface([]));
+this.setModalInterface(new spike.core.ModalInterface());
 }
 
 if(this.eventsInterface === null){
-this.setEventsInterface(new spike.core.EventsInterface([]));
+this.setEventsInterface(new spike.core.EventsInterface());
 }
 
 spike.core.Log.log('Destroy assembler');
@@ -905,13 +646,13 @@ spike.core.Message.loadLanguage().then(function(){
 
 spike.core.Log.log('Translations loaded');
 
-spike.core.Router.registerRouter();
-spike.core.Watchers.createWatchLoop();
-$this.initGlobalElements();
-
 if ($this.eventsInterface.onReady !== undefined) {
 $this.eventsInterface.onReady();
 }
+
+spike.core.Router.registerRouter();
+spike.core.Watchers.createWatchLoop();
+$this.initGlobalElements();
 
 $this.loader.onLoadApplication();
 
@@ -1329,13 +1070,13 @@ string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
 
 return string;
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
 OPENED: 1,
 UNSENT: 0
-};this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+args.length);}};spike.core.Request.prototype.Request=function(){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
+};this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Request with arguments count: '+__args.length);}};spike.core.Request.prototype.Request=function(){this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
@@ -1346,11 +1087,13 @@ UNSENT: 0
 this.config = this.setConfig(config);
 this.xhr = this.createXHR();
 
+this.xhr.alias = this.config.alias;
 this.setEvents();
 this.setHeaders();
 
 this.config.beforeSend();
 this.xhr.send(this.config.data);
+
 
 };spike.core.Request.prototype.constructor_0=function(){var $this=this;};spike.core.Request.prototype.config= null;spike.core.Request.prototype.xhr= null;spike.core.Request.prototype.catchCallbacks= [];spike.core.Request.prototype.thenCallbacks= [];spike.core.Request.prototype.alwaysCallbacks= [];spike.core.Request.prototype.response= null;spike.core.Request.prototype.responseType= 'json';spike.core.Request.prototype.STATUS= {
 DONE: 4,
@@ -1414,6 +1157,7 @@ if($this.xhr.readyState === $this.STATUS.DONE && $this.xhr.status === 200) {
 if($this.responseType === 'json'){
 
 try {
+$this.xhr.responseJSON = JSON.parse($this.xhr.responseText);
 $this.response = JSON.parse($this.xhr.responseText);
 $this.resolveThen($this.response, $this.xhr, $this.xhr.status);
 $this.resolveAlways($this.xhr, $this.response, $this.xhr.status);
@@ -1496,32 +1240,43 @@ xhr = new ActiveXObject("Microsoft.XMLHTTP");
 
 return xhr;
 
-};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.defineNamespace('spike.core.MultiRequest',function(){spike.core.MultiRequest=function(args){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+args.length);}};spike.core.MultiRequest.prototype.MultiRequest=function(){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+arguments.length);}};spike.core.MultiRequest.prototype.constructor_1=function(promises){var $this=this;
+};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.defineNamespace('spike.core.MultiRequest',function(){spike.core.MultiRequest=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+__args.length);}};spike.core.MultiRequest.prototype.MultiRequest=function(){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+arguments.length);}};spike.core.MultiRequest.prototype.constructor_1=function(promises){var $this=this;
 
 $this.promisesLength = promises.length;
 
 for(var i = 0; i < promises.length; i++){
 
-$this.promises[i].always(function(xhr, response, status){
+promises[i].always(function(xhr, response, status){
 $this.countResponses++;
 
-$this.responseData.push(xhr, response, status);
+if(this instanceof spike.core.Request){
 
-if($this.countResponses === promisesLength){
+if(xhr.response){
+xhr.response = JSON.parse(xhr.response);
+}
+
+$this.responseData.push(xhr);
+}else{
+$this.responseData.push(xhr);
+}
+
+if($this.resolved == false && $this.countResponses === $this.promisesLength){
 $this.resolveAlways();
+$this.resolved = true;
 }
 
 });
 
 }
 
-};spike.core.MultiRequest.prototype.constructor_0=function(){var $this=this;};spike.core.MultiRequest.prototype.responseData= [];spike.core.MultiRequest.prototype.alwaysCallbacks= [];spike.core.MultiRequest.prototype.countResponses= 0;spike.core.MultiRequest.prototype.promisesLength= 0;spike.core.MultiRequest.prototype.isClass= true;spike.core.MultiRequest.prototype.always=function(callback){var $this=this;
+};spike.core.MultiRequest.prototype.constructor_0=function(){var $this=this;};spike.core.MultiRequest.prototype.responseData= [];spike.core.MultiRequest.prototype.alwaysCallbacks= [];spike.core.MultiRequest.prototype.countResponses= 0;spike.core.MultiRequest.prototype.promisesLength= 0;spike.core.MultiRequest.prototype.resolved= false;spike.core.MultiRequest.prototype.isClass= true;spike.core.MultiRequest.prototype.always=function(callback){var $this=this;
+console.log('always adding')
 $this.alwaysCallbacks.push(callback);
 return $this;
 };spike.core.MultiRequest.prototype.resolveAlways=function(){var $this=this;
 
 for(var i = 0; i < $this.alwaysCallbacks.length; i++){
-$this.alwaysCallbacks[i].apply($this.responseData);
+$this.alwaysCallbacks[i].apply($this, [$this.responseData]);
 }
 
 };spike.core.MultiRequest.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.MultiRequest.prototype.getClass=function(){var $this=this; return 'spike.core.MultiRequest'; };});spike.core.Assembler.createStaticClass('spike.core','spike.core.Rest', 'null',function(){ return {cacheData: {},interceptors: {},globalInterceptors: {},isClass: true,interceptor: function (interceptorName, interceptorFunction, isGlobal) {var $this=this;
@@ -1772,9 +1527,9 @@ headers = newHeaders;
 
 
 promiseObj.headers = headers;
+promiseObj.alias = propertiesObject.alias;
 
-
-var promise = new spike.core.Request([promiseObj]);
+var promise = new spike.core.Request(promiseObj);
 
 var requestData = {url: url, method: method, pathParams: pathParams, urlParams: urlParams, headers: headers};
 
@@ -1872,8 +1627,9 @@ newHeaders[prop] = headers[prop];
 
 headers = newHeaders;
 promiseObj.headers = headers;
+promiseObj.alias = propertiesObject.alias;
 
-var promise = new spike.core.Request([promiseObj]);
+var promise = new spike.core.Request(promiseObj);
 
 var requestData = {
 url: url,
@@ -1918,10 +1674,10 @@ spike.core.Log.log('register translation {0}', [languageName]);
 
 this.waitingForTranslations[languageName] = false;
 
-var promise = new spike.core.Request([{
+var promise = new spike.core.Request({
 url: languageFilePath,
 type: 'GET'
-}]);
+});
 
 promise.then(function (data) {
 
@@ -1975,13 +1731,14 @@ message = spike.core.Util.bindTranslationParams(message, arrayOrMapParams);
 return message || messageName;
 },getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},isClass: true,compileTemplate: function(scope, name){var $this=this;
 return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope);
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Templates'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',function(){ return {preventReloadPage: null,events: {},otherwiseReplacement: '!',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,isClass: true,getRouterFactory: function () {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Templates'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',function(){ return {preventReloadPage: null,events: {},otherwisePath: '/',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,isClass: true,getRouterFactory: function () {var $this=this;
 return {
 path: spike.core.Router.pathFunction,
 other: spike.core.Router.otherFunction
 }
-},otherFunction: function (pathObject) {var $this=this;
-return spike.core.Router.pathFunction(spike.core.Router.otherwiseReplacement, pathObject);
+},otherFunction: function (pathValue) {var $this=this;
+spike.core.Router.otherwisePath = pathValue;
+return spike.core.Router.getRouterFactory();
 },pathFunction: function (pathValue, pathObject) {var $this=this;
 
 if (spike.core.Util.isEmpty(pathValue) || spike.core.Util.isNull(pathObject)) {
@@ -2141,6 +1898,8 @@ spike.core.Router.renderCurrentView();
 
 },onHistoryChanges: function () {var $this=this;
 
+console.log('onHistoryChanges '+spike.core.Router.routerHTML5Mode);
+
 if (spike.core.Router.routerHTML5Mode === true) {
 
 spike.core.Log.debug('Executes spike.core.Router.onHistoryChanges');
@@ -2265,22 +2024,13 @@ return spike.core.Router.getCurrentViewCache;
 
 var currentEndpointObject = spike.core.Router.getCurrentViewData();
 
+if(currentEndpointObject.endpoint == null && currentEndpointObject.data == null){
+spike.core.Router.redirect(spike.core.Router.otherwisePath);
+return;
+}
+
 var currentEndpointData = currentEndpointObject.data;
 var currentEndpoint = currentEndpointObject.endpoint;
-
-if (currentEndpointData === null && spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement]) {
-
-currentEndpointData = {
-controller: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].controller,
-modal: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].modal,
-defaultController: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].defaultController,
-isModal: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].isModal,
-routingParams: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].routingParams,
-onRouteEvent: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].onRouteEvent,
-onRouteEventWithModal: spike.core.Router.endpoints[spike.core.Router.otherwiseReplacement].onRouteEvent,
-};
-
-} else {
 
 if (currentEndpointData.isModal === true && !spike.core.Util.isEmpty(app.previousController)) {
 currentEndpointData.controller = app.previousController;
@@ -2295,8 +2045,6 @@ currentEndpointData.routingParams = currentEndpoint.routingParams;
 currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
 currentEndpointData.onRouteEventWithModal = function () {
 spike.core.System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
-}
-
 }
 
 spike.core.Router.setCacheViewData('VIEW', currentEndpointData);
@@ -2442,6 +2190,10 @@ spike.core.Router.renderCurrentView();
 
 var currentEndpointData = spike.core.Router.getCurrentView();
 
+if(currentEndpointData === undefined){
+return;
+}
+
 if (currentEndpointData.isModal === true) {
 
 spike.core.Log.debug('rendering controller & modal, previous controller: ' + app.previousController);
@@ -2570,7 +2322,7 @@ spike.core.Router.redirect(link);
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+__args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
 this.Element(parentElement, null);
 };spike.core.Element.prototype.constructor_2=function(parentElement,params){var $this=this;
 
@@ -2612,10 +2364,11 @@ this.templatePath = '';
 var elementPath = this.getClass().split('.');
 
 for(var i = 0; i < elementPath.length; i++){
-this.templatePath += elementPath[i].toLowerCase()+'_';
+this.templatePath += elementPath[i]+'_';
 }
 
 this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
+this.templatePath = this.templatePath.toLowerCase();
 
 return this.templatePath;
 
@@ -2638,7 +2391,7 @@ this.childElements[i].postConstruct();
 }
 
 
-};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementSelector){var $this=this;
+};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.destroy=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+__args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementSelector){var $this=this;
 
 this.constructor_0();
 this.elementSelector = elementSelector;
@@ -2652,6 +2405,7 @@ this.replaceWith();
 
 spike.core.Events.bindEvents(this);
 spike.core.Router.bindLinks(this);
+spike.core.Watchers.observe(this);
 
 this.rendered = true;
 
@@ -2669,10 +2423,13 @@ elementDiv.setAttribute('id', this.elementId);
 spike.core.System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
 
-};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+args.length);}};spike.core.Controller.prototype.Controller=function(){this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
+};spike.core.GlobalElement.prototype.destroy=function(){var $this=this;
+spike.core.Watchers.unobserve(this);
+};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+__args.length);}};spike.core.Controller.prototype.Controller=function(){this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
 };spike.core.Controller.prototype.scrollTop= true;spike.core.Controller.prototype.checkNetwork= true;spike.core.Controller.prototype.isClass= true;spike.core.Controller.prototype.render=function(){var $this=this;
 
 this.elementSelector = spike.core.System.getView();
+this.elementId = 'root';
 this.rootSelector().innerHTML = this.compiledHtml;
 
 spike.core.Events.bindEvents(this);
@@ -2684,7 +2441,9 @@ this.rendered = true;
 this.postConstructChildren();
 this.postConstruct();
 
-};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){this.destroyed= false;this.isClass= true;if(this['constructor_'+args.length] !== undefined){this['constructor_'+args.length].apply(this, args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+args.length);}};spike.core.Modal.prototype.Modal=function(){this.destroyed= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+arguments.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
+};spike.core.Controller.prototype.destroy=function(){var $this=this;
+spike.core.Watchers.unobserve(this);
+};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.destroyed= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+__args.length);}};spike.core.Modal.prototype.Modal=function(){this.destroyed= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+arguments.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
 
 this.parentElement = spike.core.System.getModalsView();
 this.model = model;
@@ -2750,7 +2509,818 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Reconcile', 'null',function(){ return {isClass: true,escape: function (s) {var $this=this;
+var n = s;
+n = n.replace(/&/g, '&amp;');
+n = n.replace(/</g, '&lt;');
+n = n.replace(/>/g, '&gt;');
+n = n.replace(/"/g, '&quot;');
+
+return n;
+},mapElements: function (nodes) {var $this=this;
+var map = {};
+var tags = {};
+var node;
+
+var indices = [];
+for (var i = 0, len = nodes.length; i < len; i++) {
+node = nodes[i];
+var id = (node.id) ? node.id : spike.core.Reconcile.generateId(node, tags);
+map[id] = node;
+node._i = i;
+node._id = id;
+indices.push(i);
+}
+
+return {'map': map, 'indices': indices};
+},generateId: function (node, tags) {var $this=this;
+var tag = (node.tagName) ? node.tagName : 'x' + node.nodeType;
+
+if (!tags[tag]) {
+tags[tag] = 0;
+}
+
+tags[tag]++;
+
+return tag + tags[tag];
+},generateMoves: function (map, nodes, indices, base, reverse, index) {var $this=this;
+var moves = [];
+var compare = [];
+var operateMap = {};
+var tags = {};
+
+for (var i = 0, len = nodes.length; i < len; i++) {
+var node = nodes[reverse ? (nodes.length - i - 1) : i],
+bound = base.childNodes[reverse ? (base.childNodes.length - indices[i] - 1) : indices[i]],
+id = node.id ? node.id : spike.core.Reconcile.generateId(node, tags);
+
+if (node.attributes && node.hasAttribute('assume-no-change')) {
+continue;
+}
+
+if (operateMap[id]) {
+continue;
+}
+
+var existing = map[id];
+if (existing) {
+if (existing !== bound) {
+var relativeBaseIndex = (reverse ? base.childNodes.length - existing._i - 1 : existing._i);
+moves.push({
+'action': 'moveChildElement',
+'element': existing,
+'baseIndex': index + '>' + relativeBaseIndex,
+'sourceIndex': index + '>' + i
+});
+
+indices.splice(i, 0, indices.splice(relativeBaseIndex, 1)[0]);
+}
+if (!node.isEqualNode(existing)) {
+compare.push([node, existing]);
+}
+} else {
+var inserted = node.cloneNode(true);
+var relativeBaseIndex = (reverse ? nodes.length - i - 1 : i);
+moves.push({
+'action': 'insertChildElement',
+'element': inserted,
+'baseIndex': index + '>' + relativeBaseIndex,
+'sourceIndex': index + '>' + relativeBaseIndex
+});
+}
+operateMap[id] = true;
+}
+
+for (var i = 0, len = base.childNodes.length; i < len; i++) {
+var remove = base.childNodes[i];
+var removeId = remove._id;
+if (base.childNodes[i].attributes && base.childNodes[i].hasAttribute('assume-no-change')) {
+continue;
+}
+if (!operateMap[removeId]) {
+moves.push({
+'action': 'removeChildElement',
+'element': remove,
+'baseIndex': index + '>' + remove._i,
+'sourceIndex': null
+});
+}
+}
+
+return {'compare': compare, 'diff': moves};
+},diffString: function (source, base, index, baseElement) {var $this=this;
+var o = base == "" ? [] : base.split(/\s+/);
+var n = source == "" ? [] : source.split(/\s+/);
+var ns = new Object();
+var os = new Object();
+
+for (var i = 0; i < n.length; i++) {
+if (ns[n[i]] == null)
+ns[n[i]] = {
+rows: new Array(),
+o: null
+};
+ns[n[i]].rows.push(i);
+}
+
+for (var i = 0; i < o.length; i++) {
+if (os[o[i]] == null)
+os[o[i]] = {
+rows: new Array(),
+n: null
+};
+os[o[i]].rows.push(i);
+}
+
+for (var i in ns) {
+if (ns[i].rows.length == 1 && typeof(os[i]) != "undefined" && os[i].rows.length == 1) {
+n[ns[i].rows[0]] = {
+text: n[ns[i].rows[0]],
+row: os[i].rows[0]
+};
+o[os[i].rows[0]] = {
+text: o[os[i].rows[0]],
+row: ns[i].rows[0]
+};
+}
+}
+
+for (var i = 0; i < n.length - 1; i++) {
+if (n[i].text != null && n[i + 1].text == null && n[i].row + 1 < o.length && o[n[i].row + 1].text == null &&
+n[i + 1] == o[n[i].row + 1]) {
+n[i + 1] = {
+text: n[i + 1],
+row: n[i].row + 1
+};
+o[n[i].row + 1] = {
+text: o[n[i].row + 1],
+row: i + 1
+};
+}
+}
+
+for (var i = n.length - 1; i > 0; i--) {
+if (n[i].text != null && n[i - 1].text == null && n[i].row > 0 && o[n[i].row - 1].text == null &&
+n[i - 1] == o[n[i].row - 1]) {
+n[i - 1] = {
+text: n[i - 1],
+row: n[i].row - 1
+};
+o[n[i].row - 1] = {
+text: o[n[i].row - 1],
+row: i - 1
+};
+}
+}
+
+var oSpace = base.match(/\s+/g);
+if (oSpace == null) {
+oSpace = [''];
+} else {
+oSpace.push('');
+}
+var nSpace = source.match(/\s+/g);
+if (nSpace == null) {
+nSpace = [''];
+} else {
+nSpace.push('');
+}
+
+var changes = [];
+var baseIndex = 0;
+if (n.length == 0) {
+var deletedText = '';
+for (var i = 0; i < o.length; i++) {
+deletedText += o[i] + oSpace[i];
+baseIndex += o[i].length + oSpace[i].length;
+}
+if (o.length > 0) {
+changes.push({
+'action': 'deleteText',
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_textStart': 0,
+'_textEnd': baseIndex,
+'_deleted': deletedText,
+'_length': deletedText.length
+});
+}
+} else {
+var current = null;
+if (n[0].text == null) {
+for (var i = 0; i < o.length; i++) {
+if (o[i].text != null) {
+if (current != null) {
+changes.push(current);
+}
+current = null;
+continue;
+}
+
+if (current == null) {
+current = {
+'action': 'deleteText',
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_textStart': baseIndex,
+'_textEnd': 0,
+'_deleted': '',
+'_length': 0
+};
+}
+
+current['_deleted'] += o[i] + oSpace[i];
+current['_length'] = current['_deleted'].length;
+baseIndex += current['_length'];
+current['_textEnd'] = baseIndex;
+}
+
+if (current != null) {
+changes.push(current);
+current = null;
+}
+}
+
+var k = 0;
+for (var i = 0; i < n.length; i++) {
+if (n[i].text == null) {
+
+if (current != null && current['action'] === 'deleteText') {
+changes.push(current);
+current = null;
+}
+
+if (current == null) {
+current = {
+'action': 'insertText',
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_textStart': baseIndex,
+'_textEnd': 0,
+'_inserted': '',
+'_length': 0
+};
+}
+
+current['_inserted'] += n[i] + nSpace[i];
+current['_length'] = current['_inserted'].length;
+baseIndex += current['_length'];
+current['_textEnd'] = baseIndex;
+
+} else {
+baseIndex += n[i].text.length + nSpace[i].length;
+if (n[k].text == null) {
+continue;
+}
+for (k = n[k].row + 1; k < o.length && o[k].text == null; k++) {
+if (current != null && current['action'] === 'insertText') {
+changes.push(current);
+current = null;
+}
+
+if (current == null) {
+current = {
+'action': 'deleteText',
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_textStart': baseIndex,
+'_textEnd': 0,
+'_deleted': '',
+'_length': 0
+};
+}
+
+current['_deleted'] += o[k] + oSpace[k];
+current['_length'] = current['_deleted'].length;
+baseIndex += current['_length'];
+current['_textEnd'] = baseIndex;
+}
+}
+}
+
+if (current != null) {
+changes.push(current);
+current = null;
+}
+}
+
+return changes;
+},mapStyleValues: function (styleString) {var $this=this;
+var attrs = styleString ? styleString.replace(/\/\*.*\*\//g, '')
+.split(/;(?=(?:[^'"]*['"][^'"]*['"])*[^'"]*$)/)
+: [];
+var map = {};
+for (var i = 0; i < attrs.length; i++) {
+var item = attrs[i].trim();
+if (!item) {
+continue;
+}
+var index = item.indexOf(':');
+var name = item.slice(0, index).trim();
+var value = item.slice(index + 1).trim();
+if (name.length === 0 || value.length === 0) {
+continue;
+}
+map[name] = value;
+}
+return map;
+},diffStyleString: function (source, base, index, baseElement) {var $this=this;
+var diffActions = [];
+
+var sourceMap = spike.core.Reconcile.mapStyleValues(source);
+var baseMap = spike.core.Reconcile.mapStyleValues(base);
+for (var k in sourceMap) {
+var sourceVal = sourceMap[k];
+var baseVal = baseMap[k];
+if (sourceVal != baseVal) {
+diffActions.push({
+'action': 'setStyleValue',
+'name': k,
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_deleted': baseVal,
+'_inserted': sourceVal
+});
+}
+}
+
+for (var k in baseMap) {
+if (sourceMap[k] == null) {
+diffActions.push({
+'action': 'removeStyleValue',
+'name': k,
+'element': baseElement,
+'baseIndex': index,
+'sourceIndex': index,
+'_deleted': baseMap[k]
+});
+}
+}
+
+return diffActions;
+},diff: function (source, base, index) {var $this=this;
+var diffActions = [];
+if (index == null) {
+index = '0'; // 0 for root node
+}
+if (source.nodeType === base.nodeType && (source.nodeType === 3 || source.nodeType === 8)) {
+if (base.nodeValue !== source.nodeValue) {
+var textActions = spike.core.Reconcile.diffString(source.nodeValue, base.nodeValue, index, base);
+if (textActions.length > 0) {
+diffActions = diffActions.concat(textActions);
+}
+}
+
+return diffActions;
+}
+
+if (source.attributes && base.attributes) {
+var attributes = source.attributes,
+value,
+name;
+
+for (var i = attributes.length; i--;) {
+value = attributes[i].nodeValue;
+name = attributes[i].nodeName;
+
+var val = base.getAttribute(name);
+if (val !== value) {
+if (val == null) {
+diffActions.push({
+'action': 'setAttribute',
+'name': name,
+'element': base,
+'baseIndex': index,
+'sourceIndex': index,
+'_inserted': value
+});
+} else {
+if (name === 'style') {
+var styleChanges = spike.core.Reconcile.diffStyleString(value, val, index, base);
+if (styleChanges.length > 0) {
+diffActions = diffActions.concat(styleChanges);
+}
+} else {
+diffActions.push({
+'action': 'setAttribute',
+'name': name,
+'element': base,
+'baseIndex': index,
+'sourceIndex': index,
+'_deleted': val,
+'_inserted': value
+});
+}
+}
+}
+}
+
+attributes = base.attributes;
+for (var i = attributes.length; i--;) {
+name = attributes[i].nodeName;
+if (source.getAttribute(name) === null) {
+diffActions.push({
+'action': 'removeAttribute',
+'name': name,
+'baseIndex': index,
+'sourceIndex': index,
+'_deleted': attributes[i].nodeValue
+});
+}
+}
+}
+
+var compare = [];
+if (source.childNodes && base.childNodes) {
+var mapResult = spike.core.Reconcile.mapElements(base.childNodes),
+nodes = source.childNodes;
+
+var map = mapResult['map'];
+var indices = mapResult['indices'];
+
+var moves = spike.core.Reconcile.generateMoves(map, nodes, indices.slice(0), base, false, index);
+if (moves['diff'].length > 1) {
+var backwardMoves = spike.core.Reconcile.generateMoves(map, nodes, indices.slice(0), base, true, index);
+if (backwardMoves['diff'].length < moves['diff'].length) {
+moves = backwardMoves;
+}
+}
+diffActions = diffActions.concat(moves['diff']);
+compare = moves['compare'];
+}
+
+if (compare.length > 0) {
+for (var i = 0, len = compare.length; i < len; i++) {
+var sourceChildNode = compare[i][0];
+var baseChildNode = compare[i][1];
+
+var childDiffs = spike.core.Reconcile.diff(
+sourceChildNode,
+baseChildNode, index + '>' +
+baseChildNode._i);
+
+if (childDiffs.length > 0) {
+diffActions = diffActions.concat(childDiffs);
+}
+
+delete baseChildNode._i;
+delete baseChildNode._id;
+}
+}
+
+return diffActions;
+},sortChange: function (a, b) {var $this=this;
+if (a['sourceIndex'] === b['sourceIndex']) {
+if (a['_textStart'] && b['_textStart']) {
+return (a['_textStart'] > b['_textStart']) ? 1 : -1;
+}
+return 0;
+} else if (!a['sourceIndex'] && b['sourceIndex']) {
+return -1;
+} else if (a['sourceIndex'] && !b['sourceIndex']) {
+return 1;
+}
+var aIndices = a['sourceIndex'].split('>');
+var bIndices = b['sourceIndex'].split('>');
+var equal = true;
+var i = 0;
+while (equal && i < aIndices.length && i < bIndices.length) {
+var aN = parseInt(aIndices[i], 10);
+var bN = parseInt(bIndices[i], 10);
+if (aN === bN) {
+i++;
+continue;
+} else if (isNaN(aN) || isNaN(bN)) {
+return isNaN(aN) ? 1 : -1;
+} else {
+return (aN > bN) ? 1 : -1;
+}
+}
+
+return 0;
+},findChildAtIndex: function (node, index) {var $this=this;
+if (!index || !node.childNodes || node.childNodes.length === 0) {
+return null;
+}
+
+var result = {};
+var indices = index.split('>');
+var found = true;
+var lastParentIndex = '';
+for (var i = 1, len = indices.length; i < len; i++) {
+var nodeIndex = parseInt(indices[i], 10);
+if (node.childNodes && node.childNodes.length > nodeIndex) {
+node = node.childNodes[nodeIndex];
+} else {
+lastParentIndex = indices.slice(0, i - 1).join('>');
+found = false;
+break;
+}
+}
+
+result['lastParent'] = found ? node.parentNode : node;
+result['lastParentIndex'] = found ? index.slice(0, index.lastIndexOf('>')) : lastParentIndex;
+result['node'] = found ? node : null;
+result['found'] = found;
+return result;
+},apply: function (changes, base, force, showChanges) {var $this=this;
+var unapplied = [];
+var moves = [];
+var removals = [];
+var conflictChanges = [];
+var textChanges = {};
+var styleChanges = {};
+for (var c = 0, cLen = changes.length; c < cLen; c++) {
+var change = changes[c];
+var action = change['action'];
+var baseIndex = change['baseIndex'];
+var sourceIndex = change['sourceIndex'];
+var baseReference = change['_baseReference'];
+var sourceReference = change['_sourceReference'];
+
+if (change['_conflict'] && !force) {
+change['_baseReference'] = spike.core.Reconcile.findChildAtIndex(base, baseIndex);
+if (sourceIndex && baseIndex !== sourceIndex) {
+change['_sourceReference'] = spike.core.Reconcile.findChildAtIndex(base, sourceIndex);
+}
+conflictChanges.push(change);
+continue;
+}
+
+var node = null;
+var findBaseChildResult = baseReference;
+if (findBaseChildResult == null) {
+findBaseChildResult = spike.core.Reconcile.findChildAtIndex(base, baseIndex);
+if (findBaseChildResult == null) {
+unapplied.push(change);
+continue;
+}
+}
+
+var node = findBaseChildResult['node'];
+if (!findBaseChildResult['found']) {
+if (action === 'insertChildElement') {
+var lastParent = findBaseChildResult['lastParent'];
+var insertion = change['element'];
+if (showChanges) {
+var insNode = document.createElement('ins');
+ins.appendChild(insertion);
+insertion = ins;
+}
+moves.push({
+'parent': lastParent,
+'insertion': insertion,
+'source': null,
+'change': change,
+'appendOnly': false
+});
+} else {
+unapplied.push(change);
+}
+continue;
+}
+
+if (node === null) {
+continue;
+}
+
+if (action === 'moveChildElement' || action === 'insertChildElement') {
+var sourceNode = node;
+if (sourceIndex !== baseIndex) {
+var findSourceChildResult = sourceReference;
+if (findSourceChildResult == null) {
+findSourceChildResult = spike.core.Reconcile.findChildAtIndex(base, sourceIndex);
+}
+sourceNode = findSourceChildResult !== null ? findSourceChildResult['node'] : null;
+}
+
+if (action === 'moveChildElement') {
+moves.push({
+'parent': node.parentNode,
+'insertion': node,
+'source': sourceNode,
+'change': change,
+'appendOnly': false
+});
+} else {
+var insertion = change['element'];
+if (showChanges) {
+var insNode = document.createElement('ins');
+insNode.appendChild(insertion);
+insertion = insNode;
+}
+moves.push({
+'parent': node.parentNode,
+'insertion': insertion,
+'source': sourceNode,
+'change': change,
+'appendOnly': false
+});
+}
+
+} else if (action === 'removeChildElement') {
+if (showChanges) {
+var delNode = document.createElement('del');
+delNode.appendChild(node.cloneNode(true));
+moves.push({
+'parent': node.parentNode,
+'insertion': delNode,
+'source': null,
+'change': change,
+'appendOnly': true
+});
+}
+removals.push([node.parentNode, node]);
+} else if (action === 'deleteText' || action === 'insertText' ||
+action === 'setStyleValue' || action === 'removeStyleValue') {
+var existingOp = textChanges[change['baseIndex']];
+if (!existingOp) {
+existingOp = {
+'parent': node.parentNode,
+'source': node,
+'changes': []
+};
+}
+
+existingOp['changes'].push(change);
+if (action === 'insertText' || action === 'deleteText') {
+textChanges[change['baseIndex']] = existingOp;
+} else {
+styleChanges[change['baseIndex']] = existingOp;
+}
+} else if (action === 'replaceText') {
+if (!showChanges) {
+node.nodeValue = change['_inserted'];
+} else {
+var deletionNode = document.createElement('del');
+deletionNode.appendChild(document.createTextNode(change['_deleted']));
+var insertionNode = document.createElement('ins');
+insertionNode.appendChild(document.createTextNode(change['_inserted']));
+moves.push({
+'parent': node.parentNode,
+'insertion': deletionNode,
+'source': node,
+'change': change,
+'appendOnly': false
+});
+moves.push({
+'parent': node.parentNode,
+'insertion': insertionNode,
+'source': node,
+'change': change,
+'appendOnly': false
+});
+node.nodeValue = '';
+}
+} else if (action === 'setAttribute') {
+node.setAttribute(change['name'], change['_inserted']);
+} else if (action === 'removeAttribute') {
+node.removeAttribute(change['name']);
+}
+}
+
+moves.sort(function (a, b) {
+return spike.core.Reconcile.sortChange(a['change'], b['change']);
+});
+for (var i = 0, len = moves.length; i < len; i++) {
+var move = moves[i];
+var parent = move['parent'],
+insertion = move['insertion'],
+source = move['source'],
+change = move['change'],
+appendOnly = move['appendOnly'];
+
+if (source === null && !appendOnly) {
+var sourceIndex = change['sourceIndex'];
+if (sourceIndex) {
+var lastIndexStr = sourceIndex.substr(sourceIndex.lastIndexOf('>') + 1, sourceIndex.length);
+var childIndex = parseInt(lastIndexStr, 10);
+if (parent.childNodes && parent.childNodes.length > childIndex) {
+source = parent.childNodes[childIndex];
+}
+}
+}
+parent.insertBefore(insertion, source);
+}
+
+for (var i = 0; i < removals.length; i++) {
+var removal = removals[i];
+removal[0].removeChild(removal[1]);
+}
+
+for (var b in textChanges) {
+var nodeChanges = textChanges[b];
+var node = nodeChanges['source'];
+var value = node.nodeValue;
+var nodeOps = nodeChanges['changes'];
+nodeOps.sort(function (a, b) {
+return a['_textStart'] > b['_textStart'] ? 1 : -1;
+});
+var newStr = '';
+var valueIndex = 0;
+for (var i = 0; i < nodeOps.length; i++) {
+var op = nodeOps[i];
+if (op['action'] === 'insertText') {
+newStr += value.substr(valueIndex, op['_textStart']);
+if (showChanges) {
+newStr += '<ins>' + spike.core.Reconcile.escape(op['_inserted']) + '</ins>';
+} else {
+newStr += op['_inserted'];
+}
+if (valueIndex === op['_textStart']) {
+newStr += value.substr(valueIndex, op['_textEnd']);
+}
+} else {
+newStr += value.substr(valueIndex, op['_textStart']);
+if (!!showChanges) {
+newStr += ('<del>' + spike.core.Reconcile.escape(op['_deleted']) + '</del>');
+}
+}
+valueIndex = op['_textEnd'];
+}
+newStr += value.substr(valueIndex);
+
+if (!showChanges) {
+node.nodeValue = newStr;
+} else {
+node.innerHTML = newStr;
+}
+}
+
+for (var b in styleChanges) {
+var nodeChanges = styleChanges[b];
+var node = nodeChanges['source'];
+var nodeOps = nodeChanges['changes'];
+
+var styleMap = spike.core.Reconcile.mapStyleValues(node.getAttribute('style'));
+for (var i = 0; i < nodeOps.length; i++) {
+var op = nodeOps[i];
+if (op['action'] === 'setStyleValue') {
+styleMap[op['name']] = op['_inserted'];
+} else {
+delete styleMap[op['name']];
+}
+}
+
+var str = [];
+for (var k in styleMap) {
+str.push(k + ': ' + styleMap[k]);
+}
+
+if (str.length > 0) {
+node.setAttribute('style', str.join(';') + (str.length === 1 ? ';' : ''));
+} else {
+node.removeAttribute('style');
+}
+}
+
+var conflicts = [];
+while (conflictChanges.length > 0) {
+var change = conflictChanges.pop();
+var conflict = {
+'mine': [],
+'theirs': []
+};
+conflict[change['_owner']].push(change);
+if (change['_conflictedWith']) {
+var conflictedWithChange = change['_conflictedWith'];
+if (conflictedWithChange) {
+for (var k = 0; k < conflictedWithChange.length; k++) {
+var conflictedWithItem = conflictedWithChange[k];
+var i = conflictChanges.indexOf(conflictedWithItem);
+if (i > -1) {
+conflictChanges.splice(i, 1);
+conflict[conflictedWithItem['_owner']].push(conflictedWithItem);
+}
+if (conflictedWithItem['_conflictedWith']) {
+for (var s = 0; s < conflictedWithItem['_conflictedWith'].length; s++) {
+var item = conflictedWithItem['_conflictedWith'][s];
+var i = conflictChanges.indexOf(item);
+if (i > -1) {
+conflictChanges.splice(i, 1);
+conflict[item['_owner']].push(item);
+}
+
+delete item['_conflictedWith'];
+}
+}
+
+delete conflictedWithItem['_conflictedWith'];
+}
+
+delete change['_conflictedWith'];
+}
+}
+conflicts.push(conflict);
+}
+
+return {'unapplied': unapplied, 'conflicts': conflicts};
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},scopes: {},observables: [],excludedProperties: [
 'childElements',
 'parentElement',
 'eventsSelectors',
@@ -2759,7 +3329,9 @@ this.applicationEvents[eventName] = [];
 'elementSelector',
 'templatePath',
 'selector'
-],isClass: true,compileWatchers: function(scope){var $this=this;
+],isClass: true,update: function(scope, watcherName){var $this=this;
+this.compileWatchers(scope, watcherName);
+},compileWatchers: function(scope, watcherName){var $this=this;
 
 var watchers = [];
 
@@ -2771,7 +3343,13 @@ if(watchers.length > 0){
 
 var virtualDom = document.createElement('div');
 virtualDom.innerHTML = scope.compiledHtml;
-var watchElements = virtualDom.querySelectorAll('[sp-watch]');
+var watchElements = [];
+
+if(watcherName){
+watchElements = virtualDom.querySelectorAll('[sp-watch="'+watcherName+'"]');
+}else {
+watchElements = virtualDom.querySelectorAll('[sp-watch]');
+}
 
 for(var i = 0; i < watchElements.length; i++){
 
@@ -2781,7 +3359,6 @@ if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 
 var currentHtml = watchElements[i].outerHTML;
 var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
 
 if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
 
@@ -2803,14 +3380,8 @@ $this.replaceChangedElements(watcherHtml, watchElements[i]);
 var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
-console.log('apply changes');
-console.log(watcherVirtual.firstChild);
-console.log(currentElement);
-
-var changes = diff(currentElement, watcherVirtual.firstChild);
-console.log(changes);
-
-
+var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
+spike.core.Reconcile.apply(changes, document.getElementById(currentElement.id));
 
 },fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
 
@@ -2869,6 +3440,18 @@ return element.innerHTML;
 
 },observe: function(scope){var $this=this;
 this.observables.push(scope);
+},unobserve: function(scope){var $this=this;
+
+var index = -1;
+for(var i = 0; i < this.observables.length; i++){
+
+if(this.observables[i].getClass() === scope.getClass() && this.observables[i].elementId === scope.elementId){
+this.observables.splice(i, 1);
+break;
+}
+
+}
+
 },stringifyScope: function(scope){var $this=this;
 
 var stringify = '';
@@ -2890,8 +3473,8 @@ return stringify;
 
 var stringify = $this.stringifyScope(scope);
 
-if($this.scopes[scope.elementId] && stringify !== $this.scopes[scope.elementId]){
-spike.core.Log.log('scope changed');
+if(stringify !== $this.scopes[scope.elementId]){
+spike.core.Log.log('scope changed during lifecycle');
 $this.compileWatchers(scope);
 }
 
@@ -2909,4 +3492,26 @@ $this.createWatchLoop();
 
 }, 100)
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Watchers'; },}});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Watchers'; },}});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});(function (history) {
+
+    var pushState = history.pushState;
+
+    history.pushState = function (state) {
+
+        if (typeof history.onpushstate === "function") {
+            history.onpushstate({state: state});
+        }
+
+        var result = pushState.apply(history, arguments);
+        spike.core.Router.onHistoryChanges();
+
+        return result;
+
+    };
+
+    window.addEventListener('popstate', function (e) {
+        spike.core.Router.onHistoryChanges();
+    });
+
+})(window.history);
+

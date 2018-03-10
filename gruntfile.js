@@ -48,16 +48,15 @@ var spike = {
         './src/core/controller.spike',
         './src/core/modal.spike',
         './src/core/broadcaster.spike',
-        //'./src/core/reconcile.spike',
+        './src/core/reconcile.spike',
         './src/core/watchers.spike'
 
     ],
 
     build: [
-        './src/assembler/history.js',
         './src/assembler/assembler.js',
-        './src/assembler/reconcile.js',
-        './dist/spike-framework.js'
+        './dist/spike-framework.js',
+        './src/assembler/history.js'
     ]
 
 };

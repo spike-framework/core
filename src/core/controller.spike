@@ -18,6 +18,7 @@ class Controller extends Element {
     render: function(){
 
         this.elementSelector = System.getView();
+        this.elementId = 'root';
         this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
@@ -29,6 +30,11 @@ class Controller extends Element {
         this.postConstructChildren();
         this.postConstruct();
 
+    },
+
+
+    destroy: function(){
+        Watchers.unobserve(this);
     }
 
 }
