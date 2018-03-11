@@ -42,6 +42,13 @@ static class Log {
 
   },
 
+  templateLog: function (logMessage, logData) {
+
+    if (Config.showLog) {
+      this.print(logMessage, logData, 'TEMPLATE_LOG');
+    }
+
+  },
   /**
    * @public
    *
@@ -130,6 +137,9 @@ static class Log {
 
     var color = '';
     switch (type) {
+      case 'TEMPLATE_LOG' :
+        color = 'chocolate ';
+        break;
       case 'LOG' :
         color = 'blue';
         break;

@@ -217,8 +217,6 @@ static class Events {
     this.bindEventsForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        //this.bindEventsForElement(element.childElements[i]);
-
         if(element.childElements[i].length > 0){
             this.bindEvents(element.childElements[i]);
         }
@@ -696,10 +694,10 @@ static class System {
       Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
     }
 
-    if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
-        Log.warn('Preventing re-rendering module '+moduleClass);
-        return;
-    }
+//    if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
+//        Log.warn('Preventing re-rendering module '+moduleClass);
+//        return;
+//    }
 
     Router.clearCacheViewData();
 
@@ -900,6 +898,13 @@ static class Log {
 
   },
 
+  templateLog: function (logMessage, logData) {
+
+    if (Config.showLog) {
+      this.print(logMessage, logData, 'TEMPLATE_LOG');
+    }
+
+  },
   /**
    * @public
    *
@@ -988,6 +993,9 @@ static class Log {
 
     var color = '';
     switch (type) {
+      case 'TEMPLATE_LOG' :
+        color = 'chocolate ';
+        break;
       case 'LOG' :
         color = 'blue';
         break;
@@ -1130,7 +1138,7 @@ static class Selectors {
         eventsSelectors.push(newId);
     }
 
-    if(elementsWithId[i].getAttribute('spike-href-') != null){
+    if(elementsWithId[i].getAttribute('spike-href') != null){
         linksSelectors.push(newId);
     }
 
@@ -2574,6 +2582,13 @@ static class Templates {
         return this.templates[Assembler.sourcePath+"_"+name](scope);
     },
 
+    includeTemplate: function(name, params){
+
+      name = name.split('.').join('_')+'_html';
+      return this.templates[Assembler.sourcePath+"_"+name](params);
+
+    }
+
 }package spike.core;
 
 import Router from spike.core.Router;
@@ -3094,6 +3109,16 @@ static class Router {
   /**
    * @public
    *
+   * Function returns current route routing params
+   *
+   */
+  getRoutingParams: function () {
+    return Router.getCurrentViewData().data.routingParams;
+  },
+
+  /**
+   * @public
+   *
    * Function returns object containing @urlParams and
    * @pathParams as objects. Data is retrieved from
    * given @hashPattern based on @endpointPattern
@@ -3281,6 +3306,8 @@ static class Router {
           }
 
         }
+
+        currentEndpointData.routingParams = Router.endpoints[pathValue].routingParams || {};
 
         viewData = {
           endpoint: currentEndpoint,
@@ -3652,12 +3679,11 @@ static class Router {
      */
   bindLinks: function(element){
 
+    this.bindLinksForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        this.bindLinksForElement(element.childElements[i]);
-
         if(element.childElements[i].length > 0){
-            Events.bindEvents(element.childElements[i]);
+            this.bindLinks(element.childElements[i]);
         }
 
     }
@@ -3670,7 +3696,9 @@ static class Router {
 
         var selector = document.getElementById(element.linksSelectors[i]);
 
-        element.addEventListener('click', function (e) {
+        console.log(selector);
+
+        selector.addEventListener('click', function (e) {
             e.preventDefault();
 
             var link = this.getAttribute('href');
@@ -3689,6 +3717,8 @@ static class Router {
               }
 
             }
+
+            console.log(link);
 
             if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
               Router.location(link,this.getAttribute('target') || '_blank');
@@ -4201,6 +4231,11 @@ static class Reconcile {
   },
 
   diffString: function (source, base, index, baseElement) {
+
+    console.log('diffString');
+    console.log(source);
+    console.log(base);
+
     var o = base == "" ? [] : base.split(/\s+/);
     var n = source == "" ? [] : source.split(/\s+/);
     var ns = new Object();
@@ -5004,8 +5039,7 @@ static class Watchers {
 
         if(watchers.length > 0){
 
-          var virtualDom = document.createElement('div');
-          virtualDom.innerHTML = scope.compiledHtml;
+          var virtualDom = scope.rootSelector();
           var watchElements = [];
 
           if(watcherName){
@@ -5026,6 +5060,7 @@ static class Watchers {
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
+
                         $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
                     }
@@ -5046,6 +5081,7 @@ static class Watchers {
         watcherVirtual.innerHTML = watcherHtml;
 
         var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+
         Reconcile.apply(changes, document.getElementById(currentElement.id));
 
     },

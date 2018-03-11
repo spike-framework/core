@@ -389,7 +389,6 @@ spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnM
 this.bindEventsForElement(element);
 for(var i = 0; i < element.childElements.length; i++){
 
-
 if(element.childElements[i].length > 0){
 this.bindEvents(element.childElements[i]);
 }
@@ -566,10 +565,6 @@ if (!moduleClass) {
 spike.core.Errors.throwError(spike.core.Errors.messages.MODULE_NOT_EXIST);
 }
 
-if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
-spike.core.Log.warn('Preventing re-rendering module '+moduleClass);
-return;
-}
 
 spike.core.Router.clearCacheViewData();
 
@@ -689,6 +684,12 @@ if (spike.core.System.config.showLog) {
 this.print(logMessage, logData, 'LOG');
 }
 
+},templateLog: function (logMessage, logData) {var $this=this;
+
+if (spike.core.System.config.showLog) {
+this.print(logMessage, logData, 'TEMPLATE_LOG');
+}
+
 },error: function (errorMessage, errorData) {var $this=this;
 
 if (spike.core.System.config.showError) {
@@ -725,6 +726,9 @@ message = spike.core.Util.bindStringParams(message, data);
 
 var color = '';
 switch (type) {
+case 'TEMPLATE_LOG' :
+color = 'chocolate ';
+break;
 case 'LOG' :
 color = 'blue';
 break;
@@ -813,7 +817,7 @@ if(elementsWithId[i].getAttribute('spike-unbinded') != null){
 eventsSelectors.push(newId);
 }
 
-if(elementsWithId[i].getAttribute('spike-href-') != null){
+if(elementsWithId[i].getAttribute('spike-href') != null){
 linksSelectors.push(newId);
 }
 
@@ -1731,6 +1735,11 @@ message = spike.core.Util.bindTranslationParams(message, arrayOrMapParams);
 return message || messageName;
 },getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},isClass: true,compileTemplate: function(scope, name){var $this=this;
 return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope);
+},includeTemplate: function(name, params){var $this=this;
+
+name = name.split('.').join('_')+'_html';
+return this.templates[spike.core.Assembler.sourcePath+"_"+name](params);
+
 },getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Templates'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',function(){ return {preventReloadPage: null,events: {},otherwisePath: '/',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,isClass: true,getRouterFactory: function () {var $this=this;
 return {
 path: spike.core.Router.pathFunction,
@@ -1981,6 +1990,8 @@ return params;
 
 },getPathParams: function () {var $this=this;
 return spike.core.Router.getCurrentViewData().data.pathParams;
+},getRoutingParams: function () {var $this=this;
+return spike.core.Router.getCurrentViewData().data.routingParams;
 },getPathData: function (hashPattern, endpointPattern) {var $this=this;
 
 var urlParams = spike.core.Router.getURLParams();
@@ -2091,6 +2102,8 @@ currentEndpoint.controller = app.previousController;
 }
 
 }
+
+currentEndpointData.routingParams = spike.core.Router.endpoints[pathValue].routingParams || {};
 
 viewData = {
 endpoint: currentEndpoint,
@@ -2276,12 +2289,11 @@ window.history.go(-1);
 return window.location.pathname;
 },bindLinks: function(element){var $this=this;
 
+this.bindLinksForElement(element);
 for(var i = 0; i < element.childElements.length; i++){
 
-this.bindLinksForElement(element.childElements[i]);
-
 if(element.childElements[i].length > 0){
-spike.core.Events.bindEvents(element.childElements[i]);
+this.bindLinks(element.childElements[i]);
 }
 
 }
@@ -2292,7 +2304,9 @@ for(var i = 0; i < element.linksSelectors.length; i++){
 
 var selector = document.getElementById(element.linksSelectors[i]);
 
-element.addEventListener('click', function (e) {
+console.log(selector);
+
+selector.addEventListener('click', function (e) {
 e.preventDefault();
 
 var link = this.getAttribute('href');
@@ -2311,6 +2325,8 @@ link = '/#/';
 }
 
 }
+
+console.log(link);
 
 if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
 spike.core.Router.location(link,this.getAttribute('target') || '_blank');
@@ -2609,6 +2625,11 @@ moves.push({
 
 return {'compare': compare, 'diff': moves};
 },diffString: function (source, base, index, baseElement) {var $this=this;
+
+console.log('diffString');
+console.log(source);
+console.log(base);
+
 var o = base == "" ? [] : base.split(/\s+/);
 var n = source == "" ? [] : source.split(/\s+/);
 var ns = new Object();
@@ -3341,8 +3362,7 @@ watchers = this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath]
 
 if(watchers.length > 0){
 
-var virtualDom = document.createElement('div');
-virtualDom.innerHTML = scope.compiledHtml;
+var virtualDom = scope.rootSelector();
 var watchElements = [];
 
 if(watcherName){
@@ -3363,6 +3383,7 @@ var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
 
 spike.core.Log.log('Watcher reflow needed');
+
 $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
 }
@@ -3381,6 +3402,7 @@ var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
 var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
+
 spike.core.Reconcile.apply(changes, document.getElementById(currentElement.id));
 
 },fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;

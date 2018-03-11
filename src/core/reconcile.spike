@@ -125,6 +125,11 @@ static class Reconcile {
   },
 
   diffString: function (source, base, index, baseElement) {
+
+    console.log('diffString');
+    console.log(source);
+    console.log(base);
+
     var o = base == "" ? [] : base.split(/\s+/);
     var n = source == "" ? [] : source.split(/\s+/);
     var ns = new Object();

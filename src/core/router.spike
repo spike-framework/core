@@ -518,6 +518,16 @@ static class Router {
   /**
    * @public
    *
+   * Function returns current route routing params
+   *
+   */
+  getRoutingParams: function () {
+    return Router.getCurrentViewData().data.routingParams;
+  },
+
+  /**
+   * @public
+   *
    * Function returns object containing @urlParams and
    * @pathParams as objects. Data is retrieved from
    * given @hashPattern based on @endpointPattern
@@ -705,6 +715,8 @@ static class Router {
           }
 
         }
+
+        currentEndpointData.routingParams = Router.endpoints[pathValue].routingParams || {};
 
         viewData = {
           endpoint: currentEndpoint,
@@ -1076,12 +1088,11 @@ static class Router {
      */
   bindLinks: function(element){
 
+    this.bindLinksForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        this.bindLinksForElement(element.childElements[i]);
-
         if(element.childElements[i].length > 0){
-            Events.bindEvents(element.childElements[i]);
+            this.bindLinks(element.childElements[i]);
         }
 
     }
@@ -1094,7 +1105,9 @@ static class Router {
 
         var selector = document.getElementById(element.linksSelectors[i]);
 
-        element.addEventListener('click', function (e) {
+        console.log(selector);
+
+        selector.addEventListener('click', function (e) {
             e.preventDefault();
 
             var link = this.getAttribute('href');
@@ -1113,6 +1126,8 @@ static class Router {
               }
 
             }
+
+            console.log(link);
 
             if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
               Router.location(link,this.getAttribute('target') || '_blank');

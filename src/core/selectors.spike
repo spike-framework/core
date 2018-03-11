@@ -116,7 +116,7 @@ static class Selectors {
         eventsSelectors.push(newId);
     }
 
-    if(elementsWithId[i].getAttribute('spike-href-') != null){
+    if(elementsWithId[i].getAttribute('spike-href') != null){
         linksSelectors.push(newId);
     }
 

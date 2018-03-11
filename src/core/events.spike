@@ -39,8 +39,6 @@ static class Events {
     this.bindEventsForElement(element);
     for(var i = 0; i < element.childElements.length; i++){
 
-        //this.bindEventsForElement(element.childElements[i]);
-
         if(element.childElements[i].length > 0){
             this.bindEvents(element.childElements[i]);
         }

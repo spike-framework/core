@@ -23,8 +23,7 @@ static class Watchers {
 
         if(watchers.length > 0){
 
-          var virtualDom = document.createElement('div');
-          virtualDom.innerHTML = scope.compiledHtml;
+          var virtualDom = scope.rootSelector();
           var watchElements = [];
 
           if(watcherName){
@@ -45,6 +44,7 @@ static class Watchers {
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
+
                         $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
                     }
@@ -65,6 +65,7 @@ static class Watchers {
         watcherVirtual.innerHTML = watcherHtml;
 
         var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+
         Reconcile.apply(changes, document.getElementById(currentElement.id));
 
     },

@@ -206,10 +206,10 @@ static class System {
       Errors.throwError(Errors.messages.MODULE_NOT_EXIST);
     }
 
-    if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
-        Log.warn('Preventing re-rendering module '+moduleClass);
-        return;
-    }
+//    if(this.modalInterface.isRendered(moduleClass) || (this.currentRenderedController && this.currentRenderedController.getClass() === moduleClass)){
+//        Log.warn('Preventing re-rendering module '+moduleClass);
+//        return;
+//    }
 
     Router.clearCacheViewData();
 
