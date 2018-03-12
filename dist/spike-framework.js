@@ -426,7 +426,7 @@ selector.removeAttribute('spike-unbinded');
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+__args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+__args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
 
 };spike.core.EventsInterface.prototype.onRender=function(){var $this=this;
 
@@ -437,12 +437,12 @@ selector.removeAttribute('spike-unbinded');
 };spike.core.EventsInterface.prototype.onBack=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onDeviceReady=function(){var $this=this;
 };spike.core.EventsInterface.prototype.onReady=function(){var $this=this;
-};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+__args.length);}};spike.core.RoutingInterface.prototype.RoutingInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+arguments.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.isClass= true;spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
+};spike.core.EventsInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.EventsInterface.prototype.getClass=function(){var $this=this; return 'spike.core.EventsInterface'; };});spike.core.Assembler.defineNamespace('spike.core.RoutingInterface',function(){spike.core.RoutingInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+__args.length);}};spike.core.RoutingInterface.prototype.RoutingInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.RoutingInterface with arguments count: '+arguments.length);}};spike.core.RoutingInterface.prototype.constructor_0=function(){var $this=this;};spike.core.RoutingInterface.prototype.isClass= true;spike.core.RoutingInterface.prototype.create=function(router){var $this=this;
 
-};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+__args.length);}};spike.core.LoaderInterface.prototype.LoaderInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+arguments.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.isClass= true;spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
+};spike.core.RoutingInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.RoutingInterface.prototype.getClass=function(){var $this=this; return 'spike.core.RoutingInterface'; };});spike.core.Assembler.defineNamespace('spike.core.LoaderInterface',function(){spike.core.LoaderInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+__args.length);}};spike.core.LoaderInterface.prototype.LoaderInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.LoaderInterface with arguments count: '+arguments.length);}};spike.core.LoaderInterface.prototype.constructor_0=function(){var $this=this;};spike.core.LoaderInterface.prototype.isClass= true;spike.core.LoaderInterface.prototype.loadApplication=function(){var $this=this;
 
 };spike.core.LoaderInterface.prototype.onLoadApplication=function(){var $this=this;
-};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.modals= [];this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+__args.length);}};spike.core.ModalInterface.prototype.ModalInterface=function(){this.modals= [];this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+arguments.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.isClass= true;spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
+};spike.core.LoaderInterface.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.LoaderInterface.prototype.getClass=function(){var $this=this; return 'spike.core.LoaderInterface'; };});spike.core.Assembler.defineNamespace('spike.core.ModalInterface',function(){spike.core.ModalInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.modals= [];this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+__args.length);}};spike.core.ModalInterface.prototype.ModalInterface=function(){this.modals= [];this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.ModalInterface with arguments count: '+arguments.length);}};spike.core.ModalInterface.prototype.constructor_0=function(){var $this=this;};spike.core.ModalInterface.prototype.modals= [];spike.core.ModalInterface.prototype.isClass= true;spike.core.ModalInterface.prototype.onRender=function(modal){var $this=this;
 this.clearDestroyedModals();
 this.modals.push(modal);
 };spike.core.ModalInterface.prototype.isRendered=function(modal){var $this=this;
@@ -661,10 +661,15 @@ var globalElements = document.getElementsByTagName('spike');
 
 for(var i = 0; i < globalElements.length; i++){
 
+if(globalElements[i].getAttribute('sp-element')){
+
+globalElements[i].id = 'global-'+spike.core.Util.hash();
 var className = globalElements[i].getAttribute('sp-element');
 
-var globalElement = spike.core.Assembler.getClassInstance(className, [globalElements[i]]);
+var globalElement = spike.core.Assembler.getClassInstance(className, [globalElements[i].id]);
 this.globalElements.push(globalElement);
+
+}
 
 }
 
@@ -1074,7 +1079,7 @@ string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
 
 return string;
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Util'; },}});spike.core.Assembler.defineNamespace('spike.core.Request',function(){spike.core.Request=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.config= null;this.xhr= null;this.catchCallbacks= [];this.thenCallbacks= [];this.alwaysCallbacks= [];this.response= null;this.responseType= 'json';this.STATUS= {
 DONE: 4,
 LOADING: 3,
 HEADERS_RECEIVED: 2,
@@ -1244,7 +1249,7 @@ xhr = new ActiveXObject("Microsoft.XMLHTTP");
 
 return xhr;
 
-};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.defineNamespace('spike.core.MultiRequest',function(){spike.core.MultiRequest=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+__args.length);}};spike.core.MultiRequest.prototype.MultiRequest=function(){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+arguments.length);}};spike.core.MultiRequest.prototype.constructor_1=function(promises){var $this=this;
+};spike.core.Request.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Request.prototype.getClass=function(){var $this=this; return 'spike.core.Request'; };});spike.core.Assembler.defineNamespace('spike.core.MultiRequest',function(){spike.core.MultiRequest=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+__args.length);}};spike.core.MultiRequest.prototype.MultiRequest=function(){this.responseData= [];this.alwaysCallbacks= [];this.countResponses= 0;this.promisesLength= 0;this.resolved= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.MultiRequest with arguments count: '+arguments.length);}};spike.core.MultiRequest.prototype.constructor_1=function(promises){var $this=this;
 
 $this.promisesLength = promises.length;
 
@@ -2338,7 +2343,7 @@ spike.core.Router.redirect(link);
 
 }
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+__args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+__args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
 this.Element(parentElement, null);
 };spike.core.Element.prototype.constructor_2=function(parentElement,params){var $this=this;
 
@@ -2407,10 +2412,10 @@ this.childElements[i].postConstruct();
 }
 
 
-};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.destroy=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+__args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementSelector){var $this=this;
+};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.destroy=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+__args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementId){var $this=this;
 
 this.constructor_0();
-this.elementSelector = elementSelector;
+this.elementId = elementId;
 this.createTemplatePath();
 this.createTemplate();
 this.render();
@@ -2438,10 +2443,11 @@ elementDiv.setAttribute('id', this.elementId);
 
 spike.core.System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
+this.elementSelector = document.getElementById(this.elementId);
 
 };spike.core.GlobalElement.prototype.destroy=function(){var $this=this;
 spike.core.Watchers.unobserve(this);
-};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+__args.length);}};spike.core.Controller.prototype.Controller=function(){this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
+};spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+__args.length);}};spike.core.Controller.prototype.Controller=function(){this.scrollTop= true;this.checkNetwork= true;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
 };spike.core.Controller.prototype.scrollTop= true;spike.core.Controller.prototype.checkNetwork= true;spike.core.Controller.prototype.isClass= true;spike.core.Controller.prototype.render=function(){var $this=this;
 
 this.elementSelector = spike.core.System.getView();
@@ -2459,7 +2465,7 @@ this.postConstruct();
 
 };spike.core.Controller.prototype.destroy=function(){var $this=this;
 spike.core.Watchers.unobserve(this);
-};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : args;    }else{        __args = [args];    }}else{    __args = arguments;}this.destroyed= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+__args.length);}};spike.core.Modal.prototype.Modal=function(){this.destroyed= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+arguments.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
+};spike.core.Controller.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.Controller.prototype.getClass=function(){var $this=this; return 'spike.core.Controller'; };});spike.core.Assembler.defineNamespace('spike.core.Modal',function(){spike.core.Modal=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){        __args = args.length == 0 ? arguments : [args];    }else{        __args = [args];    }}else{    __args = arguments;}this.destroyed= false;this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+__args.length);}};spike.core.Modal.prototype.Modal=function(){this.destroyed= false;this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Modal with arguments count: '+arguments.length);}};spike.core.Modal.prototype.constructor_1=function(model){var $this=this;
 
 this.parentElement = spike.core.System.getModalsView();
 this.model = model;
@@ -3354,6 +3360,7 @@ return {'unapplied': unapplied, 'conflicts': conflicts};
 this.compileWatchers(scope, watcherName);
 },compileWatchers: function(scope, watcherName){var $this=this;
 
+var wasChanged = false;
 var watchers = [];
 
 if(this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath]){
@@ -3373,6 +3380,15 @@ watchElements = virtualDom.querySelectorAll('[sp-watch]');
 
 for(var i = 0; i < watchElements.length; i++){
 
+console.log(watchElements[i].getAttribute('sp-watch'));
+console.log(watcherName);
+console.log(watchElements[i].getAttribute('sp-watch-manual'));
+
+
+if(watcherName !== watchElements[i].getAttribute('sp-watch') && watchElements[i].getAttribute('sp-watch-manual') !== null){
+continue;
+}
+
 for(var k = 0; k < watchers.length; k++){
 
 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
@@ -3385,6 +3401,7 @@ if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(curren
 spike.core.Log.log('Watcher reflow needed');
 
 $this.replaceChangedElements(watcherHtml, watchElements[i]);
+wasChanged = true;
 
 }
 
@@ -3394,6 +3411,11 @@ $this.replaceChangedElements(watcherHtml, watchElements[i]);
 
 }
 
+}
+
+if(wasChanged === true){
+spike.core.Events.bindEvents(scope);
+spike.core.Router.bindLinks(scope);
 }
 
 },replaceChangedElements: function(watcherHtml, currentElement){var $this=this;
@@ -3401,9 +3423,14 @@ $this.replaceChangedElements(watcherHtml, watchElements[i]);
 var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
-var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
+if(currentElement.innerHTML.length === 0){
+document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
+}else{
 
+var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
 spike.core.Reconcile.apply(changes, document.getElementById(currentElement.id));
+
+}
 
 },fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
 

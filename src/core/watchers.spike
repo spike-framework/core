@@ -4,6 +4,8 @@ import Assembler from spike.core.Assembler;
 import Log from spike.core.Log;
 import Util from spike.core.Util;
 import Reconcile from spike.core.Reconcile;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
 
 static class Watchers {
 
@@ -15,6 +17,7 @@ static class Watchers {
 
     compileWatchers: function(scope, watcherName){
 
+        var wasChanged = false;
         var watchers = [];
 
         if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
@@ -34,6 +37,11 @@ static class Watchers {
 
           for(var i = 0; i < watchElements.length; i++){
 
+
+            if(watcherName !== watchElements[i].getAttribute('sp-watch') && watchElements[i].getAttribute('sp-watch-manual') !== null){
+                continue;
+            }
+
             for(var k = 0; k < watchers.length; k++){
 
                 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
@@ -46,6 +54,7 @@ static class Watchers {
                         Log.log('Watcher reflow needed');
 
                         $this.replaceChangedElements(watcherHtml, watchElements[i]);
+                        wasChanged = true;
 
                     }
 
@@ -57,6 +66,11 @@ static class Watchers {
 
         }
 
+        if(wasChanged === true){
+            Events.bindEvents(scope);
+            Router.bindLinks(scope);
+        }
+
     },
 
     replaceChangedElements: function(watcherHtml, currentElement){
@@ -64,9 +78,14 @@ static class Watchers {
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
-        var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+        if(currentElement.innerHTML.length === 0){
+            document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
+        }else{
 
-        Reconcile.apply(changes, document.getElementById(currentElement.id));
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+            Reconcile.apply(changes, document.getElementById(currentElement.id));
+
+        }
 
     },
 
