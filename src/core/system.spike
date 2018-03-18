@@ -8,7 +8,7 @@ import Errors from spike.core.Errors;
 import ModalInterface from spike.core.ModalInterface;
 import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
-import SysUtils from spike.core.Util;
+import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
 
@@ -356,10 +356,15 @@ static class System {
 
     for(var i = 0; i < globalElements.length; i++){
 
-        var className = globalElements[i].getAttribute('sp-element');
+        if(globalElements[i].getAttribute('sp-element')){
 
-        var globalElement = Assembler.getClassInstance(className, [globalElements[i]]);
-        this.globalElements.push(globalElement);
+            globalElements[i].id = 'global-'+Util.hash();
+            var className = globalElements[i].getAttribute('sp-element');
+
+            var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+            this.globalElements.push(globalElement);
+
+        }
 
     }
 

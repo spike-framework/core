@@ -496,7 +496,7 @@ import Errors from spike.core.Errors;
 import ModalInterface from spike.core.ModalInterface;
 import EventsInterface from spike.core.EventsInterface;
 import Selectors from spike.core.Selectors;
-import SysUtils from spike.core.Util;
+import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
 
@@ -844,10 +844,15 @@ static class System {
 
     for(var i = 0; i < globalElements.length; i++){
 
-        var className = globalElements[i].getAttribute('sp-element');
+        if(globalElements[i].getAttribute('sp-element')){
 
-        var globalElement = Assembler.getClassInstance(className, [globalElements[i]]);
-        this.globalElements.push(globalElement);
+            globalElements[i].id = 'global-'+Util.hash();
+            var className = globalElements[i].getAttribute('sp-element');
+
+            var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+            this.globalElements.push(globalElement);
+
+        }
 
     }
 
@@ -3862,10 +3867,10 @@ import Watchers from spike.core.Watchers;
 
 class GlobalElement extends Element {
 
-    GlobalElement: function(elementSelector){
+    GlobalElement: function(elementId){
 
         this.constructor_0();
-        this.elementSelector = elementSelector;
+        this.elementId = elementId;
         this.createTemplatePath();
         this.createTemplate();
         this.render();
@@ -3897,7 +3902,7 @@ class GlobalElement extends Element {
 
             System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-          //  this.elementSelector = null;
+            this.elementSelector = document.getElementById(this.elementId);
 
     },
 
@@ -5019,6 +5024,8 @@ import Assembler from spike.core.Assembler;
 import Log from spike.core.Log;
 import Util from spike.core.Util;
 import Reconcile from spike.core.Reconcile;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
 
 static class Watchers {
 
@@ -5030,6 +5037,7 @@ static class Watchers {
 
     compileWatchers: function(scope, watcherName){
 
+        var wasChanged = false;
         var watchers = [];
 
         if(this.watchers[Assembler.sourcePath+"_"+scope.templatePath]){
@@ -5049,6 +5057,15 @@ static class Watchers {
 
           for(var i = 0; i < watchElements.length; i++){
 
+            console.log(watchElements[i].getAttribute('sp-watch'));
+            console.log(watcherName);
+            console.log(watchElements[i].getAttribute('sp-watch-manual'));
+
+
+            if(watcherName !== watchElements[i].getAttribute('sp-watch') && watchElements[i].getAttribute('sp-watch-manual') !== null){
+                continue;
+            }
+
             for(var k = 0; k < watchers.length; k++){
 
                 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
@@ -5061,6 +5078,7 @@ static class Watchers {
                         Log.log('Watcher reflow needed');
 
                         $this.replaceChangedElements(watcherHtml, watchElements[i]);
+                        wasChanged = true;
 
                     }
 
@@ -5072,6 +5090,11 @@ static class Watchers {
 
         }
 
+        if(wasChanged === true){
+            Events.bindEvents(scope);
+            Router.bindLinks(scope);
+        }
+
     },
 
     replaceChangedElements: function(watcherHtml, currentElement){
@@ -5079,9 +5102,14 @@ static class Watchers {
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
-        var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+        if(currentElement.innerHTML.length === 0){
+            document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
+        }else{
 
-        Reconcile.apply(changes, document.getElementById(currentElement.id));
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+            Reconcile.apply(changes, document.getElementById(currentElement.id));
+
+        }
 
     },
 

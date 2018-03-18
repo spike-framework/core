@@ -8,10 +8,10 @@ import Watchers from spike.core.Watchers;
 
 class GlobalElement extends Element {
 
-    GlobalElement: function(elementSelector){
+    GlobalElement: function(elementId){
 
         this.constructor_0();
-        this.elementSelector = elementSelector;
+        this.elementId = elementId;
         this.createTemplatePath();
         this.createTemplate();
         this.render();
@@ -43,7 +43,7 @@ class GlobalElement extends Element {
 
             System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-          //  this.elementSelector = null;
+            this.elementSelector = document.getElementById(this.elementId);
 
     },
 
