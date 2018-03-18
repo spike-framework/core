@@ -673,7 +673,6 @@ if (!window.console) window.console = {};
 if (!window.console.log) window.console.log = function () { };
 },obj: function (jsObject) {var $this=this;
 
-
 if (spike.core.System.config.showObj) {
 console.log(jsObject);
 }

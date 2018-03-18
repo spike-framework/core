@@ -18,8 +18,7 @@ static class Log {
    * @param jsObject
    */
   obj: function (jsObject) {
-
-
+    
     if (Config.showObj) {
       console.log(jsObject);
     }
