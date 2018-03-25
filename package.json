@@ -1,21 +1,21 @@
 {
-  "name": "spike-framework-core",
+  "name": "spike-core",
   "description": "JavaScript Framework to build Web and Mobile apps",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "main": "gruntfile.js",
   "scripts": {
     "setup": "npm install"
   },
-   "devDependencies": {
+  "devDependencies": {
     "grunt": ">=1.0.1",
+    "grunt-concurrent": ">=2.3.0",
     "grunt-contrib-clean": ">=1.0.0",
     "grunt-contrib-concat": ">=1.0.0",
-    "grunt-contrib-uglify": ">=1.0.1",
-    "grunt-shell": ">=2.1.0",
-    "grunt-contrib-watch": ">=1.0.0",
     "grunt-contrib-copy": ">=1.0.0",
-    "grunt-concurrent": ">=2.3.0",
-    "dox": ">=0.9.0"
+    "grunt-contrib-uglify": ">=1.0.1",
+    "grunt-contrib-watch": ">=1.0.0",
+    "grunt-shell": ">=2.1.0",
+    "mocha": "^5.0.5"
   },
   "keywords": [
     "spike framework",
@@ -28,27 +28,27 @@
   "maintainers": [
     {
       "name": "Dawid Senko",
-      "email": "dawid@spikeframework.com",
-      "web": "http://spikeframework.com/"
+      "email": "spike@spikeframework.com",
+      "web": "https://spikeframework.com"
     }
   ],
   "demos": [
-    "http://spikeframework.com/"
+    "https://spikeframework.com/"
   ],
   "bugs": {
-    "web": "https://github.com/dsenko/spike-framework-core/issues"
+    "web": "https://github.com/spike-framework/core/issues"
   },
   "repositories": [
     {
       "type": "git",
-      "url": "https://github.com/dsenko/spike-framework-core"
+      "url": "https://github.com/spike-framework/core"
     }
   ],
   "licenses": [
     {
-      "name": "MIT with exclusions",
-      "url": "http://spikeframework.com/license.html"
+      "name": "MIT with reselling exclusions",
+      "url": "https://spikeframework.com/license.php"
     }
   ],
-  "homepage": "http://spikeframework.com/"
+  "homepage": "https://spikeframework.com/"
 }

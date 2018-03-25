@@ -1,0 +1,15 @@
+package test.unit;
+
+import Util from spike.core.Util;
+
+class UtilTest extends MochaTest {
+
+    hash: function(){
+
+        it('should return string', function() {
+            this.assert.isString(Util.hash());
+        });
+
+    }
+
+}

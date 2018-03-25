@@ -1,0 +1,16 @@
+package spike.core;
+
+
+class MochaTest extends Test {
+
+    assert: require('assert'),
+
+    wrap: function(fnName, fn){
+
+        describe(this.getClass(), function() {
+          describe('#'+fnName, fn.bind(this));
+        });
+
+    }
+
+}

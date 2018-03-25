@@ -1,0 +1,22 @@
+package spike.core;
+
+import Util from spike.core.Util;
+
+class Test {
+
+     run: function(){
+
+        for(var fnName in this){
+
+            if(this.hasOwnProperty(fnName) && Util.isFunction(this[fnName])){
+                this.wrap(fnName, this[fnName]);
+            }
+
+        }
+
+     },
+
+    abstract assert;
+    abstract function wrap;
+
+}
