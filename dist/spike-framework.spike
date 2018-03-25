@@ -123,7 +123,9 @@ static class Errors {
 
       SPIKE_APP_NOT_DEFINED: 'No DOM element with {0} or {1} attribute specified',
       REQUEST_WRONG_PARAMS: 'Request url and type not defined',
-      JSON_PARSE_ERROR: 'JSON parse error during execution {0}'
+      JSON_PARSE_ERROR: 'JSON parse error during execution {0}',
+
+      TRIGGER_NOT_DEFINED: 'Trigger {0} is not defined for scope {1}'
 
     },
 
@@ -240,34 +242,59 @@ static class Events {
 
     for(var i = 0; i < element.eventsSelectors.length; i++){
 
-        var selector = document.getElementById(element.eventsSelectors[i]);
+        if(typeof element.eventsSelectors[i] === 'string'){
+            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+        }
 
-        for (var k = 0; k < this.allowedEvents.length; k++) {
+        if(element.eventsSelectors[i].getAttribute('spike-unbinded') != null){
 
-            var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
+            for (var k = 0; k < this.allowedEvents.length; k++) {
 
-            if (eventFunctionBody) {
+                var eventFunctionBody = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]);
 
-                var eventFn = Function('scope', 'event', eventFunctionBody);
-                var eventRef = element.eventsSelectors[i]+'_'+this.allowedEvents[k];
+                if (eventFunctionBody) {
 
-                if(this.__eventsReferences[eventRef]){
-                     selector.removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                    var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+
+                    if(!this.__eventsReferences[eventRef]){
+                        this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(null, element);
+                        element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                    }
+
                 }
-
-                this.__eventsReferences[eventRef] = eventFn;
-                selector.addEventListener(this.allowedEvents[k], eventFn.bind(null, element));
-
 
             }
 
         }
 
-        selector.removeAttribute('spike-unbinded');
+        element.eventsSelectors[i].removeAttribute('spike-unbinded');
 
     }
 
   },
+
+
+  removeEventListeners: function(element){
+
+    for(var i = 0; i < element.eventsSelectors.length; i++){
+
+        if(typeof element.eventsSelectors[i] === 'string'){
+            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+        }
+
+        for (var k = 0; k < this.allowedEvents.length; k++) {
+
+            var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+
+            if(this.__eventsReferences[eventRef]){
+                element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+            }
+
+        }
+
+    }
+
+  }
 
 }package spike.core;
 
@@ -656,12 +683,12 @@ static class System {
     //Clears selectors cache
     Selectors.clearSelectorsCache();
 
-    //Renders controller
-    controller.render();
-
     if(this.currentRenderedController){
         this.currentRenderedController.destroy();
     }
+
+    //Renders controller
+    controller.render();
 
     this.currentRenderedController = controller;
 
@@ -1075,35 +1102,86 @@ static class Selectors {
 
   },
 
-  createNamesSelectors: function(element, selectors){
+  createFormsSelectors: function(element, selectors){
 
     //Retrieving list of form elements names
-    var elementsWithNames = element.querySelectorAll('[name]');
+    var formsWithNames = element.querySelectorAll('form[name]');
 
-    //Creating names selectors functions
-    for(var i = 0; i < elementsWithNames.length; i++){
-
-        //Creating new hash for identifier
-        var newName = elementsWithNames[i].getAttribute('name') + '-' + Util.hash();
-
-        selectors.names[name] = function () {
+    function getSelectorFn(name, newName) {
+        return function() {
 
             var selector = Selectors.selectorsCache[newName];
 
             if (selector === undefined) {
-                selector = document.querySelector('['+newId+']');
-                selector.plainId = newId;
-                Selectors.selectorsCache[newId] = selector;
+                selector = document.querySelector('form[name="'+newName+'"]');
+                selector.plainName = name;
+                selector.serialize = Util.serializeForm.bind(selector);
+
+                Selectors.selectorsCache[newName] = selector;
             } else {
                 Selectors.cacheUsageCounter++;
             }
 
             return selector;
 
+        };
+    };
+
+    for(var i = 0; i < formsWithNames.length; i++){
+
+        if(formsWithNames[i].getAttribute('sp-keep-name') != null){
+            continue;
         }
 
-        elementsWithNames[i].setAttribute('name', newName);
+        var name = formsWithNames[i].getAttribute('name');
 
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+        selectors.forms[name] = getSelectorFn(name, newName);
+        formsWithNames[i].setAttribute('name', newName);
+
+    }
+
+    return element.innerHTML;
+
+  },
+
+  createNamesSelectors: function(element, selectors){
+
+    //Retrieving list of form elements names
+    var elementsWithNames = element.querySelectorAll('[name]');
+
+    function getSelectorFn(name, newName) {
+        return function() {
+
+            var selector = Selectors.selectorsCache[newName];
+
+            if (selector === undefined) {
+                selector = document.querySelector('[name="'+newName+'"]');
+                selector.plainName = name;
+                Selectors.selectorsCache[newName] = selector;
+            } else {
+                Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+        };
+    };
+
+    //Creating names selectors functions
+    for(var i = 0; i < elementsWithNames.length; i++){
+
+        if(elementsWithNames[i].getAttribute('sp-keep-name') != null || elementsWithNames[i].tagName.toLowerCase() === 'form' || elementsWithNames[i].type === 'radio'){
+            continue;
+        }
+
+        var name = elementsWithNames[i].getAttribute('name');
+
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+        selectors.names[name] = getSelectorFn(name, newName);
+        elementsWithNames[i].setAttribute('name', newName);
 
     }
 
@@ -1113,30 +1191,38 @@ static class Selectors {
 
   createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-   var elementsWithId = element.querySelectorAll('[id]');
+    var elementsWithId = element.querySelectorAll('[id]');
+
+    function getSelectorFn(newId) {
+        return function() {
+
+            var selector = Selectors.selectorsCache[newId];
+
+            if (selector === undefined) {
+              selector = document.getElementById(newId);
+              selector.plainId = newId;
+              Selectors.selectorsCache[newId] = selector;
+            } else {
+              Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+        };
+    };
 
    //Creating identifiers selectors functions
    for(var i = 0; i < elementsWithId.length; i++){
+
+    if(elementsWithId[i].getAttribute('sp-keep-id') != null){
+        continue;
+    }
 
     //Creating new hash for identifier
     var newId = elementsWithId[i].id + '-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[elementsWithId[i].id] = function () {
-
-        var selector = Selectors.selectorsCache[newId];
-
-        if (selector === undefined) {
-          selector = document.getElementById(newId);
-          selector.plainId = newId;
-          Selectors.selectorsCache[newId] = selector;
-        } else {
-          Selectors.cacheUsageCounter++;
-        }
-
-        return selector;
-
-    };
+    selectors[elementsWithId[i].id] = getSelectorFn(newId);
 
     if(elementsWithId[i].getAttribute('spike-unbinded') != null){
         eventsSelectors.push(newId);
@@ -1166,28 +1252,24 @@ static class Selectors {
    * @param templateHtml
    *
    */
-   createUniqueSelectors: function (templateHtml) {
+   createUniqueSelectors: function (scope) {
 
     var element = document.createElement('div');
-    element.innerHTML = templateHtml;
+    element.innerHTML = scope.compiledHtml;
 
-    var selectors = {
+    scope.selector = {
         names: {},
         forms: {}
     };
 
-    var eventsSelectors = [];
-    var linksSelectors = [];
+    scope.eventsSelectors = [];
+    scope.linksSelectors = [];
 
-    templateHtml = this.createNamesSelectors(element, selectors);
-    templateHtml = this.createIdSelectors(element, selectors, eventsSelectors, linksSelectors);
+    var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
+    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+    newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
 
-    return {
-      html: templateHtml,
-      selectors: selectors,
-      eventsSelectors: eventsSelectors,
-      linksSelectors: linksSelectors
-    };
+    scope.compiledHtml = newCompiledHtml;
 
   },
 
@@ -1293,6 +1375,69 @@ static class Util {
             }
 
             return string;
+
+        },
+
+        setValue: function(selector, value){
+
+            var elementType = selector.prop('tagName');
+
+            if (!elementType) {
+                elementType = selector.prop('nodeName');
+            }
+
+            elementType = elementType.toLowerCase();
+
+            if (elementType == 'label' || elementType == 'div' || elementType == 'span' || elementType == 'button' || elementType == 'p' || elementType.indexOf('h') > -1) {
+                selector.html(value.toString());
+            } else if (elementType == 'img') {
+                selector.attr('src', value);
+            } else if (selector.is(':checkbox')) {
+                if (value == true || parseInt(value) == 1) {
+                    selector.prop('checked', true);
+                } else {
+                    selector.prop('checked', false);
+                }
+            } else if (elementType == 'a') {
+                selector.attr('href', value);
+            } else {
+                selector.val(value);
+            }
+
+        },
+
+        serializeForm: function(){
+
+            var serializedObject = {};
+
+            var serializeField = function(field){
+
+                var value = field.value;
+                var name = field.getAttribute('sp-name');
+
+                if(field.type === 'radio'){
+
+                    if(field.checked === true){
+                        value = field.value;
+                        serializedObject[name] = value;
+                    }
+
+                } else if (field.type == 'checkbox') {
+                    value = field.checked;
+                    serializedObject[name] = value;
+                }else{
+                    serializedObject[name] = value;
+                }
+
+            };
+
+            var fields = this.querySelectorAll('input[name], select[name], textarea[name]');
+
+            for(var i = 0; i < fields.length; i++){
+                serializeField(fields[i]);
+            }
+
+            return serializedObject;
 
         },
 
@@ -1872,7 +2017,6 @@ class MultiRequest {
     },
 
     always: function (callback) {
-        console.log('always adding')
         $this.alwaysCallbacks.push(callback);
         return $this;
     },
@@ -2583,13 +2727,13 @@ static class Templates {
     templates: {},
 
     compileTemplate: function(scope, name){
-        return this.templates[Assembler.sourcePath+"_"+name](scope);
+        return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
     },
 
-    includeTemplate: function(name, params){
+    includeTemplate: function(name, params, scope){
 
       name = name.split('.').join('_')+'_html';
-      return this.templates[Assembler.sourcePath+"_"+name](params);
+      return this.templates[Assembler.sourcePath+"_"+name](params, scope);
 
     }
 
@@ -2957,8 +3101,6 @@ static class Router {
    * Event function executes when history changes in html5 mode
    */
   onHistoryChanges: function () {
-
-    console.log('onHistoryChanges '+Router.routerHTML5Mode);
 
     if (Router.routerHTML5Mode === true) {
 
@@ -3700,8 +3842,6 @@ static class Router {
 
         var selector = document.getElementById(element.linksSelectors[i]);
 
-        console.log(selector);
-
         selector.addEventListener('click', function (e) {
             e.preventDefault();
 
@@ -3721,8 +3861,6 @@ static class Router {
               }
 
             }
-
-            console.log(link);
 
             if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
               Router.location(link,this.getAttribute('target') || '_blank');
@@ -3746,6 +3884,8 @@ import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
 import Errors from spike.core.Errors;
 import Selectors from spike.core.Selectors;
+import Assembler from spike.core.Assembler;
+import Events from spike.core.Events;
 
 class Element {
 
@@ -3830,13 +3970,7 @@ class Element {
     createTemplate: function () {
 
      this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
-
-     var selectorsObj = Selectors.createUniqueSelectors(this.compiledHtml);
-
-     this.compiledHtml = selectorsObj.html;
-     this.selector = selectorsObj.selectors;
-     this.eventsSelectors = selectorsObj.eventsSelectors;
-     this.linksSelectors = selectorsObj.linksSelectors;
+     Selectors.createUniqueSelectors(this);
 
     },
 
@@ -3850,12 +3984,68 @@ class Element {
             this.childElements[i].postConstruct();
         }
 
+    },
+
+
+    triggers: {},
+
+    trigger: function(triggerName, params){
+
+        if(!this.triggers[triggerName]){
+           Errors.throwError(Errors.messages.TRIGGER_NOT_DEFINED, [triggerName, scope.getClass()]);
+        }
+
+        var triggerDestinationElement = this.selector[this.triggers[triggerName].triggerId]();
+
+        switch(this.triggers[triggerName].triggerType){
+            case 'T' :
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this, this);
+            break;
+            case 'E' :
+                var elementInstance = Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
+                triggerDestinationElement.innerHTML = this.include(elementInstance);
+            break;
+        }
+
+    },
+
+    addTrigger: function(triggerType, modulePath, triggerName, triggerId){
+
+        this.triggers[triggerName] = {
+            triggerId: triggerId,
+            modulePath: modulePath,
+            triggerType: triggerType
+        };
+
+    },
+
+    addTriggerElement: function(elementClassName, triggerName, triggerId){
+
+        this.addTrigger('E', elementClassName, triggerName, triggerId);
+        return '';
+
+    },
+
+    addTriggerTemplate: function(templateName, triggerName, triggerId){
+
+        this.addTrigger('T', templateName, triggerName, triggerId);
+        return '';
+
+    },
+
+    destroy: function(){
+        Events.removeEventListeners(this);
+
+        if(this.childElements.length > 0){
+            for(var i = 0; i < this.childElements.length; i++){
+                this.childElements[i].destroy();
+            }
+        }
 
     },
 
     abstract function render;
     abstract function postConstruct;
-    abstract function destroy;
 
 }package spike.core;
 
@@ -3895,19 +4085,20 @@ class GlobalElement extends Element {
 
     replaceWith: function () {
 
-            var elementDiv = document.createElement("div");
-            elementDiv.innerHTML = this.compiledHtml;
-            elementDiv.setAttribute('element-name', this.getClass());
-            elementDiv.setAttribute('id', this.elementId);
+        var elementDiv = document.createElement("div");
+        elementDiv.innerHTML = this.compiledHtml;
+        elementDiv.setAttribute('element-name', this.getClass());
+        elementDiv.setAttribute('id', this.elementId);
 
-            System.getAppView().replaceChild(elementDiv, this.rootSelector());
+        System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-            this.elementSelector = document.getElementById(this.elementId);
+        this.elementSelector = document.getElementById(this.elementId);
 
     },
 
     destroy: function(){
-        Watchers.unobserve(this);
+        this.super.destroy();
+        Watchers.unobservable(this);
     }
 
 }package spike.core;
@@ -3929,8 +4120,8 @@ class Controller extends Element {
 
     render: function(){
 
-        this.elementSelector = System.getView();
         this.elementId = 'root';
+        this.elementSelector = System.getView();
         this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
@@ -3944,9 +4135,10 @@ class Controller extends Element {
 
     },
 
-
     destroy: function(){
-        Watchers.unobserve(this);
+        this.super.destroy();
+        Watchers.unobservable(this);
+
     }
 
 }package spike.core;
@@ -3987,6 +4179,7 @@ class Modal extends Element {
     },
 
     destroy: function () {
+        this.super.destroy();
         this.destroyed = true;
     },
 
@@ -4235,10 +4428,6 @@ static class Reconcile {
   },
 
   diffString: function (source, base, index, baseElement) {
-
-    console.log('diffString');
-    console.log(source);
-    console.log(base);
 
     var o = base == "" ? [] : base.split(/\s+/);
     var n = source == "" ? [] : source.split(/\s+/);
@@ -5057,10 +5246,6 @@ static class Watchers {
 
           for(var i = 0; i < watchElements.length; i++){
 
-            console.log(watchElements[i].getAttribute('sp-watch'));
-            console.log(watcherName);
-            console.log(watchElements[i].getAttribute('sp-watch-manual'));
-
 
             if(watcherName !== watchElements[i].getAttribute('sp-watch') && watchElements[i].getAttribute('sp-watch-manual') !== null){
                 continue;
@@ -5134,15 +5319,15 @@ static class Watchers {
 
         }
 
-        var namesListFromWatcher = Util.findStringBetween(watcherHtml, 'name="','"');
-        var namesListFromCurrent = Util.findStringBetween(currentHtml, 'name="','"');
+        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
+        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
 
         for(var i = 0; i < namesListFromWatcher.length; i++){
 
             for(var k = 0; k < namesListFromCurrent.length; k++){
 
                 if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
-                    watcherHtml = watcherHtml.replace('name="'+namesListFromWatcher[i]+'"', 'name="'+namesListFromCurrent[k]+'"');
+                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
                 }
 
             }
@@ -5179,7 +5364,7 @@ static class Watchers {
         this.observables.push(scope);
     },
 
-    unobserve: function(scope){
+    unobservable: function(scope){
 
         var index = -1;
         for(var i = 0; i < this.observables.length; i++){

@@ -45,7 +45,6 @@ class MultiRequest {
     },
 
     always: function (callback) {
-        console.log('always adding')
         $this.alwaysCallbacks.push(callback);
         return $this;
     },

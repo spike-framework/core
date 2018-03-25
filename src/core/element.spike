@@ -5,6 +5,8 @@ import Config from spike.core.System.config;
 import Templates from spike.core.Templates;
 import Errors from spike.core.Errors;
 import Selectors from spike.core.Selectors;
+import Assembler from spike.core.Assembler;
+import Events from spike.core.Events;
 
 class Element {
 
@@ -89,13 +91,7 @@ class Element {
     createTemplate: function () {
 
      this.compiledHtml = Templates.compileTemplate(this, this.templatePath);
-
-     var selectorsObj = Selectors.createUniqueSelectors(this.compiledHtml);
-
-     this.compiledHtml = selectorsObj.html;
-     this.selector = selectorsObj.selectors;
-     this.eventsSelectors = selectorsObj.eventsSelectors;
-     this.linksSelectors = selectorsObj.linksSelectors;
+     Selectors.createUniqueSelectors(this);
 
     },
 
@@ -109,11 +105,67 @@ class Element {
             this.childElements[i].postConstruct();
         }
 
+    },
+
+
+    triggers: {},
+
+    trigger: function(triggerName, params){
+
+        if(!this.triggers[triggerName]){
+           Errors.throwError(Errors.messages.TRIGGER_NOT_DEFINED, [triggerName, scope.getClass()]);
+        }
+
+        var triggerDestinationElement = this.selector[this.triggers[triggerName].triggerId]();
+
+        switch(this.triggers[triggerName].triggerType){
+            case 'T' :
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this, this);
+            break;
+            case 'E' :
+                var elementInstance = Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
+                triggerDestinationElement.innerHTML = this.include(elementInstance);
+            break;
+        }
+
+    },
+
+    addTrigger: function(triggerType, modulePath, triggerName, triggerId){
+
+        this.triggers[triggerName] = {
+            triggerId: triggerId,
+            modulePath: modulePath,
+            triggerType: triggerType
+        };
+
+    },
+
+    addTriggerElement: function(elementClassName, triggerName, triggerId){
+
+        this.addTrigger('E', elementClassName, triggerName, triggerId);
+        return '';
+
+    },
+
+    addTriggerTemplate: function(templateName, triggerName, triggerId){
+
+        this.addTrigger('T', templateName, triggerName, triggerId);
+        return '';
+
+    },
+
+    destroy: function(){
+        Events.removeEventListeners(this);
+
+        if(this.childElements.length > 0){
+            for(var i = 0; i < this.childElements.length; i++){
+                this.childElements[i].destroy();
+            }
+        }
 
     },
 
     abstract function render;
     abstract function postConstruct;
-    abstract function destroy;
 
 }

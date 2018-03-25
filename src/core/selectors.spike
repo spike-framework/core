@@ -49,35 +49,86 @@ static class Selectors {
 
   },
 
-  createNamesSelectors: function(element, selectors){
+  createFormsSelectors: function(element, selectors){
 
     //Retrieving list of form elements names
-    var elementsWithNames = element.querySelectorAll('[name]');
+    var formsWithNames = element.querySelectorAll('form[name]');
 
-    //Creating names selectors functions
-    for(var i = 0; i < elementsWithNames.length; i++){
-
-        //Creating new hash for identifier
-        var newName = elementsWithNames[i].getAttribute('name') + '-' + Util.hash();
-
-        selectors.names[name] = function () {
+    function getSelectorFn(name, newName) {
+        return function() {
 
             var selector = Selectors.selectorsCache[newName];
 
             if (selector === undefined) {
-                selector = document.querySelector('['+newId+']');
-                selector.plainId = newId;
-                Selectors.selectorsCache[newId] = selector;
+                selector = document.querySelector('form[name="'+newName+'"]');
+                selector.plainName = name;
+                selector.serialize = Util.serializeForm.bind(selector);
+
+                Selectors.selectorsCache[newName] = selector;
             } else {
                 Selectors.cacheUsageCounter++;
             }
 
             return selector;
 
+        };
+    };
+
+    for(var i = 0; i < formsWithNames.length; i++){
+
+        if(formsWithNames[i].getAttribute('sp-keep-name') != null){
+            continue;
         }
 
-        elementsWithNames[i].setAttribute('name', newName);
+        var name = formsWithNames[i].getAttribute('name');
 
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+        selectors.forms[name] = getSelectorFn(name, newName);
+        formsWithNames[i].setAttribute('name', newName);
+
+    }
+
+    return element.innerHTML;
+
+  },
+
+  createNamesSelectors: function(element, selectors){
+
+    //Retrieving list of form elements names
+    var elementsWithNames = element.querySelectorAll('[name]');
+
+    function getSelectorFn(name, newName) {
+        return function() {
+
+            var selector = Selectors.selectorsCache[newName];
+
+            if (selector === undefined) {
+                selector = document.querySelector('[name="'+newName+'"]');
+                selector.plainName = name;
+                Selectors.selectorsCache[newName] = selector;
+            } else {
+                Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+        };
+    };
+
+    //Creating names selectors functions
+    for(var i = 0; i < elementsWithNames.length; i++){
+
+        if(elementsWithNames[i].getAttribute('sp-keep-name') != null || elementsWithNames[i].tagName.toLowerCase() === 'form' || elementsWithNames[i].type === 'radio'){
+            continue;
+        }
+
+        var name = elementsWithNames[i].getAttribute('name');
+
+        //Creating new hash for identifier
+        var newName = name + '-' + Util.hash();
+        selectors.names[name] = getSelectorFn(name, newName);
+        elementsWithNames[i].setAttribute('name', newName);
 
     }
 
@@ -87,30 +138,38 @@ static class Selectors {
 
   createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-   var elementsWithId = element.querySelectorAll('[id]');
+    var elementsWithId = element.querySelectorAll('[id]');
+
+    function getSelectorFn(newId) {
+        return function() {
+
+            var selector = Selectors.selectorsCache[newId];
+
+            if (selector === undefined) {
+              selector = document.getElementById(newId);
+              selector.plainId = newId;
+              Selectors.selectorsCache[newId] = selector;
+            } else {
+              Selectors.cacheUsageCounter++;
+            }
+
+            return selector;
+
+        };
+    };
 
    //Creating identifiers selectors functions
    for(var i = 0; i < elementsWithId.length; i++){
+
+    if(elementsWithId[i].getAttribute('sp-keep-id') != null){
+        continue;
+    }
 
     //Creating new hash for identifier
     var newId = elementsWithId[i].id + '-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[elementsWithId[i].id] = function () {
-
-        var selector = Selectors.selectorsCache[newId];
-
-        if (selector === undefined) {
-          selector = document.getElementById(newId);
-          selector.plainId = newId;
-          Selectors.selectorsCache[newId] = selector;
-        } else {
-          Selectors.cacheUsageCounter++;
-        }
-
-        return selector;
-
-    };
+    selectors[elementsWithId[i].id] = getSelectorFn(newId);
 
     if(elementsWithId[i].getAttribute('spike-unbinded') != null){
         eventsSelectors.push(newId);
@@ -140,28 +199,24 @@ static class Selectors {
    * @param templateHtml
    *
    */
-   createUniqueSelectors: function (templateHtml) {
+   createUniqueSelectors: function (scope) {
 
     var element = document.createElement('div');
-    element.innerHTML = templateHtml;
+    element.innerHTML = scope.compiledHtml;
 
-    var selectors = {
+    scope.selector = {
         names: {},
         forms: {}
     };
 
-    var eventsSelectors = [];
-    var linksSelectors = [];
+    scope.eventsSelectors = [];
+    scope.linksSelectors = [];
 
-    templateHtml = this.createNamesSelectors(element, selectors);
-    templateHtml = this.createIdSelectors(element, selectors, eventsSelectors, linksSelectors);
+    var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
+    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+    newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
 
-    return {
-      html: templateHtml,
-      selectors: selectors,
-      eventsSelectors: eventsSelectors,
-      linksSelectors: linksSelectors
-    };
+    scope.compiledHtml = newCompiledHtml;
 
   },
 

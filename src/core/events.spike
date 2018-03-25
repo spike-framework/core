@@ -62,33 +62,58 @@ static class Events {
 
     for(var i = 0; i < element.eventsSelectors.length; i++){
 
-        var selector = document.getElementById(element.eventsSelectors[i]);
+        if(typeof element.eventsSelectors[i] === 'string'){
+            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+        }
 
-        for (var k = 0; k < this.allowedEvents.length; k++) {
+        if(element.eventsSelectors[i].getAttribute('spike-unbinded') != null){
 
-            var eventFunctionBody = selector.getAttribute('spike-event-' + this.allowedEvents[k]);
+            for (var k = 0; k < this.allowedEvents.length; k++) {
 
-            if (eventFunctionBody) {
+                var eventFunctionBody = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]);
 
-                var eventFn = Function('scope', 'event', eventFunctionBody);
-                var eventRef = element.eventsSelectors[i]+'_'+this.allowedEvents[k];
+                if (eventFunctionBody) {
 
-                if(this.__eventsReferences[eventRef]){
-                     selector.removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                    var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+
+                    if(!this.__eventsReferences[eventRef]){
+                        this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(null, element);
+                        element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                    }
+
                 }
-
-                this.__eventsReferences[eventRef] = eventFn;
-                selector.addEventListener(this.allowedEvents[k], eventFn.bind(null, element));
-
 
             }
 
         }
 
-        selector.removeAttribute('spike-unbinded');
+        element.eventsSelectors[i].removeAttribute('spike-unbinded');
 
     }
 
   },
+
+
+  removeEventListeners: function(element){
+
+    for(var i = 0; i < element.eventsSelectors.length; i++){
+
+        if(typeof element.eventsSelectors[i] === 'string'){
+            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+        }
+
+        for (var k = 0; k < this.allowedEvents.length; k++) {
+
+            var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+
+            if(this.__eventsReferences[eventRef]){
+                element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+            }
+
+        }
+
+    }
+
+  }
 
 }

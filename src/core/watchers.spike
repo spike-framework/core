@@ -110,15 +110,15 @@ static class Watchers {
 
         }
 
-        var namesListFromWatcher = Util.findStringBetween(watcherHtml, 'name="','"');
-        var namesListFromCurrent = Util.findStringBetween(currentHtml, 'name="','"');
+        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
+        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
 
         for(var i = 0; i < namesListFromWatcher.length; i++){
 
             for(var k = 0; k < namesListFromCurrent.length; k++){
 
                 if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
-                    watcherHtml = watcherHtml.replace('name="'+namesListFromWatcher[i]+'"', 'name="'+namesListFromCurrent[k]+'"');
+                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
                 }
 
             }
@@ -155,7 +155,7 @@ static class Watchers {
         this.observables.push(scope);
     },
 
-    unobserve: function(scope){
+    unobservable: function(scope){
 
         var index = -1;
         for(var i = 0; i < this.observables.length; i++){

@@ -51,12 +51,12 @@ spike.core.Assembler = {
 
         if (from.hasOwnProperty(prop)) {
 
-          if (to[prop] !== undefined) {
-            supers[prop] = from[prop];
-            overrides[prop] = to[prop];
-          } else {
-            to[prop] = from[prop];
-          }
+            if (to[prop] !== undefined) {
+              supers[prop] = from[prop];
+              overrides[prop] = to[prop];
+            } else {
+              to[prop] = from[prop];
+            }
 
         }
 
@@ -66,7 +66,9 @@ spike.core.Assembler = {
         to[prop] = overrides[prop];
       }
 
-      to.super = supers;
+      to.super = function(){
+        return spike.core.Assembler.getClassByName(this.getSuper()).prototype;
+      };
 
     }
 

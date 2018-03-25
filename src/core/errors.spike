@@ -35,7 +35,9 @@ static class Errors {
 
       SPIKE_APP_NOT_DEFINED: 'No DOM element with {0} or {1} attribute specified',
       REQUEST_WRONG_PARAMS: 'Request url and type not defined',
-      JSON_PARSE_ERROR: 'JSON parse error during execution {0}'
+      JSON_PARSE_ERROR: 'JSON parse error during execution {0}',
+
+      TRIGGER_NOT_DEFINED: 'Trigger {0} is not defined for scope {1}'
 
     },
 

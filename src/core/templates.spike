@@ -7,13 +7,13 @@ static class Templates {
     templates: {},
 
     compileTemplate: function(scope, name){
-        return this.templates[Assembler.sourcePath+"_"+name](scope);
+        return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
     },
 
-    includeTemplate: function(name, params){
+    includeTemplate: function(name, params, scope){
 
       name = name.split('.').join('_')+'_html';
-      return this.templates[Assembler.sourcePath+"_"+name](params);
+      return this.templates[Assembler.sourcePath+"_"+name](params, scope);
 
     }
 

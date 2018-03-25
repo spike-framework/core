@@ -36,19 +36,20 @@ class GlobalElement extends Element {
 
     replaceWith: function () {
 
-            var elementDiv = document.createElement("div");
-            elementDiv.innerHTML = this.compiledHtml;
-            elementDiv.setAttribute('element-name', this.getClass());
-            elementDiv.setAttribute('id', this.elementId);
+        var elementDiv = document.createElement("div");
+        elementDiv.innerHTML = this.compiledHtml;
+        elementDiv.setAttribute('element-name', this.getClass());
+        elementDiv.setAttribute('id', this.elementId);
 
-            System.getAppView().replaceChild(elementDiv, this.rootSelector());
+        System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-            this.elementSelector = document.getElementById(this.elementId);
+        this.elementSelector = document.getElementById(this.elementId);
 
     },
 
     destroy: function(){
-        Watchers.unobserve(this);
+        this.super.destroy();
+        Watchers.unobservable(this);
     }
 
 }

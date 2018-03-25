@@ -363,8 +363,6 @@ static class Router {
    */
   onHistoryChanges: function () {
 
-    console.log('onHistoryChanges '+Router.routerHTML5Mode);
-
     if (Router.routerHTML5Mode === true) {
 
       Log.debug('Executes Router.onHistoryChanges');
@@ -1105,8 +1103,6 @@ static class Router {
 
         var selector = document.getElementById(element.linksSelectors[i]);
 
-        console.log(selector);
-
         selector.addEventListener('click', function (e) {
             e.preventDefault();
 
@@ -1126,8 +1122,6 @@ static class Router {
               }
 
             }
-
-            console.log(link);
 
             if (link.indexOf('www') > -1 || link.indexOf('http') > -1) {
               Router.location(link,this.getAttribute('target') || '_blank');

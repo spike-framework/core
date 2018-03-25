@@ -168,12 +168,12 @@ static class System {
     //Clears selectors cache
     Selectors.clearSelectorsCache();
 
-    //Renders controller
-    controller.render();
-
     if(this.currentRenderedController){
         this.currentRenderedController.destroy();
     }
+
+    //Renders controller
+    controller.render();
 
     this.currentRenderedController = controller;
 

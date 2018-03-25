@@ -17,8 +17,8 @@ class Controller extends Element {
 
     render: function(){
 
-        this.elementSelector = System.getView();
         this.elementId = 'root';
+        this.elementSelector = System.getView();
         this.rootSelector().innerHTML = this.compiledHtml;
 
         Events.bindEvents(this);
@@ -32,9 +32,10 @@ class Controller extends Element {
 
     },
 
-
     destroy: function(){
-        Watchers.unobserve(this);
+        this.super.destroy();
+        Watchers.unobservable(this);
+
     }
 
 }

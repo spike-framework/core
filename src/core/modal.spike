@@ -36,6 +36,7 @@ class Modal extends Element {
     },
 
     destroy: function () {
+        this.super.destroy();
         this.destroyed = true;
     },
 
