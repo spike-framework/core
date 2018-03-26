@@ -418,7 +418,7 @@ if (eventFunctionBody) {
 var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
 
 if(!this.__eventsReferences[eventRef]){
-this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(null, element);
+this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(element.eventsSelectors[i], element);
 element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
 }
 
@@ -931,23 +931,11 @@ newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSe
 
 scope.compiledHtml = newCompiledHtml;
 
-},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,toCamelCase: function (str) {var $this=this;
-
-if (this.isEmpty(str)) {
-return str;
-}
-
-str = str.split('-').join(' ');
-
-return str.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, function (match, index) {
-if (+match === 0) return ""; // or if (/\s+/.test(match)) for white spaces
-return index === 0 ? match.toLowerCase() : match.toUpperCase();
-});
-
-},copyArray: function (oldArray) {var $this=this;
-return JSON.parse(JSON.stringify(oldArray));
-},currentDateLog: function () {var $this=this;
+},getSuper:function(){var $this=this; return 'null'; },getClass:function(){var $this=this; return 'spike.core.Selectors'; },}});spike.core.Assembler.createStaticClass('spike.core','Util', 'null',function(){ return {isClass: true,currentDateLog: function () {var $this=this;
 return new Date().toLocaleTimeString();
+},isFunction: function (functionToCheck) {var $this=this;
+var getType = {};
+return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
 },bindStringParams: function (string, objectOrArrayParams) {var $this=this;
 
 if (!string) {
@@ -980,32 +968,6 @@ console.log(err);
 }
 
 return string;
-
-},setValue: function(selector, value){var $this=this;
-
-var elementType = selector.prop('tagName');
-
-if (!elementType) {
-elementType = selector.prop('nodeName');
-}
-
-elementType = elementType.toLowerCase();
-
-if (elementType == 'label' || elementType == 'div' || elementType == 'span' || elementType == 'button' || elementType == 'p' || elementType.indexOf('h') > -1) {
-selector.html(value.toString());
-} else if (elementType == 'img') {
-selector.attr('src', value);
-} else if (selector.is(':checkbox')) {
-if (value == true || parseInt(value) == 1) {
-selector.prop('checked', true);
-} else {
-selector.prop('checked', false);
-}
-} else if (elementType == 'a') {
-selector.attr('href', value);
-} else {
-selector.val(value);
-}
 
 },serializeForm: function(){var $this=this;
 
@@ -1040,35 +1002,6 @@ serializeField(fields[i]);
 
 return serializedObject;
 
-},isFunction: function (functionToCheck) {var $this=this;
-var getType = {};
-return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
-},isObject: function (object) {var $this=this;
-
-if (this.isNull(object)) {
-return false;
-}
-
-if (object.toString() === '[object Object]') {
-return true;
-}
-
-return false;
-
-},parseJSON: function (s) {var $this=this;
-
-s = s.replace(/\\n/g, "\\n")
-.replace(/\\'/g, "\\'")
-.replace(/\\"/g, '\\"')
-.replace(/\\&/g, "\\&")
-.replace(/\\r/g, "\\r")
-.replace(/\\t/g, "\\t")
-.replace(/\\b/g, "\\b")
-.replace(/\\f/g, "\\f");
-s = s.replace(/[\u0000-\u0019]+/g, "");
-var o = JSON.parse(s);
-
-return o;
 },isEmpty: function (obj) {var $this=this;
 
 if (obj === undefined || obj === null) {

@@ -257,7 +257,7 @@ static class Events {
                     var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
 
                     if(!this.__eventsReferences[eventRef]){
-                        this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(null, element);
+                        this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(element.eventsSelectors[i], element);
                         element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
                     }
 
@@ -1279,39 +1279,6 @@ static class Selectors {
 static class Util {
 
         /**
-         * Transforms string into camel case notation
-         * Example: category-id => categoryId
-         * Example category id => categoryId
-         *
-         * @param str
-         */
-        toCamelCase: function (str) {
-
-            if (this.isEmpty(str)) {
-                return str;
-            }
-
-            str = str.split('-').join(' ');
-
-            return str.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, function (match, index) {
-                if (+match === 0) return ""; // or if (/\s+/.test(match)) for white spaces
-                return index === 0 ? match.toLowerCase() : match.toUpperCase();
-            });
-
-        },
-
-        /**
-         * @public
-         *
-         * Copies array to another instance without reference
-         *
-         * @returns {string}
-         */
-        copyArray: function (oldArray) {
-            return JSON.parse(JSON.stringify(oldArray));
-        },
-
-        /**
          * @public
          *
          * Returns date for logging module
@@ -1320,6 +1287,20 @@ static class Util {
          */
         currentDateLog: function () {
             return new Date().toLocaleTimeString();
+        },
+
+
+        /**
+         * @public
+         *
+         * Checks if passed object is JavaScript @function
+         *
+         * @param functionToCheck
+         * @returns {*|boolean}
+         */
+        isFunction: function (functionToCheck) {
+            var getType = {};
+            return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
         },
 
         /**
@@ -1378,34 +1359,6 @@ static class Util {
 
         },
 
-        setValue: function(selector, value){
-
-            var elementType = selector.prop('tagName');
-
-            if (!elementType) {
-                elementType = selector.prop('nodeName');
-            }
-
-            elementType = elementType.toLowerCase();
-
-            if (elementType == 'label' || elementType == 'div' || elementType == 'span' || elementType == 'button' || elementType == 'p' || elementType.indexOf('h') > -1) {
-                selector.html(value.toString());
-            } else if (elementType == 'img') {
-                selector.attr('src', value);
-            } else if (selector.is(':checkbox')) {
-                if (value == true || parseInt(value) == 1) {
-                    selector.prop('checked', true);
-                } else {
-                    selector.prop('checked', false);
-                }
-            } else if (elementType == 'a') {
-                selector.attr('href', value);
-            } else {
-                selector.val(value);
-            }
-
-        },
-
         serializeForm: function(){
 
             var serializedObject = {};
@@ -1439,65 +1392,6 @@ static class Util {
 
             return serializedObject;
 
-        },
-
-        /**
-         * @public
-         *
-         * Checks if passed object is JavaScript @function
-         *
-         * @param functionToCheck
-         * @returns {*|boolean}
-         */
-        isFunction: function (functionToCheck) {
-            var getType = {};
-            return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
-        },
-
-        /**
-         * @public
-         *
-         * Checks if given variable is an object
-         * If null or undefined returns false
-         *
-         * @param object
-         */
-        isObject: function (object) {
-
-            if (this.isNull(object)) {
-                return false;
-            }
-
-            if (object.toString() === '[object Object]') {
-                return true;
-            }
-
-            return false;
-
-        },
-
-        /**
-         * @public
-         *
-         * Function to parse JSON @string to JavaScript @object with replacing
-         * whole whitespaces, tabs, new lines etc.
-         *
-         * @param s
-         */
-        parseJSON: function (s) {
-
-            s = s.replace(/\\n/g, "\\n")
-                .replace(/\\'/g, "\\'")
-                .replace(/\\"/g, '\\"')
-                .replace(/\\&/g, "\\&")
-                .replace(/\\r/g, "\\r")
-                .replace(/\\t/g, "\\t")
-                .replace(/\\b/g, "\\b")
-                .replace(/\\f/g, "\\f");
-            s = s.replace(/[\u0000-\u0019]+/g, "");
-            var o = JSON.parse(s);
-
-            return o;
         },
 
         /**
