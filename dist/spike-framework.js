@@ -384,11 +384,10 @@ spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnM
 'mouseleave',
 'mouseout',
 'submit',
-'trigger',
 'toggle',
 'load',
 'unload'
-],__eventsReferences: {},isClass: true,bindEvents: function(element){var $this=this;
+],__eventsReferences: {},__linkReferences: {},isClass: true,bindEvents: function(element){var $this=this;
 
 this.bindEventsForElement(element);
 for(var i = 0; i < element.childElements.length; i++){
@@ -418,7 +417,12 @@ if (eventFunctionBody) {
 var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
 
 if(!this.__eventsReferences[eventRef]){
-this.__eventsReferences[eventRef] = Function('scope', 'event', eventFunctionBody).bind(element.eventsSelectors[i], element);
+
+var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
+eventFnLink = $this.__linkReferences[eventFnLinkHash].fn;
+eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
+
+this.__eventsReferences[eventRef] = eventFnLink;
 element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
 }
 

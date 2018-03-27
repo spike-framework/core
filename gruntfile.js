@@ -88,10 +88,10 @@ module.exports = function (grunt) {
                         expand: true,
                         cwd: './dist',
                         src: ['spike-framework.js'],
-                        //dest: 'D:\\xampp\\htdocs\\starter\\dist'
-                        dest: 'F:\\sbbetting-source\\sb-admin-console2\\admin-console-new-front'
+                        dest: 'D:\\xampp\\htdocs\\starter\\dist'
+                        //dest: 'F:\\sbbetting-source\\sb-admin-console2\\admin-console-new-front'
                     }
-                ],
+                ]
             }
 
         },
@@ -167,6 +167,6 @@ module.exports = function (grunt) {
     });
 
     grunt.registerTask('docs', ['clean:docs', 'shell:docsDirs', 'shell:docsGenerate']);
-    grunt.registerTask('build', ['clean:dist', 'concat:files', 'shell:transpile', 'concat:build']);
+    grunt.registerTask('build', ['clean:dist', 'concat:files', 'shell:transpile', 'concat:build', 'copy:starter']);
     grunt.registerTask('dev', ['build', 'concurrent:dev']);
 };
