@@ -159,7 +159,7 @@ static class System {
     }
 
     //Invalidates all existing modals (even hidden)
-    this.modalInterface.invalidateAll();
+    this.modalInterface.removeAll();
 
   //  if (controllerObject.checkNetwork === true && Config.mobileRun === true) {
       //app.cordova.checkNetwork();

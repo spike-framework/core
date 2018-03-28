@@ -5,40 +5,66 @@ import System from spike.core.System;
 import Errors from spike.core.Errors;
 import ModalInterface from spike.core.System.modalInterface;
 import Element from spike.core.Element;
+import Watchers from spike.core.Watchers;
+import Util from spike.core.Util;
+import Events from spike.core.Events;
+import Router from spike.core.Router;
 
 class Modal extends Element {
 
-    destroyed: false,
+    visible: false,
 
-    Modal: function(model){
+    Modal: function(){
+
+     this.createTemplatePath();
+     this.createTemplate();
+     this.render();
+
+    },
+
+    render: function(){
 
         this.parentElement = System.getModalsView();
-        this.model = model;
+        this.elementId = 'modal-'+Util.hash();
 
-        this.createTemplatePath();
-        this.createTemplate();
+        console.log(this.parentElement);
 
-        //System.bindEvents(componentSelector); --powinno byc wywolane w systemie po zakonczeniu ladowania templatek
-        //System.bindLinks(componentSelector);
+        var modalElement = document.createElement('div');
+        modalElement.id = this.elementId;
+        modalElement = ModalInterface.onConstruct(modalElement);
 
-//         if(this.init !== undefined){  --nie moze byc bo jak jest include to dopiero templata jest wrzucona do innej
-//            this.init();
-//         }
+        this.parentElement.appendChild(modalElement);
+        this.rootSelector().innerHTML = this.compiledHtml;
+
+        Events.bindEvents(this);
+        Router.bindLinks(this);
+        Watchers.observe(this);
+
+        ModalInterface.onRender(this);
+        this.rendered = true;
+
+        this.postConstructChildren();
+        this.postConstruct();
 
     },
 
     show: function(){
-        ModalInterface.onShow();
+        this.visible = true;
+        ModalInterface.onShow(this);
     },
 
     hide: function(){
-        ModalInterface.onHide();
+        this.visible = false;
+        ModalInterface.onHide(this);
     },
 
     destroy: function () {
+        ModalInterface.onDestroy(this);
+        this.visible = false;
         this.super.destroy();
-        this.destroyed = true;
-    },
+        Watchers.unobservable(this);
+        this.rootSelector().remove();
+    }
 
 
 };

@@ -35,7 +35,6 @@ class Controller extends Element {
     destroy: function(){
         this.super.destroy();
         Watchers.unobservable(this);
-
     }
 
 }
