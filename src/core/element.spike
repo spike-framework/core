@@ -66,8 +66,19 @@ class Element {
 
     include: function(childElement){
 
+        childElement.extractElementId();
+
         this.childElements.push(childElement);
         return childElement.compiledHtml;
+
+    },
+
+    extractElementId: function(){
+
+        var virtualElement = document.createElement('div');
+        virtualElement.innerHTML = this.compiledHtml;
+
+        this.elementId = virtualElement.firstChild.id;
 
     },
 

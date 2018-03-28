@@ -894,11 +894,11 @@ return selector;
 
 for(var i = 0; i < elementsWithId.length; i++){
 
-if(elementsWithId[i].getAttribute('sp-keep-id') != null){
+if(elementsWithId[i].getAttribute('sp-keep-id') != null || elementsWithId[i].id.indexOf('-sp-') > -1){
 continue;
 }
 
-var newId = elementsWithId[i].id + '-' + spike.core.Util.hash();
+var newId = elementsWithId[i].id + '-sp-' + spike.core.Util.hash();
 
 selectors[elementsWithId[i].id] = getSelectorFn(newId);
 
@@ -2440,8 +2440,17 @@ this[prop] = params[prop];
 
 };spike.core.Element.prototype.include=function(childElement){var $this=this;
 
+childElement.extractElementId();
+
 this.childElements.push(childElement);
 return childElement.compiledHtml;
+
+};spike.core.Element.prototype.extractElementId=function(){var $this=this;
+
+var virtualElement = document.createElement('div');
+virtualElement.innerHTML = this.compiledHtml;
+
+this.elementId = virtualElement.firstChild.id;
 
 };spike.core.Element.prototype.createTemplatePath=function(){var $this=this;
 

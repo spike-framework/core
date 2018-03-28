@@ -150,8 +150,8 @@ module.exports = function (grunt) {
                 command: spike.docs.commandGenerate
             },
             transpile: {
-               // command: "java -jar F:\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
-               command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+                command: "java -jar F:\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+              // command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
             }
         },
 
@@ -167,6 +167,6 @@ module.exports = function (grunt) {
     });
 
     grunt.registerTask('docs', ['clean:docs', 'shell:docsDirs', 'shell:docsGenerate']);
-    grunt.registerTask('build', ['clean:dist', 'concat:files', 'shell:transpile', 'concat:build', 'copy:starter']);
+    grunt.registerTask('build', ['clean:dist', 'concat:files', 'shell:transpile', 'concat:build', ]);
     grunt.registerTask('dev', ['build', 'concurrent:dev']);
 };

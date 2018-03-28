@@ -1219,12 +1219,12 @@ static class Selectors {
    //Creating identifiers selectors functions
    for(var i = 0; i < elementsWithId.length; i++){
 
-    if(elementsWithId[i].getAttribute('sp-keep-id') != null){
+    if(elementsWithId[i].getAttribute('sp-keep-id') != null || elementsWithId[i].id.indexOf('-sp-') > -1){
         continue;
     }
 
     //Creating new hash for identifier
-    var newId = elementsWithId[i].id + '-' + Util.hash();
+    var newId = elementsWithId[i].id + '-sp-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
     selectors[elementsWithId[i].id] = getSelectorFn(newId);
@@ -3844,8 +3844,19 @@ class Element {
 
     include: function(childElement){
 
+        childElement.extractElementId();
+
         this.childElements.push(childElement);
         return childElement.compiledHtml;
+
+    },
+
+    extractElementId: function(){
+
+        var virtualElement = document.createElement('div');
+        virtualElement.innerHTML = this.compiledHtml;
+
+        this.elementId = virtualElement.firstChild.id;
 
     },
 
