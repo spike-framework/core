@@ -13,7 +13,6 @@ class ModalInterface {
     },
 
     onShow: function (modal) {
-         console.log(modal.elementId);
          modal.rootSelector().style = 'display: block;';
     },
 

@@ -31,6 +31,10 @@ static class System {
     this.eventsInterface = eventsInterface;
    },
 
+   setXhrInterface: function(xhrInterface){
+    this.xhrInterface = xhrInterface;
+   },
+
    setModalInterface: function(modalInterface){
     this.modalInterface = modalInterface;
    },
@@ -215,9 +219,11 @@ static class System {
 
     var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
 
-    if (module.getSuper() === 'spike.core.Controller') {
+    var inheritsModuleList = Assembler.getClassExtendingList(module);
+
+    if (inheritsModuleList.indexOf('spike.core.Controller') > -1) {
       System.renderController(module, afterRenderCallback);
-    } else if (module.getSuper() === 'spike.core.Modal') {
+    } else if (inheritsModuleList.indexOf('spike.core.Modal') > -1) {
       System.renderModal(module, afterRenderCallback);
     }
 
@@ -316,6 +322,10 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
+    if(this.xhrInterface === null){
+        this.setXhrInterface(new XhrInterface());
+    }
+
     Log.log('Destroy assembler');
     Assembler.destroy();
 
@@ -352,19 +362,15 @@ static class System {
     **/
   initGlobalElements: function(){
 
-    var globalElements = document.getElementsByTagName('spike');
+    var globalElements = document.querySelectorAll('spike[sp-global-element]');
 
     for(var i = 0; i < globalElements.length; i++){
 
-        if(globalElements[i].getAttribute('sp-element')){
+        globalElements[i].id = 'global-'+Util.hash();
+        var className = globalElements[i].getAttribute('sp-global-element');
 
-            globalElements[i].id = 'global-'+Util.hash();
-            var className = globalElements[i].getAttribute('sp-element');
-
-            var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
-            this.globalElements.push(globalElement);
-
-        }
+        var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+        this.globalElements.push(globalElement);
 
     }
 

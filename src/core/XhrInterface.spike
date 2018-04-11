@@ -1,0 +1,13 @@
+package spike.core;
+
+class XhrInterface {
+
+    xhrFields: {
+        withCredentials: true
+    },
+
+    abstract function onBefore;
+    abstract function onComplete;
+    abstract function onCatch;
+
+}

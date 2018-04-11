@@ -299,6 +299,30 @@ spike.core.Assembler = {
 
   },
 
+  getClassSuper: function(module){
+
+    if(module.super){
+      return this.getClassSuper(module.super());
+    }else{
+      return module.getClass();
+    }
+
+  },
+
+  getClassExtendingList: function(module, inheritsList){
+
+    inheritsList = inheritsList || [];
+
+    if(module.super){
+      inheritsList.push(module.getClass());
+      return this.getClassExtendingList(module.super(), inheritsList);
+    }else{
+      inheritsList.push(module.getClass());
+      return inheritsList;
+    }
+
+  },
+
   getClassInstance: function (classFullName, argsArray) {
     var clazz = this.getClassByName(classFullName);
 
@@ -306,7 +330,14 @@ spike.core.Assembler = {
       this.throwError('Class '+classFullName+' not found');
     }
 
-    return new clazz(argsArray);
+    argsArray.unshift(null);
+
+    return this.newCall(clazz, argsArray);
+
+  },
+
+  newCall: function(cls, args) {
+     return new (Function.prototype.bind.apply(cls, args));
   },
 
   destroy: function(){

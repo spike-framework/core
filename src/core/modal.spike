@@ -16,9 +16,9 @@ class Modal extends Element {
 
     Modal: function(){
 
-     this.createTemplatePath();
-     this.createTemplate();
-     this.render();
+        this.createTemplatePath();
+        this.createTemplate();
+        this.render();
 
     },
 
@@ -26,8 +26,6 @@ class Modal extends Element {
 
         this.parentElement = System.getModalsView();
         this.elementId = 'modal-'+Util.hash();
-
-        console.log(this.parentElement);
 
         var modalElement = document.createElement('div');
         modalElement.id = this.elementId;
@@ -59,11 +57,15 @@ class Modal extends Element {
     },
 
     destroy: function () {
-        ModalInterface.onDestroy(this);
-        this.visible = false;
-        this.super.destroy();
-        Watchers.unobservable(this);
-        this.rootSelector().remove();
+
+        if(this.rendered === true){
+             this.rootSelector().remove();
+             ModalInterface.onDestroy(this);
+             this.visible = false;
+             this.super.destroy();
+             Watchers.unobservable(this);
+        }
+
     }
 
 

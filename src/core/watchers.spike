@@ -73,17 +73,47 @@ static class Watchers {
 
     },
 
+    idCache: {},
+
+    preventApply: function(element1, element2){
+        return element1.outerHTML === element2.outerHTML;
+    },
+
     replaceChangedElements: function(watcherHtml, currentElement){
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.innerHTML.length === 0){
+            Log.log('Watcher - replace without diff');
             document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-            Reconcile.apply(changes, document.getElementById(currentElement.id));
+            //this.regenerateGeneratedIds(watcherVirtual.firstChild);
+
+            if(!this.idCache[currentElement.id]){
+                this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+            }
+
+            if(!this.preventApply(this.idCache[currentElement.id], currentElement)){
+                console.log('apply changes');
+                var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+                Reconcile.apply(changes, this.idCache[currentElement.id]);
+            }
+
+        }
+
+    },
+
+    regenerateGeneratedIds: function(element){
+
+        var elementsWithIds = element.querySelectorAll('[id]');
+
+        for(var i = 0; i < elementsWithIds.length; i++){
+
+            if(elementsWithIds[i].id.indexOf('id-') > -1){
+                elementsWithIds[i].id = elementsWithIds[i].id+'-'+Util.hash();
+            }
 
         }
 
@@ -182,29 +212,30 @@ static class Watchers {
 
     stringifyScope: function(scope){
 
-        var stringify = '';
-
+        var copy = {};
         for(var key in scope) {
             if(typeof scope[key] !== 'function'){
 
                 if($this.excludedProperties.indexOf(key) == -1){
-                  stringify += key + JSON.stringify(scope[key]);
+                  copy[key] = scope[key];
                 }
 
             }
-
         }
 
-        return stringify;
+        return JSON.stringify(copy);
 
     },
-
 
     detectScopeChange: function(scope){
 
         var stringify = $this.stringifyScope(scope);
 
         if(stringify !== $this.scopes[scope.elementId]){
+
+            console.log(stringify);
+            console.log(this.scopes[scope.elementId]);
+
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
         }
@@ -218,7 +249,7 @@ static class Watchers {
         setTimeout(function(){
 
             for(var i = 0; i < $this.observables.length; i++){
-                $this.detectScopeChange($this.observables[i]);
+              //  $this.detectScopeChange($this.observables[i]);
             }
 
             $this.createWatchLoop();

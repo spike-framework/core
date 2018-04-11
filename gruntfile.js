@@ -30,6 +30,7 @@ var spike = {
         './src/core/errors.spike',
         './src/core/events.spike',
         './src/core/eventsInterface.spike',
+        './src/core/XhrInterface.spike',
         './src/core/routingInterface.spike',
         './src/core/loaderInterface.spike',
         './src/core/modalInterface.spike',
@@ -88,8 +89,8 @@ module.exports = function (grunt) {
                         expand: true,
                         cwd: './dist',
                         src: ['spike-framework.js'],
-                        dest: 'D:\\xampp\\htdocs\\starter\\dist'
-                        //dest: 'F:\\sbbetting-source\\sb-admin-console2\\admin-console-new-front'
+                        //dest: 'D:\\xampp\\htdocs\\starter\\dist'
+                        dest: 'F:\\sbbetting-source\\sb-admin-console3\\admin-console-front'
                     }
                 ]
             }
@@ -150,8 +151,8 @@ module.exports = function (grunt) {
                 command: spike.docs.commandGenerate
             },
             transpile: {
-                //command: "java -jar F:\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
-               command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+                command: "java -jar F:\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
+              // command: "java -jar D:\\xampp\\htdocs\\transpiler\\build\\libs\\spike-transpiler.jar transpiler dist/spike-framework.spike dist/spike-framework.js spike"
             }
         },
 

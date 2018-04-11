@@ -401,6 +401,18 @@ class EventsInterface {
 
 }package spike.core;
 
+class XhrInterface {
+
+    xhrFields: {
+        withCredentials: true
+    },
+
+    abstract function onBefore;
+    abstract function onComplete;
+    abstract function onCatch;
+
+}package spike.core;
+
 class RoutingInterface {
 
   create: function(router){
@@ -433,7 +445,6 @@ class ModalInterface {
     },
 
     onShow: function (modal) {
-         console.log(modal.elementId);
          modal.rootSelector().style = 'display: block;';
     },
 
@@ -499,6 +510,10 @@ static class System {
 
    setEventsInterface: function(eventsInterface){
     this.eventsInterface = eventsInterface;
+   },
+
+   setXhrInterface: function(xhrInterface){
+    this.xhrInterface = xhrInterface;
    },
 
    setModalInterface: function(modalInterface){
@@ -685,9 +700,11 @@ static class System {
 
     var module = Assembler.getClassInstance(moduleClass, [moduleInitialModel]);
 
-    if (module.getSuper() === 'spike.core.Controller') {
+    var inheritsModuleList = Assembler.getClassExtendingList(module);
+
+    if (inheritsModuleList.indexOf('spike.core.Controller') > -1) {
       System.renderController(module, afterRenderCallback);
-    } else if (module.getSuper() === 'spike.core.Modal') {
+    } else if (inheritsModuleList.indexOf('spike.core.Modal') > -1) {
       System.renderModal(module, afterRenderCallback);
     }
 
@@ -786,6 +803,10 @@ static class System {
         this.setEventsInterface(new EventsInterface());
     }
 
+    if(this.xhrInterface === null){
+        this.setXhrInterface(new XhrInterface());
+    }
+
     Log.log('Destroy assembler');
     Assembler.destroy();
 
@@ -822,19 +843,15 @@ static class System {
     **/
   initGlobalElements: function(){
 
-    var globalElements = document.getElementsByTagName('spike');
+    var globalElements = document.querySelectorAll('spike[sp-global-element]');
 
     for(var i = 0; i < globalElements.length; i++){
 
-        if(globalElements[i].getAttribute('sp-element')){
+        globalElements[i].id = 'global-'+Util.hash();
+        var className = globalElements[i].getAttribute('sp-global-element');
 
-            globalElements[i].id = 'global-'+Util.hash();
-            var className = globalElements[i].getAttribute('sp-element');
-
-            var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
-            this.globalElements.push(globalElement);
-
-        }
+        var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+        this.globalElements.push(globalElement);
 
     }
 
@@ -1228,6 +1245,16 @@ static class Selectors {
 
   },
 
+  createUniqueSelectorsForElement: function(scope, element){
+
+    var newCompiledHtml = this.createFormsSelectors(element, scope.selector, scope.selector);
+    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+    newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
+
+    return newCompiledHtml;
+
+  }
+
 
 }package spike.core;
 
@@ -1616,6 +1643,7 @@ package spike.core;
 
 import Errors from spike.core.Errors;
 import Util from spike.core.Util;
+import Xhr from spike.core.System.xhrInterface;
 
 class Request {
 
@@ -1651,12 +1679,24 @@ class Request {
         this.xhr = this.createXHR();
 
         this.xhr.alias = this.config.alias;
+
+        this.setXhrInterface();
         this.setEvents();
         this.setHeaders();
 
         this.config.beforeSend();
+        Xhr.onBefore(this.xhr, this);
+
         this.xhr.send(this.config.data);
 
+
+    },
+
+    setXhrInterface: function(){
+
+        for(var option in Xhr.xhrFields){
+            this.xhr[option] = Xhr.xhrFields[option];
+        }
 
     },
 
@@ -1782,6 +1822,7 @@ class Request {
 
     resolveThen: function(response, xhr, status){
 
+        Xhr.onComplete(response, xhr, status);
         for(var i = 0; i < this.thenCallbacks.length; i++){
             this.thenCallbacks[i](response, xhr, status);
         }
@@ -1795,6 +1836,7 @@ class Request {
 
     resolveCatch: function(xhr, status, thrownError){
 
+        Xhr.onCatch(xhr, status, thrownError);
         for(var i = 0; i < this.catchCallbacks.length; i++){
             this.catchCallbacks[i](xhr, status, thrownError);
         }
@@ -3820,8 +3862,12 @@ class Element {
             this.templatePath += elementPath[i]+'_';
         }
 
-        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
-        this.templatePath = this.templatePath.toLowerCase();
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'));
+        var templateFileName = this.templatePath.substring(this.templatePath.lastIndexOf('_')+1, this.templatePath.length);
+        templateFileName = templateFileName.substring(0,1).toLowerCase()+templateFileName.substring(1, templateFileName.length);
+
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'));
+        this.templatePath = this.templatePath+'_'+templateFileName+'_html';
 
         return this.templatePath;
 
@@ -3859,11 +3905,15 @@ class Element {
 
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
-                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this, this);
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, this, this);
+                triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
+                Events.bindEvents(this);
             break;
             case 'E' :
                 var elementInstance = Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
                 triggerDestinationElement.innerHTML = this.include(elementInstance);
+                elementInstance.postConstructChildren();
+                elementInstance.postConstruct();
             break;
         }
 
@@ -4018,9 +4068,9 @@ class Modal extends Element {
 
     Modal: function(){
 
-     this.createTemplatePath();
-     this.createTemplate();
-     this.render();
+        this.createTemplatePath();
+        this.createTemplate();
+        this.render();
 
     },
 
@@ -4028,8 +4078,6 @@ class Modal extends Element {
 
         this.parentElement = System.getModalsView();
         this.elementId = 'modal-'+Util.hash();
-
-        console.log(this.parentElement);
 
         var modalElement = document.createElement('div');
         modalElement.id = this.elementId;
@@ -4061,11 +4109,15 @@ class Modal extends Element {
     },
 
     destroy: function () {
-        ModalInterface.onDestroy(this);
-        this.visible = false;
-        this.super.destroy();
-        Watchers.unobservable(this);
-        this.rootSelector().remove();
+
+        if(this.rendered === true){
+             this.rootSelector().remove();
+             ModalInterface.onDestroy(this);
+             this.visible = false;
+             this.super.destroy();
+             Watchers.unobservable(this);
+        }
+
     }
 
 
@@ -5167,17 +5219,47 @@ static class Watchers {
 
     },
 
+    idCache: {},
+
+    preventApply: function(element1, element2){
+        return element1.outerHTML === element2.outerHTML;
+    },
+
     replaceChangedElements: function(watcherHtml, currentElement){
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.innerHTML.length === 0){
+            Log.log('Watcher - replace without diff');
             document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-            Reconcile.apply(changes, document.getElementById(currentElement.id));
+            //this.regenerateGeneratedIds(watcherVirtual.firstChild);
+
+            if(!this.idCache[currentElement.id]){
+                this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+            }
+
+            if(!this.preventApply(this.idCache[currentElement.id], currentElement)){
+                console.log('apply changes');
+                var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+                Reconcile.apply(changes, this.idCache[currentElement.id]);
+            }
+
+        }
+
+    },
+
+    regenerateGeneratedIds: function(element){
+
+        var elementsWithIds = element.querySelectorAll('[id]');
+
+        for(var i = 0; i < elementsWithIds.length; i++){
+
+            if(elementsWithIds[i].id.indexOf('id-') > -1){
+                elementsWithIds[i].id = elementsWithIds[i].id+'-'+Util.hash();
+            }
 
         }
 
@@ -5276,29 +5358,30 @@ static class Watchers {
 
     stringifyScope: function(scope){
 
-        var stringify = '';
-
+        var copy = {};
         for(var key in scope) {
             if(typeof scope[key] !== 'function'){
 
                 if($this.excludedProperties.indexOf(key) == -1){
-                  stringify += key + JSON.stringify(scope[key]);
+                  copy[key] = scope[key];
                 }
 
             }
-
         }
 
-        return stringify;
+        return JSON.stringify(copy);
 
     },
-
 
     detectScopeChange: function(scope){
 
         var stringify = $this.stringifyScope(scope);
 
         if(stringify !== $this.scopes[scope.elementId]){
+
+            console.log(stringify);
+            console.log(this.scopes[scope.elementId]);
+
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
         }
@@ -5312,7 +5395,7 @@ static class Watchers {
         setTimeout(function(){
 
             for(var i = 0; i < $this.observables.length; i++){
-                $this.detectScopeChange($this.observables[i]);
+              //  $this.detectScopeChange($this.observables[i]);
             }
 
             $this.createWatchLoop();

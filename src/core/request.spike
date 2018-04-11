@@ -2,6 +2,7 @@ package spike.core;
 
 import Errors from spike.core.Errors;
 import Util from spike.core.Util;
+import Xhr from spike.core.System.xhrInterface;
 
 class Request {
 
@@ -37,12 +38,24 @@ class Request {
         this.xhr = this.createXHR();
 
         this.xhr.alias = this.config.alias;
+
+        this.setXhrInterface();
         this.setEvents();
         this.setHeaders();
 
         this.config.beforeSend();
+        Xhr.onBefore(this.xhr, this);
+
         this.xhr.send(this.config.data);
 
+
+    },
+
+    setXhrInterface: function(){
+
+        for(var option in Xhr.xhrFields){
+            this.xhr[option] = Xhr.xhrFields[option];
+        }
 
     },
 
@@ -168,6 +181,7 @@ class Request {
 
     resolveThen: function(response, xhr, status){
 
+        Xhr.onComplete(response, xhr, status);
         for(var i = 0; i < this.thenCallbacks.length; i++){
             this.thenCallbacks[i](response, xhr, status);
         }
@@ -181,6 +195,7 @@ class Request {
 
     resolveCatch: function(xhr, status, thrownError){
 
+        Xhr.onCatch(xhr, status, thrownError);
         for(var i = 0; i < this.catchCallbacks.length; i++){
             this.catchCallbacks[i](xhr, status, thrownError);
         }

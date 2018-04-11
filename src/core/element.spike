@@ -92,8 +92,12 @@ class Element {
             this.templatePath += elementPath[i]+'_';
         }
 
-        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'))+'_html';
-        this.templatePath = this.templatePath.toLowerCase();
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'));
+        var templateFileName = this.templatePath.substring(this.templatePath.lastIndexOf('_')+1, this.templatePath.length);
+        templateFileName = templateFileName.substring(0,1).toLowerCase()+templateFileName.substring(1, templateFileName.length);
+
+        this.templatePath = this.templatePath.substring(0, this.templatePath.lastIndexOf('_'));
+        this.templatePath = this.templatePath+'_'+templateFileName+'_html';
 
         return this.templatePath;
 
@@ -131,11 +135,15 @@ class Element {
 
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
-                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this, this);
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, this, this);
+                triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
+                Events.bindEvents(this);
             break;
             case 'E' :
                 var elementInstance = Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
                 triggerDestinationElement.innerHTML = this.include(elementInstance);
+                elementInstance.postConstructChildren();
+                elementInstance.postConstruct();
             break;
         }
 

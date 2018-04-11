@@ -220,5 +220,15 @@ static class Selectors {
 
   },
 
+  createUniqueSelectorsForElement: function(scope, element){
+
+    var newCompiledHtml = this.createFormsSelectors(element, scope.selector, scope.selector);
+    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+    newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
+
+    return newCompiledHtml;
+
+  }
+
 
 }
