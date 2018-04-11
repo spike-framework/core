@@ -1,6 +1,7 @@
 package spike.core;
 
 import System from spike.core.System;
+import Utils from spike.core.Util;
 
 static class Events {
 
@@ -79,8 +80,8 @@ static class Events {
                     if(!this.__eventsReferences[eventRef]){
 
                         var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
-                        eventFnLink = $this.__linkReferences[eventFnLinkHash].fn;
-                        eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
+                        eventFnLink = $this.__linkReferences[eventFnLinkHash];
+                       // eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
 
                         this.__eventsReferences[eventRef] = eventFnLink;
                         element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
@@ -119,6 +120,15 @@ static class Events {
 
     }
 
-  }
+  },
+
+  linkEvent: function(fn){
+
+    var linkId = Utils.hash();
+    $this.__linkReferences[linkId] = fn;
+
+    return linkId;
+
+  },
 
 }

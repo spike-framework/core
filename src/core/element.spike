@@ -135,7 +135,7 @@ class Element {
 
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
-                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, this, this);
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
                 triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
                 Events.bindEvents(this);
             break;
@@ -185,6 +185,9 @@ class Element {
     },
 
     abstract function render;
-    abstract function postConstruct;
+
+    postConstruct: function(){
+        this.postConstructChildren();
+    }
 
 }

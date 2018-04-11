@@ -181,6 +181,7 @@ static class Errors {
 }package spike.core;
 
 import System from spike.core.System;
+import Utils from spike.core.Util;
 
 static class Events {
 
@@ -259,8 +260,8 @@ static class Events {
                     if(!this.__eventsReferences[eventRef]){
 
                         var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
-                        eventFnLink = $this.__linkReferences[eventFnLinkHash].fn;
-                        eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
+                        eventFnLink = $this.__linkReferences[eventFnLinkHash];
+                       // eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
 
                         this.__eventsReferences[eventRef] = eventFnLink;
                         element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
@@ -299,7 +300,16 @@ static class Events {
 
     }
 
-  }
+  },
+
+  linkEvent: function(fn){
+
+    var linkId = Utils.hash();
+    $this.__linkReferences[linkId] = fn;
+
+    return linkId;
+
+  },
 
 }package spike.core;
 
@@ -1324,13 +1334,13 @@ static class Util {
 
 
                     for (var i = 0; i < objectOrArrayParams.length; i++) {
-                        string = string.replace('{' + i + '}', objectOrArrayParams[i])
+                        string = string.replace('{' + i + '}', $this.isObject(objectOrArrayParams[i]) ? JSON.stringify(objectOrArrayParams[i]) : objectOrArrayParams[i])
                     }
 
                 } else {
 
                     for (var paramName in objectOrArrayParams) {
-                        string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
+                        string = string.replace('{' + paramName + '}', $this.isObject(objectOrArrayParams[paramName]) ? JSON.stringify(objectOrArrayParams[paramName]) : objectOrArrayParams[paramName]);
                     }
 
                 }
@@ -1340,6 +1350,28 @@ static class Util {
             }
 
             return string;
+
+        },
+
+        isObject: function(obj){
+            return typeof obj === 'object';
+        },
+
+        getRadioValue: function(radio){
+
+            var value = null;
+            var radios = radio.parentNode.querySelectorAll('input[type=radio][name="'+radio.name+'"]');
+
+            for(var i = 0; i < radios.length; i++){
+
+             if(radios[i].checked === true){
+                 value = radios[i].value;
+                 break;
+             }
+
+            }
+
+            return value;
 
         },
 
@@ -2623,10 +2655,10 @@ static class Templates {
         return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
     },
 
-    includeTemplate: function(name, params, scope){
+    includeTemplate: function(name, scope){
 
       name = name.split('.').join('_')+'_html';
-      return this.templates[Assembler.sourcePath+"_"+name](params, scope);
+      return this.templates[Assembler.sourcePath+"_"+name](scope);
 
     }
 
@@ -3908,7 +3940,7 @@ class Element {
 
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
-                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, this, this);
+                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
                 triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
                 Events.bindEvents(this);
             break;
@@ -3958,7 +3990,10 @@ class Element {
     },
 
     abstract function render;
-    abstract function postConstruct;
+
+    postConstruct: function(){
+        this.postConstructChildren();
+    }
 
 }package spike.core;
 

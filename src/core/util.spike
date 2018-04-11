@@ -64,13 +64,13 @@ static class Util {
 
 
                     for (var i = 0; i < objectOrArrayParams.length; i++) {
-                        string = string.replace('{' + i + '}', objectOrArrayParams[i])
+                        string = string.replace('{' + i + '}', $this.isObject(objectOrArrayParams[i]) ? JSON.stringify(objectOrArrayParams[i]) : objectOrArrayParams[i])
                     }
 
                 } else {
 
                     for (var paramName in objectOrArrayParams) {
-                        string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
+                        string = string.replace('{' + paramName + '}', $this.isObject(objectOrArrayParams[paramName]) ? JSON.stringify(objectOrArrayParams[paramName]) : objectOrArrayParams[paramName]);
                     }
 
                 }
@@ -80,6 +80,28 @@ static class Util {
             }
 
             return string;
+
+        },
+
+        isObject: function(obj){
+            return typeof obj === 'object';
+        },
+
+        getRadioValue: function(radio){
+
+            var value = null;
+            var radios = radio.parentNode.querySelectorAll('input[type=radio][name="'+radio.name+'"]');
+
+            for(var i = 0; i < radios.length; i++){
+
+             if(radios[i].checked === true){
+                 value = radios[i].value;
+                 break;
+             }
+
+            }
+
+            return value;
 
         },
 

@@ -10,10 +10,10 @@ static class Templates {
         return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
     },
 
-    includeTemplate: function(name, params, scope){
+    includeTemplate: function(name, scope){
 
       name = name.split('.').join('_')+'_html';
-      return this.templates[Assembler.sourcePath+"_"+name](params, scope);
+      return this.templates[Assembler.sourcePath+"_"+name](scope);
 
     }
 

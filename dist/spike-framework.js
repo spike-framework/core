@@ -450,8 +450,7 @@ var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
 if(!this.__eventsReferences[eventRef]){
 
 var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
-eventFnLink = $this.__linkReferences[eventFnLinkHash].fn;
-eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
+eventFnLink = $this.__linkReferences[eventFnLinkHash];
 
 this.__eventsReferences[eventRef] = eventFnLink;
 element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
@@ -486,6 +485,13 @@ element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eve
 }
 
 }
+
+},linkEvent: function(fn){var $this=this;
+
+var linkId = spike.core.Util.hash();
+$this.__linkReferences[linkId] = fn;
+
+return linkId;
 
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+__args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.isClass= true;spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
 
@@ -994,13 +1000,13 @@ if (objectOrArrayParams instanceof Array) {
 
 
 for (var i = 0; i < objectOrArrayParams.length; i++) {
-string = string.replace('{' + i + '}', objectOrArrayParams[i])
+string = string.replace('{' + i + '}', $this.isObject(objectOrArrayParams[i]) ? JSON.stringify(objectOrArrayParams[i]) : objectOrArrayParams[i])
 }
 
 } else {
 
 for (var paramName in objectOrArrayParams) {
-string = string.replace('{' + paramName + '}', objectOrArrayParams[paramName]);
+string = string.replace('{' + paramName + '}', $this.isObject(objectOrArrayParams[paramName]) ? JSON.stringify(objectOrArrayParams[paramName]) : objectOrArrayParams[paramName]);
 }
 
 }
@@ -1010,6 +1016,24 @@ console.log(err);
 }
 
 return string;
+
+},isObject: function(obj){var $this=this;
+return typeof obj === 'object';
+},getRadioValue: function(radio){var $this=this;
+
+var value = null;
+var radios = radio.parentNode.querySelectorAll('input[type=radio][name="'+radio.name+'"]');
+
+for(var i = 0; i < radios.length; i++){
+
+if(radios[i].checked === true){
+value = radios[i].value;
+break;
+}
+
+}
+
+return value;
 
 },serializeForm: function(){var $this=this;
 
@@ -1861,10 +1885,10 @@ message = spike.core.Util.bindTranslationParams(message, arrayOrMapParams);
 return message || messageName;
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},isClass: true,compileTemplate: function(scope, name){var $this=this;
 return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope, scope);
-},includeTemplate: function(name, params, scope){var $this=this;
+},includeTemplate: function(name, scope){var $this=this;
 
 name = name.split('.').join('_')+'_html';
-return this.templates[spike.core.Assembler.sourcePath+"_"+name](params, scope);
+return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope);
 
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Templates'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Router', 'null',function(){ return {preventReloadPage: null,events: {},otherwisePath: '/',pathParamReplacement: 'var',endpoints: {},routerHTML5Mode: false,pathFunctionHandler: null,hashChangeInterval: null,lastHashValue: null,getCurrentViewCache: null,getCurrentViewRouteCache: null,getCurrentViewDataCache: null,getCurrentViewDataRouteCache: null,redirectToViewHandler: null,createLinkHandler: null,isClass: true,getRouterFactory: function () {var $this=this;
 return {
@@ -2546,7 +2570,7 @@ var triggerDestinationElement = this.selector[this.triggers[triggerName].trigger
 
 switch(this.triggers[triggerName].triggerType){
 case 'T' :
-triggerDestinationElement.innerHTML = spike.core.Templates.includeTemplate(this.triggers[triggerName].modulePath, this, this);
+triggerDestinationElement.innerHTML = spike.core.Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
 triggerDestinationElement.innerHTML = spike.core.Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
 spike.core.Events.bindEvents(this);
 break;
@@ -2585,7 +2609,9 @@ this.childElements[i].destroy();
 }
 }
 
-};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+__args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementId){var $this=this;
+};spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;
+this.postConstructChildren();
+};spike.core.Element.prototype.getSuper=function(){var $this=this; return 'null'; };spike.core.Element.prototype.getClass=function(){var $this=this; return 'spike.core.Element'; };});spike.core.Assembler.defineNamespace('spike.core.GlobalElement',function(){spike.core.GlobalElement=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.isClass= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+__args.length);}};spike.core.GlobalElement.prototype.GlobalElement=function(){this.isClass= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.GlobalElement with arguments count: '+arguments.length);}};spike.core.GlobalElement.prototype.constructor_1=function(elementId){var $this=this;
 
 this.constructor_0();
 this.elementId = elementId;
