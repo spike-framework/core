@@ -49,6 +49,9 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
+                    console.log('currentHtml : '+currentHtml);
+                    console.log('watcherHtml : '+watcherHtml);
+
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
@@ -233,9 +236,6 @@ static class Watchers {
 
         if(stringify !== $this.scopes[scope.elementId]){
 
-            console.log(stringify);
-            console.log(this.scopes[scope.elementId]);
-
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
         }
@@ -249,7 +249,7 @@ static class Watchers {
         setTimeout(function(){
 
             for(var i = 0; i < $this.observables.length; i++){
-              //  $this.detectScopeChange($this.observables[i]);
+                $this.detectScopeChange($this.observables[i]);
             }
 
             $this.createWatchLoop();

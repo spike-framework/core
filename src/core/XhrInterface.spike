@@ -3,7 +3,7 @@ package spike.core;
 class XhrInterface {
 
     xhrFields: {
-        withCredentials: true
+        withCredentials: false
     },
 
     abstract function onBefore;

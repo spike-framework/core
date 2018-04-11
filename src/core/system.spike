@@ -11,12 +11,14 @@ import Selectors from spike.core.Selectors;
 import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
+import XhrInterface from spike.core.XhrInterface;
 
 static class System {
 
    config: null,
    eventsInterface: null,
    modalInterface: null,
+   xhrInterface: null,
    routing: null,
 
    setConfig: function(configObject){

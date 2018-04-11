@@ -404,7 +404,7 @@ class EventsInterface {
 class XhrInterface {
 
     xhrFields: {
-        withCredentials: true
+        withCredentials: false
     },
 
     abstract function onBefore;
@@ -492,12 +492,14 @@ import Selectors from spike.core.Selectors;
 import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
+import XhrInterface from spike.core.XhrInterface;
 
 static class System {
 
    config: null,
    eventsInterface: null,
    modalInterface: null,
+   xhrInterface: null,
    routing: null,
 
    setConfig: function(configObject){
@@ -5195,6 +5197,9 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
+                    console.log('currentHtml : '+currentHtml);
+                    console.log('watcherHtml : '+watcherHtml);
+
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
                         Log.log('Watcher reflow needed');
@@ -5379,9 +5384,6 @@ static class Watchers {
 
         if(stringify !== $this.scopes[scope.elementId]){
 
-            console.log(stringify);
-            console.log(this.scopes[scope.elementId]);
-
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
         }
@@ -5395,7 +5397,7 @@ static class Watchers {
         setTimeout(function(){
 
             for(var i = 0; i < $this.observables.length; i++){
-              //  $this.detectScopeChange($this.observables[i]);
+                $this.detectScopeChange($this.observables[i]);
             }
 
             $this.createWatchLoop();
