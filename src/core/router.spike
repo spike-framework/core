@@ -320,9 +320,6 @@ static class Router {
 
     function hashChangeCallback(){
 
-        //Log.log('Router.lastHashValue : '+Router.lastHashValue);
-        //Log.log('window.location.hash : '+window.location.hash);
-
         if(Router.lastHashValue !== window.location.hash){
             Router.lastHashValue = window.location.hash;
             Router.onHashChanges();
@@ -715,6 +712,10 @@ static class Router {
         }
 
         currentEndpointData.routingParams = Router.endpoints[pathValue].routingParams || {};
+
+        if(Util.isFunction(currentEndpoint.controller)){
+            currentEndpoint.controller = currentEndpoint.controller(currentEndpointData);
+        }
 
         viewData = {
           endpoint: currentEndpoint,
