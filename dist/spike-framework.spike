@@ -407,6 +407,15 @@ class EventsInterface {
           *
           */
          onReady: function () {
+         },
+
+         /**
+            @public
+            @toImplement
+            Invokes when route changes
+         **/
+         onRouteChange: function(){
+
          }
 
 }package spike.core;
@@ -2725,6 +2734,7 @@ static class Router {
    */
   getRouterFactory: function () {
     return {
+      routingParams: Router.routingParamsFunction,
       path: Router.pathFunction,
       other: Router.otherFunction
     }
@@ -2740,6 +2750,13 @@ static class Router {
    */
   otherFunction: function (pathValue) {
     Router.otherwisePath = pathValue;
+    return Router.getRouterFactory();
+  },
+
+  commonRoutingParams: {},
+
+  routingParamsFunction: function(routingParams){
+    Router.commonRoutingParams = routingParams;
     return Router.getRouterFactory();
   },
 
@@ -2797,10 +2814,10 @@ static class Router {
    * @param pathValue
    * @param pathController
    * @param routingParams
-   * @param onRouteEvent
+   * @param onRoute
    *
    */
-  registerPath: function (pathValue, pathController, routingParams, onRouteEvent, routeName, pathModal, pathModalDefaultController) {
+  registerPath: function (pathValue, pathController, routingParams, onRoute, routeName, pathModal, pathModalDefaultController) {
 
     if (Router.endpoints[pathValue]) {
       Errors.throwError(Errors.messages.PATH_ALREADY_EXIST, [pathValue]);
@@ -2822,8 +2839,8 @@ static class Router {
       controller: pathController,
       defaultController: pathModalDefaultController,
       modal: pathModal,
-      routingParams: routingParams || {},
-      onRouteEvent: onRouteEvent,
+      routingParams: Router.mergeRoutingParams(routingParams || {}),
+      onRoute: onRoute,
       pathPattern: pathPattern,
       routeName: routeName,
       isModal: !Util.isEmpty(pathModal)
@@ -3011,7 +3028,6 @@ static class Router {
     }
 
     Router.clearCacheViewData();
-
     Router.fireRouteEvents();
     Router.renderCurrentView();
 
@@ -3035,7 +3051,6 @@ static class Router {
       }
 
       Router.clearCacheViewData();
-
       Router.fireRouteEvents();
       Router.renderCurrentView();
 
@@ -3059,6 +3074,8 @@ static class Router {
         }
 
     }
+
+    System.eventsInterface.onRouteChange(currentRoute, app.currentController);
 
   },
 
@@ -3103,6 +3120,9 @@ static class Router {
    *
    */
   checkPathIntegrity: function (hashPattern, endpointPattern) {
+
+    console.log(hashPattern);
+    console.log(endpointPattern);
 
     for (var i = 0; i < endpointPattern.pattern.length; i++) {
 
@@ -3295,9 +3315,9 @@ static class Router {
     currentEndpointData.modal = currentEndpoint.modal;
     currentEndpointData.isModal = currentEndpoint.isModal;
     currentEndpointData.routingParams = currentEndpoint.routingParams;
-    currentEndpointData.onRouteEvent = currentEndpoint.onRouteEvent;
-    currentEndpointData.onRouteEventWithModal = function () {
-      System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+    currentEndpointData.onRoute = currentEndpoint.onRoute;
+    currentEndpointData.onRouteWithModal = function () {
+      System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRoute);
     }
 
     Router.setCacheViewData('VIEW', currentEndpointData);
@@ -3358,43 +3378,79 @@ static class Router {
       data: null
     };
 
+    console.log('getCurrentRoute : '+Router.getCurrentRoute());
+
+    var currentEndpoint = Router.findSamePatternEndpoint(hashPattern);
+    var currentEndpointData = Router.getPathData(hashPattern, currentEndpoint.pathPattern);
+
+    if (currentEndpoint.isModal === true) {
+
+      if (Util.isEmpty(app.previousController)) {
+        currentEndpoint.controller = currentEndpoint.defaultController;
+      } else {
+        currentEndpoint.controller = app.previousController;
+      }
+
+    }
+
+    currentEndpointData.routingParams = Router.mergeRoutingParams(currentEndpoint.routingParams || {});
+
+    if(Util.isFunction(currentEndpoint.controller)){
+        currentEndpoint.controller = currentEndpoint.controller(currentEndpointData);
+    }
+
+    viewData = {
+      endpoint: currentEndpoint,
+      data: currentEndpointData
+    };
+
+    Router.setCacheViewData('DATA', viewData);
+
+    return viewData;
+
+  },
+
+  findSamePatternEndpoint: function(hashPattern){
+
+    for (var pathValue in Router.endpoints) {
+
+      var hashPatternPathValue = '';
+      for(var i = 0; i < hashPattern.pattern.length; i++){
+          hashPatternPathValue += hashPattern.pattern[i]+'/';
+      }
+
+      if(pathValue+'/' === '/'+hashPatternPathValue){
+        return Router.endpoints[pathValue];
+      }
+
+    }
+
     for (var pathValue in Router.endpoints) {
 
       if (Router.endpoints[pathValue].pathPattern.pattern.length === hashPattern.pattern.length
         && Router.checkPathIntegrity(hashPattern, Router.endpoints[pathValue].pathPattern)) {
-        var currentEndpoint = Router.endpoints[pathValue];
-        var currentEndpointData = Router.getPathData(hashPattern, Router.endpoints[pathValue].pathPattern);
 
-        if (currentEndpoint.isModal === true) {
-
-          if (Util.isEmpty(app.previousController)) {
-            currentEndpoint.controller = currentEndpoint.defaultController;
-          } else {
-            currentEndpoint.controller = app.previousController;
-          }
-
-        }
-
-        currentEndpointData.routingParams = Router.endpoints[pathValue].routingParams || {};
-
-        if(Util.isFunction(currentEndpoint.controller)){
-            currentEndpoint.controller = currentEndpoint.controller(currentEndpointData);
-        }
-
-        viewData = {
-          endpoint: currentEndpoint,
-          data: currentEndpointData
-        };
-
-        break;
+        return Router.endpoints[pathValue];
 
       }
 
     }
 
-    Router.setCacheViewData('DATA', viewData);
+  },
 
-    return viewData;
+  mergeRoutingParams: function(routingParams){
+
+    for(var prop in Router.commonRoutingParams){
+        if(Router.commonRoutingParams.hasOwnProperty(prop)){
+
+            if(routingParams[prop] === undefined){
+                routingParams[prop] = Router.commonRoutingParams[prop];
+            }
+
+        }
+    }
+
+    return routingParams;
 
   },
 
@@ -3578,14 +3634,14 @@ static class Router {
 
         Log.debug('rendering controller & modal, default controller: ' + currentEndpointData.defaultController);
 
-        System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteEventWithModal);
+        System.render(currentEndpointData.defaultController, currentEndpointData, currentEndpointData.onRouteWithModal);
       } else {
-        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRouteEvent);
+        System.render(currentEndpointData.modal, currentEndpointData, currentEndpointData.onRoute);
         //Router.refreshCurrentHyperlinkCache();
       }
 
     } else {
-      System.render(currentEndpointData.controller, currentEndpointData, currentEndpointData.onRouteEvent);
+      System.render(currentEndpointData.controller, currentEndpointData, currentEndpointData.onRoute);
     }
 
     app.previousController = currentEndpointData.controller;
@@ -3848,8 +3904,14 @@ class Element {
 
         this.constructor_0();
 
-        if(parentElement){
-            this.parentElement = parentElement.isClass ? parentElement : null;
+        if(parentElement !== undefined && parentElement !== null){
+
+            if(parentElement.getClass !== undefined){
+                this.parentElement = parentElement;
+            }else{
+                this.parentElement = null;
+            }
+
         }
 
         this.margeParams(params);
@@ -5233,8 +5295,8 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
-                    console.log('currentHtml : '+currentHtml);
-                    console.log('watcherHtml : '+watcherHtml);
+//                    console.log('currentHtml : '+currentHtml);
+//                    console.log('watcherHtml : '+watcherHtml);
 
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
@@ -5253,6 +5315,8 @@ static class Watchers {
 
         }
 
+        console.log('watChanged: '+wasChanged);
+
         if(wasChanged === true){
             Events.bindEvents(scope);
             Router.bindLinks(scope);
@@ -5262,31 +5326,27 @@ static class Watchers {
 
     idCache: {},
 
-    preventApply: function(element1, element2){
-        return element1.outerHTML === element2.outerHTML;
-    },
-
     replaceChangedElements: function(watcherHtml, currentElement){
+
+        if(!$this.idCache[currentElement.id]){
+            $this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+        }
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.innerHTML.length === 0){
             Log.log('Watcher - replace without diff');
-            document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
+            $this.idCache[currentElement.id].innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            //this.regenerateGeneratedIds(watcherVirtual.firstChild);
+            console.log('apply changes');
+            console.log(watcherVirtual.firstChild);
+            console.log(currentElement);
 
-            if(!this.idCache[currentElement.id]){
-                this.idCache[currentElement.id] = document.getElementById(currentElement.id);
-            }
-
-            if(!this.preventApply(this.idCache[currentElement.id], currentElement)){
-                console.log('apply changes');
-                var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-                Reconcile.apply(changes, this.idCache[currentElement.id]);
-            }
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+            console.log(changes);
+            Reconcile.apply(changes, $this.idCache[currentElement.id]);
 
         }
 

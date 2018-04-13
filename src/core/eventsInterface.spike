@@ -94,6 +94,15 @@ class EventsInterface {
           *
           */
          onReady: function () {
+         },
+
+         /**
+            @public
+            @toImplement
+            Invokes when route changes
+         **/
+         onRouteChange: function(){
+
          }
 
 }

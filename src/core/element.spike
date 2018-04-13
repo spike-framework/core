@@ -43,8 +43,14 @@ class Element {
 
         this.constructor_0();
 
-        if(parentElement){
-            this.parentElement = parentElement.isClass ? parentElement : null;
+        if(parentElement !== undefined && parentElement !== null){
+
+            if(parentElement.getClass !== undefined){
+                this.parentElement = parentElement;
+            }else{
+                this.parentElement = null;
+            }
+
         }
 
         this.margeParams(params);

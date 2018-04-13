@@ -49,8 +49,8 @@ static class Watchers {
                     var currentHtml = watchElements[i].outerHTML;
                     var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
-                    console.log('currentHtml : '+currentHtml);
-                    console.log('watcherHtml : '+watcherHtml);
+//                    console.log('currentHtml : '+currentHtml);
+//                    console.log('watcherHtml : '+watcherHtml);
 
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
@@ -69,6 +69,8 @@ static class Watchers {
 
         }
 
+        console.log('watChanged: '+wasChanged);
+
         if(wasChanged === true){
             Events.bindEvents(scope);
             Router.bindLinks(scope);
@@ -78,31 +80,27 @@ static class Watchers {
 
     idCache: {},
 
-    preventApply: function(element1, element2){
-        return element1.outerHTML === element2.outerHTML;
-    },
-
     replaceChangedElements: function(watcherHtml, currentElement){
+
+        if(!$this.idCache[currentElement.id]){
+            $this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+        }
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.innerHTML.length === 0){
             Log.log('Watcher - replace without diff');
-            document.getElementById(currentElement.id).innerHTML = watcherVirtual.firstChild.innerHTML;
+            $this.idCache[currentElement.id].innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            //this.regenerateGeneratedIds(watcherVirtual.firstChild);
+            console.log('apply changes');
+            console.log(watcherVirtual.firstChild);
+            console.log(currentElement);
 
-            if(!this.idCache[currentElement.id]){
-                this.idCache[currentElement.id] = document.getElementById(currentElement.id);
-            }
-
-            if(!this.preventApply(this.idCache[currentElement.id], currentElement)){
-                console.log('apply changes');
-                var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-                Reconcile.apply(changes, this.idCache[currentElement.id]);
-            }
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+            console.log(changes);
+            Reconcile.apply(changes, $this.idCache[currentElement.id]);
 
         }
 
