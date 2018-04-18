@@ -2,8 +2,20 @@ package spike.core;
 
 import Log from spike.core.Log;
 import Reconcile from spike.core.Reconcile;
+import Events from spike.core.Events;
 
 static class Reconcile {
+
+ constructRestrictedAttributes: function(){
+
+   Reconcile.restrictedAttributes = ['spike-unbinded', 'sp-id'];
+
+   for(var i = 0; i < Events.allowedEvents.length; i++){
+     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
+     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
+   }
+
+ },
 
  escape: function (s) {
     var n = s;
@@ -23,7 +35,7 @@ static class Reconcile {
     var indices = [];
     for (var i = 0, len = nodes.length; i < len; i++) {
       node = nodes[i];
-      var id = (node.id) ? node.id : spike.core.Reconcile.generateId(node, tags);
+      var id = spike.core.Reconcile.generateId(node, tags);
       map[id] = node;
       node._i = i;
       node._id = id;
@@ -58,7 +70,7 @@ static class Reconcile {
     for (var i = 0, len = nodes.length; i < len; i++) {
       var node = nodes[reverse ? (nodes.length - i - 1) : i],
         bound = base.childNodes[reverse ? (base.childNodes.length - indices[i] - 1) : indices[i]],
-        id = node.id ? node.id : spike.core.Reconcile.generateId(node, tags);
+        id = spike.core.Reconcile.generateId(node, tags);
 
       // skip if force no change
       if (node.attributes && node.hasAttribute('assume-no-change')) {
@@ -427,17 +439,23 @@ static class Reconcile {
         value = attributes[i].nodeValue;
         name = attributes[i].nodeName;
 
+        if(Reconcile.restrictedAttributes.indexOf(name) > -1){
+            continue;
+        }
+
         var val = base.getAttribute(name);
         if (val !== value) {
           if (val == null) {
-            diffActions.push({
-              'action': 'setAttribute',
-              'name': name,
-              'element': base,
-              'baseIndex': index,
-              'sourceIndex': index,
-              '_inserted': value
-            });
+
+             diffActions.push({
+                  'action': 'setAttribute',
+                  'name': name,
+                  'element': base,
+                  'baseIndex': index,
+                  'sourceIndex': index,
+                  '_inserted': value
+                });
+
           } else {
             // if the attribute happens to be a style
             // only generate style Updates
@@ -465,6 +483,11 @@ static class Reconcile {
       attributes = base.attributes;
       for (var i = attributes.length; i--;) {
         name = attributes[i].nodeName;
+
+        if(Reconcile.restrictedAttributes.indexOf(name) > -1){
+            continue;
+        }
+
         if (source.getAttribute(name) === null) {
           diffActions.push({
             'action': 'removeAttribute',

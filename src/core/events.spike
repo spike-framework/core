@@ -27,7 +27,6 @@ static class Events {
     'mouseleave',
     'mouseout',
     'submit',
-    'toggle',
     'load',
     'unload'
   ],
@@ -61,39 +60,42 @@ static class Events {
    */
   bindEventsForElement: function (element) {
 
-    for(var i = 0; i < element.eventsSelectors.length; i++){
+   // console.log(element.elementSelector);
 
-        if(typeof element.eventsSelectors[i] === 'string'){
-            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
-        }
+    var unbinded = element.elementSelector.querySelectorAll('[spike-unbinded]');
 
-        if(element.eventsSelectors[i].getAttribute('spike-unbinded') != null){
+    for(var i = 0; i < unbinded.length; i++){
+
+       // console.log(unbinded[i]);
 
             for (var k = 0; k < this.allowedEvents.length; k++) {
 
-                var eventFunctionBody = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+                var eventFunctionBody = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+
+            //    console.log('eventFunctionBody : '+eventFunctionBody);
 
                 if (eventFunctionBody) {
 
-                    var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+                    var eventRef = Utils.hash()+'_'+this.allowedEvents[k];
 
-                    if(!this.__eventsReferences[eventRef]){
+//                         console.log(eventRef);
+//                         console.log(this.__eventsReferences);
+//                         console.log(this.__eventsReferences[eventRef]);
 
-                        var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
+                        var eventFnLinkHash = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
                         eventFnLink = $this.__linkReferences[eventFnLinkHash];
-                       // eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
 
                         this.__eventsReferences[eventRef] = eventFnLink;
-                        element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
-                    }
+
+                     //   console.log('binding event : '+this.allowedEvents[k] +' with link :'+eventFnLinkHash);
+                        unbinded[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
 
                 }
 
-            }
 
         }
 
-        element.eventsSelectors[i].removeAttribute('spike-unbinded');
+        unbinded[i].removeAttribute('spike-unbinded');
 
     }
 
@@ -105,12 +107,12 @@ static class Events {
     for(var i = 0; i < element.eventsSelectors.length; i++){
 
         if(typeof element.eventsSelectors[i] === 'string'){
-            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+            element.eventsSelectors[i] = getElementById(element.eventsSelectors[i]);
         }
 
         for (var k = 0; k < this.allowedEvents.length; k++) {
 
-            var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+            var eventRef = getSpikeId(element.eventsSelectors[i])+'_'+this.allowedEvents[k];
 
             if(this.__eventsReferences[eventRef]){
                 element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);

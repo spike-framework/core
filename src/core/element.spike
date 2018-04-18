@@ -29,7 +29,7 @@ class Element {
     rootSelector: function(){
 
         if(this.elementSelector === null){
-            this.elementSelector = document.getElementById(this.elementId);
+            this.elementSelector = getElementBySpikeId(document, this.elementId);
         }
 
         return this.elementSelector;
@@ -84,7 +84,7 @@ class Element {
         var virtualElement = document.createElement('div');
         virtualElement.innerHTML = this.compiledHtml;
 
-        this.elementId = virtualElement.firstChild.id;
+        this.elementId = getSpikeId(virtualElement.firstChild);
 
     },
 
@@ -142,7 +142,7 @@ class Element {
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
                 triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
-                triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
+               // triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
                 Events.bindEvents(this);
             break;
             case 'E' :

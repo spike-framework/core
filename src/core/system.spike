@@ -12,6 +12,7 @@ import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
 import XhrInterface from spike.core.XhrInterface;
+import Reconcile from spike.core.Reconcile;
 
 static class System {
 
@@ -172,7 +173,7 @@ static class System {
    // }
 
     //Clears selectors cache
-    Selectors.clearSelectorsCache();
+    //Selectors.clearSelectorsCache();
 
     if(this.currentRenderedController){
         this.currentRenderedController.destroy();
@@ -189,7 +190,7 @@ static class System {
       afterRenderCallback();
     }
 
-    Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
+    //Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
 
   },
 
@@ -306,6 +307,8 @@ static class System {
 
     Log.init();
 
+    Reconcile.constructRestrictedAttributes();
+
     this.loader = Assembler.findLoaderClass();
     this.config = Assembler.findConfigClass();
     this.loader.loadApplication();
@@ -368,10 +371,10 @@ static class System {
 
     for(var i = 0; i < globalElements.length; i++){
 
-        globalElements[i].id = 'global-'+Util.hash();
+        setSpikeId(globalElements[i], 'global-'+Util.hash());
         var className = globalElements[i].getAttribute('sp-global-element');
 
-        var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+        var globalElement = Assembler.getClassInstance(className, [getSpikeId(globalElements[i])]);
         this.globalElements.push(globalElement);
 
     }

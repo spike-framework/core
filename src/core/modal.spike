@@ -28,7 +28,7 @@ class Modal extends Element {
         this.elementId = 'modal-'+Util.hash();
 
         var modalElement = document.createElement('div');
-        modalElement.id = this.elementId;
+        setSpikeId(modalElement, this.elementId);
         modalElement = ModalInterface.onConstruct(modalElement);
 
         this.parentElement.appendChild(modalElement);

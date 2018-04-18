@@ -448,9 +448,6 @@ static class Router {
    */
   checkPathIntegrity: function (hashPattern, endpointPattern) {
 
-    console.log(hashPattern);
-    console.log(endpointPattern);
-
     for (var i = 0; i < endpointPattern.pattern.length; i++) {
 
       if (endpointPattern.pattern[i] !== Router.pathParamReplacement
@@ -704,8 +701,6 @@ static class Router {
       endpoint: null,
       data: null
     };
-
-    console.log('getCurrentRoute : '+Router.getCurrentRoute());
 
     var currentEndpoint = Router.findSamePatternEndpoint(hashPattern);
     var currentEndpointData = Router.getPathData(hashPattern, currentEndpoint.pathPattern);
@@ -1149,7 +1144,7 @@ static class Router {
 
     for(var i = 0; i < element.linksSelectors.length; i++){
 
-        var selector = document.getElementById(element.linksSelectors[i]);
+        var selector = getElementBySpikeId(document, element.linksSelectors[i]);
 
         selector.addEventListener('click', function (e) {
             e.preventDefault();

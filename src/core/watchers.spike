@@ -47,10 +47,7 @@ static class Watchers {
                 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 
                     var currentHtml = watchElements[i].outerHTML;
-                    var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
-//                    console.log('currentHtml : '+currentHtml);
-//                    console.log('watcherHtml : '+watcherHtml);
+                    var watcherHtml = watchers[k][1];//$this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
@@ -69,8 +66,6 @@ static class Watchers {
 
         }
 
-        console.log('watChanged: '+wasChanged);
-
         if(wasChanged === true){
             Events.bindEvents(scope);
             Router.bindLinks(scope);
@@ -82,8 +77,8 @@ static class Watchers {
 
     replaceChangedElements: function(watcherHtml, currentElement){
 
-        if(!$this.idCache[currentElement.id]){
-            $this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+        if(!$this.idCache[getSpikeId(currentElement)]){
+            $this.idCache[getSpikeId(currentElement)] = getElementBySpikeId(document, getSpikeId(currentElement));
         }
 
         var watcherVirtual = document.createElement('div');
@@ -91,93 +86,81 @@ static class Watchers {
 
         if(currentElement.innerHTML.length === 0){
             Log.log('Watcher - replace without diff');
-            $this.idCache[currentElement.id].innerHTML = watcherVirtual.firstChild.innerHTML;
+            $this.idCache[getSpikeId(currentElement)].innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            console.log('apply changes');
-            console.log(watcherVirtual.firstChild);
-            console.log(currentElement);
+//           console.log('apply changes');
+            //console.log(watcherVirtual.firstChild);
+           // console.log(currentElement);
 
             var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-            console.log(changes);
-            Reconcile.apply(changes, $this.idCache[currentElement.id]);
+            //console.log(changes);
+            //console.log(getSpikeId(currentElement));
+         //   console.log(getElementById(getSpikeId(currentElement)));
+            Reconcile.apply(changes, getElementById(getSpikeId(currentElement)));
 
         }
 
     },
 
-    regenerateGeneratedIds: function(element){
+//    fillAutoSelectors: function(watcherHtml, currentHtml){
+//
+//        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'sp-id="','"');
+//        var idListFromCurrent = Util.findStringBetween(currentHtml, 'sp-id="','"');
+//        var replaced = {};
+//
+//        for(var i = 0; i < idListFromWatcher.length; i++){
+//
+//            for(var k = 0; k < idListFromCurrent.length; k++){
+//
+//                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
+//                    watcherHtml = watcherHtml.replace('sp-id="'+idListFromWatcher[i]+'"', 'sp-id="'+idListFromCurrent[k]+'"');
+//                    replaced[idListFromCurrent[k]] = true;
+//                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
+//                    watcherHtml = watcherHtml.replace('sp-id="'+idListFromWatcher[i]+'"', 'sp-id="gen-'+Util.hash()+'"');
+//                }
+//
+//            }
+//
+//        }
+//
+//        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
+//        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
+//
+//        for(var i = 0; i < namesListFromWatcher.length; i++){
+//
+//            for(var k = 0; k < namesListFromCurrent.length; k++){
+//
+//                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
+//                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
+//                }
+//
+//            }
+//
+//        }
+//
+//        return watcherHtml;
+//
+//    },
 
-        var elementsWithIds = element.querySelectorAll('[id]');
-
-        for(var i = 0; i < elementsWithIds.length; i++){
-
-            if(elementsWithIds[i].id.indexOf('id-') > -1){
-                elementsWithIds[i].id = elementsWithIds[i].id+'-'+Util.hash();
-            }
-
-        }
-
-    },
-
-    fillAutoSelectors: function(watcherHtml, currentHtml){
-
-        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
-        var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
-        var replaced = {};
-
-        for(var i = 0; i < idListFromWatcher.length; i++){
-
-            for(var k = 0; k < idListFromCurrent.length; k++){
-
-                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
-                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
-                    replaced[idListFromCurrent[k]] = true;
-                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
-                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+Util.hash()+'"');
-                }
-
-            }
-
-        }
-
-        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
-        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
-
-        for(var i = 0; i < namesListFromWatcher.length; i++){
-
-            for(var k = 0; k < namesListFromCurrent.length; k++){
-
-                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
-                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
-                }
-
-            }
-
-        }
-
-        return watcherHtml;
-
-    },
-
-    cleanAutoSelectors: function(html){
-
-        var element = document.createElement('div');
-        element.innerHTML = html;
-
-        var idElements = element.querySelectorAll('[id]');
-        for(var i = 0; i < idElements.length; i++){
-            idElements[i].setAttribute('id', '');
-        }
-
-        var nameElements = element.querySelectorAll('[name]');
-        for(var i = 0; i < nameElements.length; i++){
-            nameElements[i].setAttribute('name', '');
-        }
-
-        return element.innerHTML;
-
-    },
+//    cleanAutoSelectors: function(html){
+//
+//        var element = document.createElement('div');
+//        element.innerHTML = html;
+//
+//        var idElements = element.querySelectorAll('[sp-id]');
+//        for(var i = 0; i < idElements.length; i++){
+//            idElements[i].setAttribute('sp-id', '');
+//        }
+//
+//        var nameElements = element.querySelectorAll('[name]');
+//        for(var i = 0; i < nameElements.length; i++){
+//            nameElements[i].setAttribute('name', '');
+//        }
+//
+//        return element.innerHTML;
+//
+//    },
 
     scopes: {},
     observables: [],
@@ -200,31 +183,32 @@ static class Watchers {
 
     },
 
-    excludedProperties: [
-        'childElements',
-        'parentElement',
-        'eventsSelectors',
-        'linksSelectors',
-        'compiledHtml',
-        'elementSelector',
-        'templatePath',
-        'selector'
-    ],
+    excludedProperties: {
+        'childElements' : 'childElements',
+        'parentElement' : 'parentElement',
+        'eventsSelectors': 'eventsSelectors',
+        'linksSelectors': 'linksSelectors',
+        'compiledHtml': 'compiledHtml',
+        'elementSelector': 'elementSelector',
+        'templatePath': 'templatePath',
+        'selector': 'selector',
+        '__proto__': '__proto__',
+        'selector':'selector'
+    },
 
     stringifyScope: function(scope){
 
-        var copy = {};
+        var stringifyText = '';
         for(var key in scope) {
             if(typeof scope[key] !== 'function'){
-
-                if($this.excludedProperties.indexOf(key) == -1){
-                  copy[key] = scope[key];
+                if($this.excludedProperties[key] === undefined){
+                  stringifyText += JSON.stringify(scope[key]);
                 }
 
             }
         }
 
-        return JSON.stringify(copy);
+        return stringifyText;
 
     },
 
@@ -236,6 +220,7 @@ static class Watchers {
 
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
+            //console.log(scope);
         }
 
         $this.scopes[scope.elementId] = stringify;
@@ -252,7 +237,7 @@ static class Watchers {
 
             $this.createWatchLoop();
 
-        }, 100)
+        }, 20)
 
     }
 

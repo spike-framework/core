@@ -347,3 +347,44 @@ spike.core.Assembler = {
 
 };
 
+function getElementById(id){
+  return document.querySelector('[sp-id="'+id+'"]');
+}
+
+function getElementBySpikeId(element, id){
+
+  return element.querySelector('[sp-id="'+id+'"]');
+}
+
+function getSpikeId(element){
+
+  if(!element){
+    spike.core.Log.warn('Get id on not existing element');
+    return null;
+  }
+
+  if(element.nodeType === 3 || element.nodeType === 8){
+    spike.core.Log.warn('Get id on text element');
+    return null;
+  }
+
+  return element.getAttribute('sp-id');
+}
+
+function setSpikeId(element, id){
+
+  if(!element){
+    spike.core.Log.warn('Set id on not existing element');
+    return null;
+  }
+
+  if(element.nodeType === 3 || element.nodeType === 8){
+    spike.core.Log.warn('Set id on text element');
+    return null;
+  }
+
+
+  element.setAttribute('sp-id', id);
+
+}
+

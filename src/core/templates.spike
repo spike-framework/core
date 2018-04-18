@@ -6,8 +6,10 @@ static class Templates {
 
     templates: {},
 
+    scopesRef: {},
+
     compileTemplate: function(scope, name){
-        return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
+        return this.templates[Assembler.sourcePath+"_"+name](scope);
     },
 
     includeTemplate: function(name, scope){

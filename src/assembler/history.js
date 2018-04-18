@@ -20,7 +20,3 @@
     });
 
 })(window.history);
-
-function getElementBySpikeId(element, id){
-    return element.querySelector('[sp-id="'+id+'"]');
-}

@@ -138,7 +138,7 @@ static class Selectors {
 
   createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-    var elementsWithId = element.querySelectorAll('[id]');
+    var elementsWithId = element.querySelectorAll('[sp-handle]');
 
     function getSelectorFn(newId) {
         return function() {
@@ -146,7 +146,7 @@ static class Selectors {
             var selector = Selectors.selectorsCache[newId];
 
             if (selector === undefined) {
-              selector = document.getElementById(newId);
+              selector = document.querySelector('[sp-handle="'+newId+'"]');
               selector.plainId = newId;
               Selectors.selectorsCache[newId] = selector;
             } else {
@@ -161,25 +161,17 @@ static class Selectors {
    //Creating identifiers selectors functions
    for(var i = 0; i < elementsWithId.length; i++){
 
-    if(elementsWithId[i].getAttribute('sp-keep-id') != null || elementsWithId[i].id.indexOf('-sp-') > -1){
-        continue;
-    }
-
     //Creating new hash for identifier
-    var newId = elementsWithId[i].id + '-sp-' + Util.hash();
+    var newId = elementsWithId[i].getAttribute('sp-handle') + '-sp-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[elementsWithId[i].id] = getSelectorFn(newId);
-
-    if(elementsWithId[i].getAttribute('spike-unbinded') != null){
-        eventsSelectors.push(newId);
-    }
+    selectors[elementsWithId[i].getAttribute('sp-handle')] = getSelectorFn(newId);
 
     if(elementsWithId[i].getAttribute('spike-href') != null){
         linksSelectors.push(newId);
     }
 
-    elementsWithId[i].id = newId;
+    elementsWithId[i].setAttribute('sp-handle', newId);
 
    }
 
@@ -212,8 +204,8 @@ static class Selectors {
     scope.eventsSelectors = [];
     scope.linksSelectors = [];
 
-    var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
-    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+  //  var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
+  //  newCompiledHtml = this.createNamesSelectors(element, scope.selector);
     newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
 
     scope.compiledHtml = newCompiledHtml;

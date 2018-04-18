@@ -347,6 +347,47 @@ spike.core.Assembler = {
 
 };
 
+function getElementById(id){
+  return document.querySelector('[sp-id="'+id+'"]');
+}
+
+function getElementBySpikeId(element, id){
+
+  return element.querySelector('[sp-id="'+id+'"]');
+}
+
+function getSpikeId(element){
+
+  if(!element){
+    spike.core.Log.warn('Get id on not existing element');
+    return null;
+  }
+
+  if(element.nodeType === 3 || element.nodeType === 8){
+    spike.core.Log.warn('Get id on text element');
+    return null;
+  }
+
+  return element.getAttribute('sp-id');
+}
+
+function setSpikeId(element, id){
+
+  if(!element){
+    spike.core.Log.warn('Set id on not existing element');
+    return null;
+  }
+
+  if(element.nodeType === 3 || element.nodeType === 8){
+    spike.core.Log.warn('Set id on text element');
+    return null;
+  }
+
+
+  element.setAttribute('sp-id', id);
+
+}
+
 spike.core.Assembler.resetNamespaces(25, 'spike.core');spike.core.Assembler.createStaticClass('spike.core','Config', 'null',function(){ return {languageFilePath: "/{lang}.json",html5Mode: false,mobileRun: false,showLog: true,showObj: true,showDebug: true,showWarn: true,showOk: true,mainController: null,initialView: null,rootPath: 'app',lang: "en",getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Config'; },}});spike.core.Assembler.createStaticClass('spike.core','Errors', 'null',function(){ return {messages: {
 
 CACHED_PROMISE_DEPRECADES: '@createCachedPromise has been deprecated. Use @cache param instead',
@@ -415,7 +456,6 @@ spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnM
 'mouseleave',
 'mouseout',
 'submit',
-'toggle',
 'load',
 'unload'
 ],__eventsReferences: {},__linkReferences: {},bindEvents: function(element){var $this=this;
@@ -431,38 +471,35 @@ this.bindEvents(element.childElements[i]);
 
 },bindEventsForElement: function (element) {var $this=this;
 
-for(var i = 0; i < element.eventsSelectors.length; i++){
 
-if(typeof element.eventsSelectors[i] === 'string'){
-element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
-}
+var unbinded = element.elementSelector.querySelectorAll('[spike-unbinded]');
 
-if(element.eventsSelectors[i].getAttribute('spike-unbinded') != null){
+for(var i = 0; i < unbinded.length; i++){
+
 
 for (var k = 0; k < this.allowedEvents.length; k++) {
 
-var eventFunctionBody = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+var eventFunctionBody = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+
 
 if (eventFunctionBody) {
 
-var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+var eventRef = spike.core.Util.hash()+'_'+this.allowedEvents[k];
 
-if(!this.__eventsReferences[eventRef]){
 
-var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
+var eventFnLinkHash = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
 eventFnLink = $this.__linkReferences[eventFnLinkHash];
 
 this.__eventsReferences[eventRef] = eventFnLink;
-element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
-}
+
+unbinded[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
 
 }
 
-}
 
 }
 
-element.eventsSelectors[i].removeAttribute('spike-unbinded');
+unbinded[i].removeAttribute('spike-unbinded');
 
 }
 
@@ -471,12 +508,12 @@ element.eventsSelectors[i].removeAttribute('spike-unbinded');
 for(var i = 0; i < element.eventsSelectors.length; i++){
 
 if(typeof element.eventsSelectors[i] === 'string'){
-element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+element.eventsSelectors[i] = getElementById(element.eventsSelectors[i]);
 }
 
 for (var k = 0; k < this.allowedEvents.length; k++) {
 
-var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+var eventRef = getSpikeId(element.eventsSelectors[i])+'_'+this.allowedEvents[k];
 
 if(this.__eventsReferences[eventRef]){
 element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
@@ -607,7 +644,6 @@ window.scrollTo(0,0);
 this.modalInterface.removeAll();
 
 
-spike.core.Selectors.clearSelectorsCache();
 
 if(this.currentRenderedController){
 this.currentRenderedController.destroy();
@@ -623,7 +659,6 @@ if (afterRenderCallback) {
 afterRenderCallback();
 }
 
-spike.core.Log.ok('spike.core.Selectors cache usage during app lifecycle: ' + spike.core.Selectors.cacheUsageCounter);
 
 },render: function (moduleClass, moduleInitialModel, afterRenderCallback) {var $this=this;
 
@@ -677,6 +712,8 @@ spike.core.Errors.throwError(spike.core.Errors.messages.SPIKE_APP_NOT_DEFINED, [
 },init: function () {var $this=this;
 
 spike.core.Log.init();
+
+spike.core.Reconcile.constructRestrictedAttributes();
 
 this.loader = spike.core.Assembler.findLoaderClass();
 this.config = spike.core.Assembler.findConfigClass();
@@ -733,10 +770,10 @@ var globalElements = document.querySelectorAll('spike[sp-global-element]');
 
 for(var i = 0; i < globalElements.length; i++){
 
-globalElements[i].id = 'global-'+spike.core.Util.hash();
+setSpikeId(globalElements[i], 'global-'+spike.core.Util.hash());
 var className = globalElements[i].getAttribute('sp-global-element');
 
-var globalElement = spike.core.Assembler.getClassInstance(className, [globalElements[i].id]);
+var globalElement = spike.core.Assembler.getClassInstance(className, [getSpikeId(globalElements[i])]);
 this.globalElements.push(globalElement);
 
 }
@@ -910,7 +947,7 @@ return element.innerHTML;
 
 },createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){var $this=this;
 
-var elementsWithId = element.querySelectorAll('[id]');
+var elementsWithId = element.querySelectorAll('[sp-handle]');
 
 function getSelectorFn(newId) {
 return function() {
@@ -918,7 +955,7 @@ return function() {
 var selector = spike.core.Selectors.selectorsCache[newId];
 
 if (selector === undefined) {
-selector = document.getElementById(newId);
+selector = document.querySelector('[sp-handle="'+newId+'"]');
 selector.plainId = newId;
 spike.core.Selectors.selectorsCache[newId] = selector;
 } else {
@@ -932,23 +969,15 @@ return selector;
 
 for(var i = 0; i < elementsWithId.length; i++){
 
-if(elementsWithId[i].getAttribute('sp-keep-id') != null || elementsWithId[i].id.indexOf('-sp-') > -1){
-continue;
-}
+var newId = elementsWithId[i].getAttribute('sp-handle') + '-sp-' + spike.core.Util.hash();
 
-var newId = elementsWithId[i].id + '-sp-' + spike.core.Util.hash();
-
-selectors[elementsWithId[i].id] = getSelectorFn(newId);
-
-if(elementsWithId[i].getAttribute('spike-unbinded') != null){
-eventsSelectors.push(newId);
-}
+selectors[elementsWithId[i].getAttribute('sp-handle')] = getSelectorFn(newId);
 
 if(elementsWithId[i].getAttribute('spike-href') != null){
 linksSelectors.push(newId);
 }
 
-elementsWithId[i].id = newId;
+elementsWithId[i].setAttribute('sp-handle', newId);
 
 }
 
@@ -967,8 +996,6 @@ forms: {}
 scope.eventsSelectors = [];
 scope.linksSelectors = [];
 
-var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
-newCompiledHtml = this.createNamesSelectors(element, scope.selector);
 newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
 
 scope.compiledHtml = newCompiledHtml;
@@ -1885,8 +1912,8 @@ message = spike.core.Util.bindTranslationParams(message, arrayOrMapParams);
 }
 
 return message || messageName;
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},compileTemplate: function(scope, name){var $this=this;
-return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope, scope);
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Message'; },}});spike.core.Assembler.createStaticClass('spike.core','Templates', 'null',function(){ return {templates: {},scopesRef: {},compileTemplate: function(scope, name){var $this=this;
+return this.templates[spike.core.Assembler.sourcePath+"_"+name](scope);
 },includeTemplate: function(name, scope){var $this=this;
 
 name = name.split('.').join('_')+'_html';
@@ -2107,9 +2134,6 @@ spike.core.Router.events[eventName] = null;
 
 },checkPathIntegrity: function (hashPattern, endpointPattern) {var $this=this;
 
-console.log(hashPattern);
-console.log(endpointPattern);
-
 for (var i = 0; i < endpointPattern.pattern.length; i++) {
 
 if (endpointPattern.pattern[i] !== spike.core.Router.pathParamReplacement
@@ -2241,8 +2265,6 @@ var viewData = {
 endpoint: null,
 data: null
 };
-
-console.log('getCurrentRoute : '+spike.core.Router.getCurrentRoute());
 
 var currentEndpoint = spike.core.Router.findSamePatternEndpoint(hashPattern);
 var currentEndpointData = spike.core.Router.getPathData(hashPattern, currentEndpoint.pathPattern);
@@ -2494,7 +2516,7 @@ this.bindLinks(element.childElements[i]);
 
 for(var i = 0; i < element.linksSelectors.length; i++){
 
-var selector = document.getElementById(element.linksSelectors[i]);
+var selector = getElementBySpikeId(document, element.linksSelectors[i]);
 
 selector.addEventListener('click', function (e) {
 e.preventDefault();
@@ -2550,7 +2572,7 @@ this.createTemplate();
 };spike.core.Element.prototype.constructor_0=function(){var $this=this;};spike.core.Element.prototype.rendered= false;spike.core.Element.prototype.elementId= null;spike.core.Element.prototype.elementSelector= null;spike.core.Element.prototype.compiledHtml= null;spike.core.Element.prototype.parentElement= null;spike.core.Element.prototype.childElements= [];spike.core.Element.prototype.selector= {};spike.core.Element.prototype.eventsSelectors= [];spike.core.Element.prototype.linksSelectors= [];spike.core.Element.prototype.templatePath= null;spike.core.Element.prototype.triggers= {};spike.core.Element.prototype.rootSelector=function(){var $this=this;
 
 if(this.elementSelector === null){
-this.elementSelector = document.getElementById(this.elementId);
+this.elementSelector = getElementBySpikeId(document, this.elementId);
 }
 
 return this.elementSelector;
@@ -2574,7 +2596,7 @@ return childElement.compiledHtml;
 var virtualElement = document.createElement('div');
 virtualElement.innerHTML = this.compiledHtml;
 
-this.elementId = virtualElement.firstChild.id;
+this.elementId = getSpikeId(virtualElement.firstChild);
 
 };spike.core.Element.prototype.createTemplatePath=function(){var $this=this;
 
@@ -2618,7 +2640,6 @@ var triggerDestinationElement = this.selector[this.triggers[triggerName].trigger
 switch(this.triggers[triggerName].triggerType){
 case 'T' :
 triggerDestinationElement.innerHTML = spike.core.Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
-triggerDestinationElement.innerHTML = spike.core.Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
 spike.core.Events.bindEvents(this);
 break;
 case 'E' :
@@ -2685,11 +2706,11 @@ this.postConstruct();
 var elementDiv = document.createElement("div");
 elementDiv.innerHTML = this.compiledHtml;
 elementDiv.setAttribute('element-name', this.getClass());
-elementDiv.setAttribute('id', this.elementId);
+elementDiv.setAttribute('sp-id', this.elementId);
 
 spike.core.System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-this.elementSelector = document.getElementById(this.elementId);
+this.elementSelector = getElementBySpikeId(document, this.elementId);
 
 };spike.core.GlobalElement.prototype.destroy=function(){var $this=this;
 this.super().destroy();
@@ -2725,7 +2746,7 @@ this.parentElement = spike.core.System.getModalsView();
 this.elementId = 'modal-'+spike.core.Util.hash();
 
 var modalElement = document.createElement('div');
-modalElement.id = this.elementId;
+setSpikeId(modalElement, this.elementId);
 modalElement = spike.core.System.modalInterface.onConstruct(modalElement);
 
 this.parentElement.appendChild(modalElement);
@@ -2807,7 +2828,16 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Reconcile', 'null',function(){ return {escape: function (s) {var $this=this;
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Reconcile', 'null',function(){ return {constructRestrictedAttributes: function(){var $this=this;
+
+spike.core.Reconcile.restrictedAttributes = ['spike-unbinded', 'sp-id'];
+
+for(var i = 0; i < spike.core.Events.allowedEvents.length; i++){
+spike.core.Reconcile.restrictedAttributes.push('spike-event-'+spike.core.Events.allowedEvents[i]);
+spike.core.Reconcile.restrictedAttributes.push('spike-event-'+spike.core.Events.allowedEvents[i]+'-link');
+}
+
+},escape: function (s) {var $this=this;
 var n = s;
 n = n.replace(/&/g, '&amp;');
 n = n.replace(/</g, '&lt;');
@@ -2823,7 +2853,7 @@ var node;
 var indices = [];
 for (var i = 0, len = nodes.length; i < len; i++) {
 node = nodes[i];
-var id = (node.id) ? node.id : spike.core.Reconcile.generateId(node, tags);
+var id = spike.core.Reconcile.generateId(node, tags);
 map[id] = node;
 node._i = i;
 node._id = id;
@@ -2850,7 +2880,7 @@ var tags = {};
 for (var i = 0, len = nodes.length; i < len; i++) {
 var node = nodes[reverse ? (nodes.length - i - 1) : i],
 bound = base.childNodes[reverse ? (base.childNodes.length - indices[i] - 1) : indices[i]],
-id = node.id ? node.id : spike.core.Reconcile.generateId(node, tags);
+id = spike.core.Reconcile.generateId(node, tags);
 
 if (node.attributes && node.hasAttribute('assume-no-change')) {
 continue;
@@ -3187,9 +3217,14 @@ for (var i = attributes.length; i--;) {
 value = attributes[i].nodeValue;
 name = attributes[i].nodeName;
 
+if(spike.core.Reconcile.restrictedAttributes.indexOf(name) > -1){
+continue;
+}
+
 var val = base.getAttribute(name);
 if (val !== value) {
 if (val == null) {
+
 diffActions.push({
 'action': 'setAttribute',
 'name': name,
@@ -3198,6 +3233,7 @@ diffActions.push({
 'sourceIndex': index,
 '_inserted': value
 });
+
 } else {
 if (name === 'style') {
 var styleChanges = spike.core.Reconcile.diffStyleString(value, val, index, base);
@@ -3222,6 +3258,11 @@ diffActions.push({
 attributes = base.attributes;
 for (var i = attributes.length; i--;) {
 name = attributes[i].nodeName;
+
+if(spike.core.Reconcile.restrictedAttributes.indexOf(name) > -1){
+continue;
+}
+
 if (source.getAttribute(name) === null) {
 diffActions.push({
 'action': 'removeAttribute',
@@ -3619,16 +3660,18 @@ conflicts.push(conflict);
 }
 
 return {'unapplied': unapplied, 'conflicts': conflicts};
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},idCache: {},scopes: {},observables: [],excludedProperties: [
-'childElements',
-'parentElement',
-'eventsSelectors',
-'linksSelectors',
-'compiledHtml',
-'elementSelector',
-'templatePath',
-'selector'
-],update: function(scope, watcherName){var $this=this;
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},idCache: {},scopes: {},observables: [],excludedProperties: {
+'childElements' : 'childElements',
+'parentElement' : 'parentElement',
+'eventsSelectors': 'eventsSelectors',
+'linksSelectors': 'linksSelectors',
+'compiledHtml': 'compiledHtml',
+'elementSelector': 'elementSelector',
+'templatePath': 'templatePath',
+'selector': 'selector',
+'__proto__': '__proto__',
+'selector':'selector'
+},update: function(scope, watcherName){var $this=this;
 this.compileWatchers(scope, watcherName);
 },compileWatchers: function(scope, watcherName){var $this=this;
 
@@ -3662,8 +3705,7 @@ for(var k = 0; k < watchers.length; k++){
 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 
 var currentHtml = watchElements[i].outerHTML;
-var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
+var watcherHtml = watchers[k][1];//$this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
 if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
 
@@ -3682,8 +3724,6 @@ wasChanged = true;
 
 }
 
-console.log('watChanged: '+wasChanged);
-
 if(wasChanged === true){
 spike.core.Events.bindEvents(scope);
 spike.core.Router.bindLinks(scope);
@@ -3691,8 +3731,8 @@ spike.core.Router.bindLinks(scope);
 
 },replaceChangedElements: function(watcherHtml, currentElement){var $this=this;
 
-if(!$this.idCache[currentElement.id]){
-$this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+if(!$this.idCache[getSpikeId(currentElement)]){
+$this.idCache[getSpikeId(currentElement)] = getElementBySpikeId(document, getSpikeId(currentElement));
 }
 
 var watcherVirtual = document.createElement('div');
@@ -3700,85 +3740,14 @@ watcherVirtual.innerHTML = watcherHtml;
 
 if(currentElement.innerHTML.length === 0){
 spike.core.Log.log('Watcher - replace without diff');
-$this.idCache[currentElement.id].innerHTML = watcherVirtual.firstChild.innerHTML;
+$this.idCache[getSpikeId(currentElement)].innerHTML = watcherVirtual.firstChild.innerHTML;
 }else{
 
-console.log('apply changes');
-console.log(watcherVirtual.firstChild);
-console.log(currentElement);
 
 var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
-console.log(changes);
-spike.core.Reconcile.apply(changes, $this.idCache[currentElement.id]);
+spike.core.Reconcile.apply(changes, getElementById(getSpikeId(currentElement)));
 
 }
-
-},regenerateGeneratedIds: function(element){var $this=this;
-
-var elementsWithIds = element.querySelectorAll('[id]');
-
-for(var i = 0; i < elementsWithIds.length; i++){
-
-if(elementsWithIds[i].id.indexOf('id-') > -1){
-elementsWithIds[i].id = elementsWithIds[i].id+'-'+spike.core.Util.hash();
-}
-
-}
-
-},fillAutoSelectors: function(watcherHtml, currentHtml){var $this=this;
-
-var idListFromWatcher = spike.core.Util.findStringBetween(watcherHtml, 'id="','"');
-var idListFromCurrent = spike.core.Util.findStringBetween(currentHtml, 'id="','"');
-var replaced = {};
-
-for(var i = 0; i < idListFromWatcher.length; i++){
-
-for(var k = 0; k < idListFromCurrent.length; k++){
-
-if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
-watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
-replaced[idListFromCurrent[k]] = true;
-}else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
-watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+spike.core.Util.hash()+'"');
-}
-
-}
-
-}
-
-var namesListFromWatcher = spike.core.Util.findStringBetween(watcherHtml, ' name="','"');
-var namesListFromCurrent = spike.core.Util.findStringBetween(currentHtml, ' name="','"');
-
-for(var i = 0; i < namesListFromWatcher.length; i++){
-
-for(var k = 0; k < namesListFromCurrent.length; k++){
-
-if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
-watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
-}
-
-}
-
-}
-
-return watcherHtml;
-
-},cleanAutoSelectors: function(html){var $this=this;
-
-var element = document.createElement('div');
-element.innerHTML = html;
-
-var idElements = element.querySelectorAll('[id]');
-for(var i = 0; i < idElements.length; i++){
-idElements[i].setAttribute('id', '');
-}
-
-var nameElements = element.querySelectorAll('[name]');
-for(var i = 0; i < nameElements.length; i++){
-nameElements[i].setAttribute('name', '');
-}
-
-return element.innerHTML;
 
 },observe: function(scope){var $this=this;
 this.observables.push(scope);
@@ -3796,18 +3765,17 @@ break;
 
 },stringifyScope: function(scope){var $this=this;
 
-var copy = {};
+var stringifyText = '';
 for(var key in scope) {
 if(typeof scope[key] !== 'function'){
-
-if($this.excludedProperties.indexOf(key) == -1){
-copy[key] = scope[key];
+if($this.excludedProperties[key] === undefined){
+stringifyText += JSON.stringify(scope[key]);
 }
 
 }
 }
 
-return JSON.stringify(copy);
+return stringifyText;
 
 },detectScopeChange: function(scope){var $this=this;
 
@@ -3831,7 +3799,7 @@ $this.detectScopeChange($this.observables[i]);
 
 $this.createWatchLoop();
 
-}, 100)
+}, 20)
 
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Watchers'; },}});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});(function (history) {
 
@@ -3855,7 +3823,3 @@ $this.createWatchLoop();
     });
 
 })(window.history);
-
-function getElementBySpikeId(element, id){
-    return element.querySelector('[sp-id="'+id+'"]');
-}

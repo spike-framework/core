@@ -39,11 +39,11 @@ class GlobalElement extends Element {
         var elementDiv = document.createElement("div");
         elementDiv.innerHTML = this.compiledHtml;
         elementDiv.setAttribute('element-name', this.getClass());
-        elementDiv.setAttribute('id', this.elementId);
+        elementDiv.setAttribute('sp-id', this.elementId);
 
         System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-        this.elementSelector = document.getElementById(this.elementId);
+        this.elementSelector = getElementBySpikeId(document, this.elementId);
 
     },
 

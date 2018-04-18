@@ -207,7 +207,6 @@ static class Events {
     'mouseleave',
     'mouseout',
     'submit',
-    'toggle',
     'load',
     'unload'
   ],
@@ -241,39 +240,42 @@ static class Events {
    */
   bindEventsForElement: function (element) {
 
-    for(var i = 0; i < element.eventsSelectors.length; i++){
+   // console.log(element.elementSelector);
 
-        if(typeof element.eventsSelectors[i] === 'string'){
-            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
-        }
+    var unbinded = element.elementSelector.querySelectorAll('[spike-unbinded]');
 
-        if(element.eventsSelectors[i].getAttribute('spike-unbinded') != null){
+    for(var i = 0; i < unbinded.length; i++){
+
+       // console.log(unbinded[i]);
 
             for (var k = 0; k < this.allowedEvents.length; k++) {
 
-                var eventFunctionBody = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+                var eventFunctionBody = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+
+            //    console.log('eventFunctionBody : '+eventFunctionBody);
 
                 if (eventFunctionBody) {
 
-                    var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+                    var eventRef = Utils.hash()+'_'+this.allowedEvents[k];
 
-                    if(!this.__eventsReferences[eventRef]){
+//                         console.log(eventRef);
+//                         console.log(this.__eventsReferences);
+//                         console.log(this.__eventsReferences[eventRef]);
 
-                        var eventFnLinkHash = element.eventsSelectors[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
+                        var eventFnLinkHash = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
                         eventFnLink = $this.__linkReferences[eventFnLinkHash];
-                       // eventFnLink = eventFnLink.apply.bind(eventFnLink, element.eventsSelectors[i], $this.__linkReferences[eventFnLinkHash].args);
 
                         this.__eventsReferences[eventRef] = eventFnLink;
-                        element.eventsSelectors[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
-                    }
+
+                     //   console.log('binding event : '+this.allowedEvents[k] +' with link :'+eventFnLinkHash);
+                        unbinded[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
 
                 }
 
-            }
 
         }
 
-        element.eventsSelectors[i].removeAttribute('spike-unbinded');
+        unbinded[i].removeAttribute('spike-unbinded');
 
     }
 
@@ -285,12 +287,12 @@ static class Events {
     for(var i = 0; i < element.eventsSelectors.length; i++){
 
         if(typeof element.eventsSelectors[i] === 'string'){
-            element.eventsSelectors[i] = document.getElementById(element.eventsSelectors[i]);
+            element.eventsSelectors[i] = getElementById(element.eventsSelectors[i]);
         }
 
         for (var k = 0; k < this.allowedEvents.length; k++) {
 
-            var eventRef = element.eventsSelectors[i].id+'_'+this.allowedEvents[k];
+            var eventRef = getSpikeId(element.eventsSelectors[i])+'_'+this.allowedEvents[k];
 
             if(this.__eventsReferences[eventRef]){
                 element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
@@ -512,6 +514,7 @@ import Util from spike.core.Util;
 import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
 import XhrInterface from spike.core.XhrInterface;
+import Reconcile from spike.core.Reconcile;
 
 static class System {
 
@@ -672,7 +675,7 @@ static class System {
    // }
 
     //Clears selectors cache
-    Selectors.clearSelectorsCache();
+    //Selectors.clearSelectorsCache();
 
     if(this.currentRenderedController){
         this.currentRenderedController.destroy();
@@ -689,7 +692,7 @@ static class System {
       afterRenderCallback();
     }
 
-    Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
+    //Log.ok('Selectors cache usage during app lifecycle: ' + Selectors.cacheUsageCounter);
 
   },
 
@@ -806,6 +809,8 @@ static class System {
 
     Log.init();
 
+    Reconcile.constructRestrictedAttributes();
+
     this.loader = Assembler.findLoaderClass();
     this.config = Assembler.findConfigClass();
     this.loader.loadApplication();
@@ -868,10 +873,10 @@ static class System {
 
     for(var i = 0; i < globalElements.length; i++){
 
-        globalElements[i].id = 'global-'+Util.hash();
+        setSpikeId(globalElements[i], 'global-'+Util.hash());
         var className = globalElements[i].getAttribute('sp-global-element');
 
-        var globalElement = Assembler.getClassInstance(className, [globalElements[i].id]);
+        var globalElement = Assembler.getClassInstance(className, [getSpikeId(globalElements[i])]);
         this.globalElements.push(globalElement);
 
     }
@@ -1184,7 +1189,7 @@ static class Selectors {
 
   createIdSelectors: function(element, selectors, eventsSelectors, linksSelectors){
 
-    var elementsWithId = element.querySelectorAll('[id]');
+    var elementsWithId = element.querySelectorAll('[sp-handle]');
 
     function getSelectorFn(newId) {
         return function() {
@@ -1192,7 +1197,7 @@ static class Selectors {
             var selector = Selectors.selectorsCache[newId];
 
             if (selector === undefined) {
-              selector = document.getElementById(newId);
+              selector = document.querySelector('[sp-handle="'+newId+'"]');
               selector.plainId = newId;
               Selectors.selectorsCache[newId] = selector;
             } else {
@@ -1207,25 +1212,17 @@ static class Selectors {
    //Creating identifiers selectors functions
    for(var i = 0; i < elementsWithId.length; i++){
 
-    if(elementsWithId[i].getAttribute('sp-keep-id') != null || elementsWithId[i].id.indexOf('-sp-') > -1){
-        continue;
-    }
-
     //Creating new hash for identifier
-    var newId = elementsWithId[i].id + '-sp-' + Util.hash();
+    var newId = elementsWithId[i].getAttribute('sp-handle') + '-sp-' + Util.hash();
 
     //Creating handler function for identifier with optional basic events binding by @jQuery
-    selectors[elementsWithId[i].id] = getSelectorFn(newId);
-
-    if(elementsWithId[i].getAttribute('spike-unbinded') != null){
-        eventsSelectors.push(newId);
-    }
+    selectors[elementsWithId[i].getAttribute('sp-handle')] = getSelectorFn(newId);
 
     if(elementsWithId[i].getAttribute('spike-href') != null){
         linksSelectors.push(newId);
     }
 
-    elementsWithId[i].id = newId;
+    elementsWithId[i].setAttribute('sp-handle', newId);
 
    }
 
@@ -1258,8 +1255,8 @@ static class Selectors {
     scope.eventsSelectors = [];
     scope.linksSelectors = [];
 
-    var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
-    newCompiledHtml = this.createNamesSelectors(element, scope.selector);
+  //  var newCompiledHtml =  this.createFormsSelectors(element, scope.selector, scope.selector);
+  //  newCompiledHtml = this.createNamesSelectors(element, scope.selector);
     newCompiledHtml = this.createIdSelectors(element, scope.selector, scope.eventsSelectors, scope.linksSelectors);
 
     scope.compiledHtml = newCompiledHtml;
@@ -2660,8 +2657,10 @@ static class Templates {
 
     templates: {},
 
+    scopesRef: {},
+
     compileTemplate: function(scope, name){
-        return this.templates[Assembler.sourcePath+"_"+name](scope, scope);
+        return this.templates[Assembler.sourcePath+"_"+name](scope);
     },
 
     includeTemplate: function(name, scope){
@@ -3121,9 +3120,6 @@ static class Router {
    */
   checkPathIntegrity: function (hashPattern, endpointPattern) {
 
-    console.log(hashPattern);
-    console.log(endpointPattern);
-
     for (var i = 0; i < endpointPattern.pattern.length; i++) {
 
       if (endpointPattern.pattern[i] !== Router.pathParamReplacement
@@ -3377,8 +3373,6 @@ static class Router {
       endpoint: null,
       data: null
     };
-
-    console.log('getCurrentRoute : '+Router.getCurrentRoute());
 
     var currentEndpoint = Router.findSamePatternEndpoint(hashPattern);
     var currentEndpointData = Router.getPathData(hashPattern, currentEndpoint.pathPattern);
@@ -3822,7 +3816,7 @@ static class Router {
 
     for(var i = 0; i < element.linksSelectors.length; i++){
 
-        var selector = document.getElementById(element.linksSelectors[i]);
+        var selector = getElementBySpikeId(document, element.linksSelectors[i]);
 
         selector.addEventListener('click', function (e) {
             e.preventDefault();
@@ -3890,7 +3884,7 @@ class Element {
     rootSelector: function(){
 
         if(this.elementSelector === null){
-            this.elementSelector = document.getElementById(this.elementId);
+            this.elementSelector = getElementBySpikeId(document, this.elementId);
         }
 
         return this.elementSelector;
@@ -3945,7 +3939,7 @@ class Element {
         var virtualElement = document.createElement('div');
         virtualElement.innerHTML = this.compiledHtml;
 
-        this.elementId = virtualElement.firstChild.id;
+        this.elementId = getSpikeId(virtualElement.firstChild);
 
     },
 
@@ -4003,7 +3997,7 @@ class Element {
         switch(this.triggers[triggerName].triggerType){
             case 'T' :
                 triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
-                triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
+               // triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
                 Events.bindEvents(this);
             break;
             case 'E' :
@@ -4098,11 +4092,11 @@ class GlobalElement extends Element {
         var elementDiv = document.createElement("div");
         elementDiv.innerHTML = this.compiledHtml;
         elementDiv.setAttribute('element-name', this.getClass());
-        elementDiv.setAttribute('id', this.elementId);
+        elementDiv.setAttribute('sp-id', this.elementId);
 
         System.getAppView().replaceChild(elementDiv, this.rootSelector());
 
-        this.elementSelector = document.getElementById(this.elementId);
+        this.elementSelector = getElementBySpikeId(document, this.elementId);
 
     },
 
@@ -4180,7 +4174,7 @@ class Modal extends Element {
         this.elementId = 'modal-'+Util.hash();
 
         var modalElement = document.createElement('div');
-        modalElement.id = this.elementId;
+        setSpikeId(modalElement, this.elementId);
         modalElement = ModalInterface.onConstruct(modalElement);
 
         this.parentElement.appendChild(modalElement);
@@ -4342,8 +4336,20 @@ static class Broadcaster {
 
 import Log from spike.core.Log;
 import Reconcile from spike.core.Reconcile;
+import Events from spike.core.Events;
 
 static class Reconcile {
+
+ constructRestrictedAttributes: function(){
+
+   Reconcile.restrictedAttributes = ['spike-unbinded', 'sp-id'];
+
+   for(var i = 0; i < Events.allowedEvents.length; i++){
+     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
+     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
+   }
+
+ },
 
  escape: function (s) {
     var n = s;
@@ -4363,7 +4369,7 @@ static class Reconcile {
     var indices = [];
     for (var i = 0, len = nodes.length; i < len; i++) {
       node = nodes[i];
-      var id = (node.id) ? node.id : spike.core.Reconcile.generateId(node, tags);
+      var id = spike.core.Reconcile.generateId(node, tags);
       map[id] = node;
       node._i = i;
       node._id = id;
@@ -4398,7 +4404,7 @@ static class Reconcile {
     for (var i = 0, len = nodes.length; i < len; i++) {
       var node = nodes[reverse ? (nodes.length - i - 1) : i],
         bound = base.childNodes[reverse ? (base.childNodes.length - indices[i] - 1) : indices[i]],
-        id = node.id ? node.id : spike.core.Reconcile.generateId(node, tags);
+        id = spike.core.Reconcile.generateId(node, tags);
 
       // skip if force no change
       if (node.attributes && node.hasAttribute('assume-no-change')) {
@@ -4767,17 +4773,23 @@ static class Reconcile {
         value = attributes[i].nodeValue;
         name = attributes[i].nodeName;
 
+        if(Reconcile.restrictedAttributes.indexOf(name) > -1){
+            continue;
+        }
+
         var val = base.getAttribute(name);
         if (val !== value) {
           if (val == null) {
-            diffActions.push({
-              'action': 'setAttribute',
-              'name': name,
-              'element': base,
-              'baseIndex': index,
-              'sourceIndex': index,
-              '_inserted': value
-            });
+
+             diffActions.push({
+                  'action': 'setAttribute',
+                  'name': name,
+                  'element': base,
+                  'baseIndex': index,
+                  'sourceIndex': index,
+                  '_inserted': value
+                });
+
           } else {
             // if the attribute happens to be a style
             // only generate style Updates
@@ -4805,6 +4817,11 @@ static class Reconcile {
       attributes = base.attributes;
       for (var i = attributes.length; i--;) {
         name = attributes[i].nodeName;
+
+        if(Reconcile.restrictedAttributes.indexOf(name) > -1){
+            continue;
+        }
+
         if (source.getAttribute(name) === null) {
           diffActions.push({
             'action': 'removeAttribute',
@@ -5293,10 +5310,7 @@ static class Watchers {
                 if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
 
                     var currentHtml = watchElements[i].outerHTML;
-                    var watcherHtml = $this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
-//                    console.log('currentHtml : '+currentHtml);
-//                    console.log('watcherHtml : '+watcherHtml);
+                    var watcherHtml = watchers[k][1];//$this.fillAutoSelectors(watchers[k][1], currentHtml);;
 
                     if(Util.hashString(watcherHtml) !== Util.hashString(currentHtml)){
 
@@ -5315,8 +5329,6 @@ static class Watchers {
 
         }
 
-        console.log('watChanged: '+wasChanged);
-
         if(wasChanged === true){
             Events.bindEvents(scope);
             Router.bindLinks(scope);
@@ -5328,8 +5340,8 @@ static class Watchers {
 
     replaceChangedElements: function(watcherHtml, currentElement){
 
-        if(!$this.idCache[currentElement.id]){
-            $this.idCache[currentElement.id] = document.getElementById(currentElement.id);
+        if(!$this.idCache[getSpikeId(currentElement)]){
+            $this.idCache[getSpikeId(currentElement)] = getElementBySpikeId(document, getSpikeId(currentElement));
         }
 
         var watcherVirtual = document.createElement('div');
@@ -5337,93 +5349,81 @@ static class Watchers {
 
         if(currentElement.innerHTML.length === 0){
             Log.log('Watcher - replace without diff');
-            $this.idCache[currentElement.id].innerHTML = watcherVirtual.firstChild.innerHTML;
+            $this.idCache[getSpikeId(currentElement)].innerHTML = watcherVirtual.firstChild.innerHTML;
         }else{
 
-            console.log('apply changes');
-            console.log(watcherVirtual.firstChild);
-            console.log(currentElement);
+//           console.log('apply changes');
+            //console.log(watcherVirtual.firstChild);
+           // console.log(currentElement);
 
             var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
-            console.log(changes);
-            Reconcile.apply(changes, $this.idCache[currentElement.id]);
+            //console.log(changes);
+            //console.log(getSpikeId(currentElement));
+         //   console.log(getElementById(getSpikeId(currentElement)));
+            Reconcile.apply(changes, getElementById(getSpikeId(currentElement)));
 
         }
 
     },
 
-    regenerateGeneratedIds: function(element){
+//    fillAutoSelectors: function(watcherHtml, currentHtml){
+//
+//        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'sp-id="','"');
+//        var idListFromCurrent = Util.findStringBetween(currentHtml, 'sp-id="','"');
+//        var replaced = {};
+//
+//        for(var i = 0; i < idListFromWatcher.length; i++){
+//
+//            for(var k = 0; k < idListFromCurrent.length; k++){
+//
+//                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
+//                    watcherHtml = watcherHtml.replace('sp-id="'+idListFromWatcher[i]+'"', 'sp-id="'+idListFromCurrent[k]+'"');
+//                    replaced[idListFromCurrent[k]] = true;
+//                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
+//                    watcherHtml = watcherHtml.replace('sp-id="'+idListFromWatcher[i]+'"', 'sp-id="gen-'+Util.hash()+'"');
+//                }
+//
+//            }
+//
+//        }
+//
+//        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
+//        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
+//
+//        for(var i = 0; i < namesListFromWatcher.length; i++){
+//
+//            for(var k = 0; k < namesListFromCurrent.length; k++){
+//
+//                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
+//                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
+//                }
+//
+//            }
+//
+//        }
+//
+//        return watcherHtml;
+//
+//    },
 
-        var elementsWithIds = element.querySelectorAll('[id]');
-
-        for(var i = 0; i < elementsWithIds.length; i++){
-
-            if(elementsWithIds[i].id.indexOf('id-') > -1){
-                elementsWithIds[i].id = elementsWithIds[i].id+'-'+Util.hash();
-            }
-
-        }
-
-    },
-
-    fillAutoSelectors: function(watcherHtml, currentHtml){
-
-        var idListFromWatcher = Util.findStringBetween(watcherHtml, 'id="','"');
-        var idListFromCurrent = Util.findStringBetween(currentHtml, 'id="','"');
-        var replaced = {};
-
-        for(var i = 0; i < idListFromWatcher.length; i++){
-
-            for(var k = 0; k < idListFromCurrent.length; k++){
-
-                if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && !replaced[idListFromCurrent[k]] ){
-                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="'+idListFromCurrent[k]+'"');
-                    replaced[idListFromCurrent[k]] = true;
-                }else if(idListFromCurrent[k].indexOf(idListFromWatcher[i]) > -1 && replaced[idListFromCurrent[k]]){
-                    watcherHtml = watcherHtml.replace('id="'+idListFromWatcher[i]+'"', 'id="gen-'+Util.hash()+'"');
-                }
-
-            }
-
-        }
-
-        var namesListFromWatcher = Util.findStringBetween(watcherHtml, ' name="','"');
-        var namesListFromCurrent = Util.findStringBetween(currentHtml, ' name="','"');
-
-        for(var i = 0; i < namesListFromWatcher.length; i++){
-
-            for(var k = 0; k < namesListFromCurrent.length; k++){
-
-                if(namesListFromCurrent[k].indexOf(namesListFromWatcher[i]) > -1){
-                    watcherHtml = watcherHtml.replace(' name="'+namesListFromWatcher[i]+'"', ' name="'+namesListFromCurrent[k]+'"');
-                }
-
-            }
-
-        }
-
-        return watcherHtml;
-
-    },
-
-    cleanAutoSelectors: function(html){
-
-        var element = document.createElement('div');
-        element.innerHTML = html;
-
-        var idElements = element.querySelectorAll('[id]');
-        for(var i = 0; i < idElements.length; i++){
-            idElements[i].setAttribute('id', '');
-        }
-
-        var nameElements = element.querySelectorAll('[name]');
-        for(var i = 0; i < nameElements.length; i++){
-            nameElements[i].setAttribute('name', '');
-        }
-
-        return element.innerHTML;
-
-    },
+//    cleanAutoSelectors: function(html){
+//
+//        var element = document.createElement('div');
+//        element.innerHTML = html;
+//
+//        var idElements = element.querySelectorAll('[sp-id]');
+//        for(var i = 0; i < idElements.length; i++){
+//            idElements[i].setAttribute('sp-id', '');
+//        }
+//
+//        var nameElements = element.querySelectorAll('[name]');
+//        for(var i = 0; i < nameElements.length; i++){
+//            nameElements[i].setAttribute('name', '');
+//        }
+//
+//        return element.innerHTML;
+//
+//    },
 
     scopes: {},
     observables: [],
@@ -5446,31 +5446,32 @@ static class Watchers {
 
     },
 
-    excludedProperties: [
-        'childElements',
-        'parentElement',
-        'eventsSelectors',
-        'linksSelectors',
-        'compiledHtml',
-        'elementSelector',
-        'templatePath',
-        'selector'
-    ],
+    excludedProperties: {
+        'childElements' : 'childElements',
+        'parentElement' : 'parentElement',
+        'eventsSelectors': 'eventsSelectors',
+        'linksSelectors': 'linksSelectors',
+        'compiledHtml': 'compiledHtml',
+        'elementSelector': 'elementSelector',
+        'templatePath': 'templatePath',
+        'selector': 'selector',
+        '__proto__': '__proto__',
+        'selector':'selector'
+    },
 
     stringifyScope: function(scope){
 
-        var copy = {};
+        var stringifyText = '';
         for(var key in scope) {
             if(typeof scope[key] !== 'function'){
-
-                if($this.excludedProperties.indexOf(key) == -1){
-                  copy[key] = scope[key];
+                if($this.excludedProperties[key] === undefined){
+                  stringifyText += JSON.stringify(scope[key]);
                 }
 
             }
         }
 
-        return JSON.stringify(copy);
+        return stringifyText;
 
     },
 
@@ -5482,6 +5483,7 @@ static class Watchers {
 
             Log.log('scope changed during lifecycle');
             $this.compileWatchers(scope);
+            //console.log(scope);
         }
 
         $this.scopes[scope.elementId] = stringify;
@@ -5498,7 +5500,7 @@ static class Watchers {
 
             $this.createWatchLoop();
 
-        }, 100)
+        }, 20)
 
     }
 
