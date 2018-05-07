@@ -16,8 +16,6 @@ class Element {
     elementSelector: null,
 
     compiledHtml: null,
-
-    parentElement: null,
     childElements: [],
 
     selector: {},
@@ -43,18 +41,7 @@ class Element {
 
         this.constructor_0();
 
-        if(parentElement !== undefined && parentElement !== null){
-
-            if(parentElement.getClass !== undefined){
-                this.parentElement = parentElement;
-            }else{
-                this.parentElement = null;
-            }
-
-        }
-
         this.margeParams(params);
-
         this.createTemplatePath();
         this.createTemplate();
 
@@ -73,8 +60,8 @@ class Element {
     include: function(childElement){
 
         childElement.extractElementId();
-
         this.childElements.push(childElement);
+
         return childElement.compiledHtml;
 
     },
@@ -116,77 +103,35 @@ class Element {
 
     },
 
-    reloadElement: function(element, params){
-    //TODO
-    },
-
     postConstructChildren: function(){
 
-        for(var i = 0; i < this.childElements.length; i++){
-            this.childElements[i].postConstruct();
+//        for(var i = 0; i < this.childElements.length; i++){
+//            this.childElements[i].postConstruct();
+//        }
+
+    },
+
+    watchers: {},
+
+    watch: function(field, watchFn){
+
+        if(this.watchers[field] === undefined){
+
+            this.watchers[field] = watchFn;
+
+        }else{
+            Log.warn('Watcher for field {0} exist', [field]);
         }
-
-    },
-
-
-    triggers: {},
-
-    trigger: function(triggerName, params){
-
-        if(!this.triggers[triggerName]){
-           Errors.throwError(Errors.messages.TRIGGER_NOT_DEFINED, [triggerName, scope.getClass()]);
-        }
-
-        var triggerDestinationElement = this.selector[this.triggers[triggerName].triggerId]();
-
-        switch(this.triggers[triggerName].triggerType){
-            case 'T' :
-                triggerDestinationElement.innerHTML = Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
-               // triggerDestinationElement.innerHTML = Selectors.createUniqueSelectorsForElement(this, triggerDestinationElement);
-                Events.bindEvents(this);
-            break;
-            case 'E' :
-                var elementInstance = Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
-                triggerDestinationElement.innerHTML = this.include(elementInstance);
-                elementInstance.postConstructChildren();
-                elementInstance.postConstruct();
-            break;
-        }
-
-    },
-
-    addTrigger: function(triggerType, modulePath, triggerName, triggerId){
-
-        this.triggers[triggerName] = {
-            triggerId: triggerId,
-            modulePath: modulePath,
-            triggerType: triggerType
-        };
-
-    },
-
-    addTriggerElement: function(elementClassName, triggerName, triggerId){
-
-        this.addTrigger('E', elementClassName, triggerName, triggerId);
-        return '';
-
-    },
-
-    addTriggerTemplate: function(templateName, triggerName, triggerId){
-
-        this.addTrigger('T', templateName, triggerName, triggerId);
-        return '';
 
     },
 
     destroy: function(){
-        Events.removeEventListeners(this);
 
-        if(this.childElements.length > 0){
-            for(var i = 0; i < this.childElements.length; i++){
-                this.childElements[i].destroy();
-            }
-        }
+//        if(this.childElements.length > 0){
+//            for(var i = 0; i < this.childElements.length; i++){
+//                this.childElements[i].destroy();
+//            }
+//        }
 
     },
 

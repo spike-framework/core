@@ -2,6 +2,7 @@ package spike.core;
 
 import System from spike.core.System;
 import Utils from spike.core.Util;
+import Log from spike.core.Log;
 
 static class Events {
 
@@ -20,115 +21,49 @@ static class Events {
     'die',
     'hover',
     'keydown',
-    'mousemove',
-    'mouseover',
-    'mouseenter',
-    'mousedown',
-    'mouseleave',
-    'mouseout',
+//    'mousemove',
+//    'mouseover',
+//    'mouseenter',
+//    'mousedown',
+//    'mouseleave',
+//    'mouseout',
     'submit',
     'load',
     'unload'
   ],
 
-  __eventsReferences: {},
   __linkReferences: {},
 
-  bindEvents: function(element){
+  bindEvents: function(){
 
-    this.bindEventsForElement(element);
-    for(var i = 0; i < element.childElements.length; i++){
+    for (var k = 0; k < this.allowedEvents.length; k++) {
 
-        if(element.childElements[i].length > 0){
-            this.bindEvents(element.childElements[i]);
-        }
+        document.addEventListener(this.allowedEvents[k], function(e){
 
-    }
+            if(e.target){
 
-  },
+                if(e.target.hasAttribute('spike-event')){
 
-  /**
-   * @public
-   *
-   * Finds all elements with attribute @spike-event
-   * in given (root) selector.
-   *
-   * Gets event name and event function string, binds
-   * jQuery event with created function.
-   *
-   * @param rootSelector
-   */
-  bindEventsForElement: function (element) {
+                    var eventId = e.target.getAttribute('spike-event-'+e.type+'-link');
 
-   // console.log(element.elementSelector);
-
-    var unbinded = element.elementSelector.querySelectorAll('[spike-unbinded]');
-
-    for(var i = 0; i < unbinded.length; i++){
-
-       // console.log(unbinded[i]);
-
-            for (var k = 0; k < this.allowedEvents.length; k++) {
-
-                var eventFunctionBody = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]);
-
-            //    console.log('eventFunctionBody : '+eventFunctionBody);
-
-                if (eventFunctionBody) {
-
-                    var eventRef = Utils.hash()+'_'+this.allowedEvents[k];
-
-//                         console.log(eventRef);
-//                         console.log(this.__eventsReferences);
-//                         console.log(this.__eventsReferences[eventRef]);
-
-                        var eventFnLinkHash = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
-                        eventFnLink = $this.__linkReferences[eventFnLinkHash];
-
-                        this.__eventsReferences[eventRef] = eventFnLink;
-
-                     //   console.log('binding event : '+this.allowedEvents[k] +' with link :'+eventFnLinkHash);
-                        unbinded[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+                    if(eventId !== null){
+                        $this.__linkReferences[eventId](e);
+                    }
 
                 }
 
-
-        }
-
-        unbinded[i].removeAttribute('spike-unbinded');
-
-    }
-
-  },
-
-
-  removeEventListeners: function(element){
-
-    for(var i = 0; i < element.eventsSelectors.length; i++){
-
-        if(typeof element.eventsSelectors[i] === 'string'){
-            element.eventsSelectors[i] = getElementById(element.eventsSelectors[i]);
-        }
-
-        for (var k = 0; k < this.allowedEvents.length; k++) {
-
-            var eventRef = getSpikeId(element.eventsSelectors[i])+'_'+this.allowedEvents[k];
-
-            if(this.__eventsReferences[eventRef]){
-                element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
             }
 
-        }
+        }, true);
 
     }
 
   },
 
-  linkEvent: function(fn){
+  linkEvent: function(eventFn){
 
     var linkId = Utils.hash();
-    $this.__linkReferences[linkId] = fn;
-
+    $this.__linkReferences[linkId] = eventFn;
     return linkId;
 
   },

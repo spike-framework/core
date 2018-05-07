@@ -24,18 +24,15 @@ class Modal extends Element {
 
     render: function(){
 
-        this.parentElement = System.getModalsView();
         this.elementId = 'modal-'+Util.hash();
 
         var modalElement = document.createElement('div');
         setSpikeId(modalElement, this.elementId);
         modalElement = ModalInterface.onConstruct(modalElement);
 
-        this.parentElement.appendChild(modalElement);
+        System.getModalsView().appendChild(modalElement);
         this.rootSelector().innerHTML = this.compiledHtml;
 
-        Events.bindEvents(this);
-        Router.bindLinks(this);
         Watchers.observe(this);
 
         ModalInterface.onRender(this);

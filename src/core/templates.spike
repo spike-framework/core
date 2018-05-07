@@ -1,6 +1,7 @@
 package spike.core;
 
 import Assembler from spike.core.Assembler;
+import Watchers from spike.core.Watchers;
 
 static class Templates {
 

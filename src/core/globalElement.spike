@@ -22,8 +22,6 @@ class GlobalElement extends Element {
 
         this.replaceWith();
 
-        Events.bindEvents(this);
-        Router.bindLinks(this);
         Watchers.observe(this);
 
         this.rendered = true;

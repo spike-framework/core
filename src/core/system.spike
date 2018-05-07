@@ -13,6 +13,7 @@ import Message from spike.core.Message;
 import Watchers from spike.core.Watchers;
 import XhrInterface from spike.core.XhrInterface;
 import Reconcile from spike.core.Reconcile;
+import Events from spike.core.Events;
 
 static class System {
 
@@ -247,6 +248,7 @@ static class System {
 
     if(this.viewSelector === null){
         this.viewSelector = document.querySelector('['+this.attributes.VIEW+']');
+       // this.viewSelector.setAttribute('sp-id','root');
     }
 
     return this.viewSelector;
@@ -339,6 +341,7 @@ static class System {
 
     this.verifyViews();
     Router.detectHTML5Mode();
+    Events.bindEvents();
 
     Message.loadLanguage().then(function(){
 

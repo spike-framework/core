@@ -81,6 +81,23 @@ spike.core.Assembler = {
     this.checkIfCanBootstrap();
   },
 
+  getDotPathObject: function(obj, package){
+
+    package = package.split(".");
+    for (var i = 0, l = package.length; i < l; i++) {
+
+      if (obj[package[i]] === undefined) {
+        break;
+      }
+
+      obj = obj[package[i]];
+
+    }
+
+    return obj;
+
+  },
+
   getDotPath: function (package) {
 
     var obj = window;
@@ -205,23 +222,15 @@ spike.core.Assembler = {
       script.src = document.querySelector('[templates-src]').getAttribute('templates-src');
       script.onload = function () {
 
-        var watchers = document.createElement("script");
-        watchers.type = "application/javascript";
-        watchers.src = document.querySelector('[watchers-src]').getAttribute('watchers-src');
-        watchers.onload = function () {
+        self.templatesLoaded = true;
 
-          self.templatesLoaded = true;
+        self.namespacesCount = 0;
+        self.appLoaded = true;
+        var app = document.createElement("script");
+        app.type = "application/javascript";
+        app.src = document.querySelector('[app-src]').getAttribute('app-src');
+        document.body.appendChild(app);
 
-          self.namespacesCount = 0;
-          self.appLoaded = true;
-          var app = document.createElement("script");
-          app.type = "application/javascript";
-          app.src = document.querySelector('[app-src]').getAttribute('app-src');
-          document.body.appendChild(app);
-
-        };
-
-        document.body.appendChild(watchers);
 
       };
 

@@ -81,6 +81,23 @@ spike.core.Assembler = {
     this.checkIfCanBootstrap();
   },
 
+  getDotPathObject: function(obj, package){
+
+    package = package.split(".");
+    for (var i = 0, l = package.length; i < l; i++) {
+
+      if (obj[package[i]] === undefined) {
+        break;
+      }
+
+      obj = obj[package[i]];
+
+    }
+
+    return obj;
+
+  },
+
   getDotPath: function (package) {
 
     var obj = window;
@@ -205,23 +222,15 @@ spike.core.Assembler = {
       script.src = document.querySelector('[templates-src]').getAttribute('templates-src');
       script.onload = function () {
 
-        var watchers = document.createElement("script");
-        watchers.type = "application/javascript";
-        watchers.src = document.querySelector('[watchers-src]').getAttribute('watchers-src');
-        watchers.onload = function () {
+        self.templatesLoaded = true;
 
-          self.templatesLoaded = true;
+        self.namespacesCount = 0;
+        self.appLoaded = true;
+        var app = document.createElement("script");
+        app.type = "application/javascript";
+        app.src = document.querySelector('[app-src]').getAttribute('app-src');
+        document.body.appendChild(app);
 
-          self.namespacesCount = 0;
-          self.appLoaded = true;
-          var app = document.createElement("script");
-          app.type = "application/javascript";
-          app.src = document.querySelector('[app-src]').getAttribute('app-src');
-          document.body.appendChild(app);
-
-        };
-
-        document.body.appendChild(watchers);
 
       };
 
@@ -449,85 +458,37 @@ spike.core.Log.warn('Spike Framework: ' + spike.core.Util.bindStringParams(warnM
 'die',
 'hover',
 'keydown',
-'mousemove',
-'mouseover',
-'mouseenter',
-'mousedown',
-'mouseleave',
-'mouseout',
 'submit',
 'load',
 'unload'
-],__eventsReferences: {},__linkReferences: {},bindEvents: function(element){var $this=this;
-
-this.bindEventsForElement(element);
-for(var i = 0; i < element.childElements.length; i++){
-
-if(element.childElements[i].length > 0){
-this.bindEvents(element.childElements[i]);
-}
-
-}
-
-},bindEventsForElement: function (element) {var $this=this;
-
-
-var unbinded = element.elementSelector.querySelectorAll('[spike-unbinded]');
-
-for(var i = 0; i < unbinded.length; i++){
-
+],__linkReferences: {},bindEvents: function(){var $this=this;
 
 for (var k = 0; k < this.allowedEvents.length; k++) {
 
-var eventFunctionBody = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]);
+document.addEventListener(this.allowedEvents[k], function(e){
 
+if(e.target){
 
-if (eventFunctionBody) {
+if(e.target.hasAttribute('spike-event')){
 
-var eventRef = spike.core.Util.hash()+'_'+this.allowedEvents[k];
+var eventId = e.target.getAttribute('spike-event-'+e.type+'-link');
 
-
-var eventFnLinkHash = unbinded[i].getAttribute('spike-event-' + this.allowedEvents[k]+'-link');
-eventFnLink = $this.__linkReferences[eventFnLinkHash];
-
-this.__eventsReferences[eventRef] = eventFnLink;
-
-unbinded[i].addEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
-
-}
-
-
-}
-
-unbinded[i].removeAttribute('spike-unbinded');
-
-}
-
-},removeEventListeners: function(element){var $this=this;
-
-for(var i = 0; i < element.eventsSelectors.length; i++){
-
-if(typeof element.eventsSelectors[i] === 'string'){
-element.eventsSelectors[i] = getElementById(element.eventsSelectors[i]);
-}
-
-for (var k = 0; k < this.allowedEvents.length; k++) {
-
-var eventRef = getSpikeId(element.eventsSelectors[i])+'_'+this.allowedEvents[k];
-
-if(this.__eventsReferences[eventRef]){
-element.eventsSelectors[i].removeEventListener(this.allowedEvents[k], this.__eventsReferences[eventRef]);
+if(eventId !== null){
+$this.__linkReferences[eventId](e);
 }
 
 }
 
 }
 
-},linkEvent: function(fn){var $this=this;
+}, true);
+
+}
+
+},linkEvent: function(eventFn){var $this=this;
 
 var linkId = spike.core.Util.hash();
-$this.__linkReferences[linkId] = fn;
-
+$this.__linkReferences[linkId] = eventFn;
 return linkId;
 
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Events'; },}});spike.core.Assembler.defineNamespace('spike.core.EventsInterface',function(){spike.core.EventsInterface=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+__args.length);}};spike.core.EventsInterface.prototype.EventsInterface=function(){if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.EventsInterface with arguments count: '+arguments.length);}};spike.core.EventsInterface.prototype.constructor_0=function(){var $this=this;};spike.core.EventsInterface.prototype.onIncompatible=function(){var $this=this;
@@ -745,6 +706,7 @@ spike.core.Log.ok('Spike application initializing.');
 
 this.verifyViews();
 spike.core.Router.detectHTML5Mode();
+spike.core.Events.bindEvents();
 
 spike.core.Message.loadLanguage().then(function(){
 
@@ -2503,14 +2465,6 @@ window.history.go(-1);
 return window.location.pathname;
 },bindLinks: function(element){var $this=this;
 
-this.bindLinksForElement(element);
-for(var i = 0; i < element.childElements.length; i++){
-
-if(element.childElements[i].length > 0){
-this.bindLinks(element.childElements[i]);
-}
-
-}
 
 },bindLinksForElement: function (element) {var $this=this;
 
@@ -2548,28 +2502,17 @@ spike.core.Router.redirect(link);
 
 }
 
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.triggers= {};if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+__args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.parentElement= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.triggers= {};if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Router'; },}});spike.core.Assembler.defineNamespace('spike.core.Element',function(){spike.core.Element=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.watchers= {};if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+__args.length);}};spike.core.Element.prototype.Element=function(){this.rendered= false;this.elementId= null;this.elementSelector= null;this.compiledHtml= null;this.childElements= [];this.selector= {};this.eventsSelectors= [];this.linksSelectors= [];this.templatePath= null;this.watchers= {};if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Element with arguments count: '+arguments.length);}};spike.core.Element.prototype.constructor_1=function(parentElement){var $this=this;
 this.Element(parentElement, null);
 };spike.core.Element.prototype.constructor_2=function(parentElement,params){var $this=this;
 
 this.constructor_0();
 
-if(parentElement !== undefined && parentElement !== null){
-
-if(parentElement.getClass !== undefined){
-this.parentElement = parentElement;
-}else{
-this.parentElement = null;
-}
-
-}
-
 this.margeParams(params);
-
 this.createTemplatePath();
 this.createTemplate();
 
-};spike.core.Element.prototype.constructor_0=function(){var $this=this;};spike.core.Element.prototype.rendered= false;spike.core.Element.prototype.elementId= null;spike.core.Element.prototype.elementSelector= null;spike.core.Element.prototype.compiledHtml= null;spike.core.Element.prototype.parentElement= null;spike.core.Element.prototype.childElements= [];spike.core.Element.prototype.selector= {};spike.core.Element.prototype.eventsSelectors= [];spike.core.Element.prototype.linksSelectors= [];spike.core.Element.prototype.templatePath= null;spike.core.Element.prototype.triggers= {};spike.core.Element.prototype.rootSelector=function(){var $this=this;
+};spike.core.Element.prototype.constructor_0=function(){var $this=this;};spike.core.Element.prototype.rendered= false;spike.core.Element.prototype.elementId= null;spike.core.Element.prototype.elementSelector= null;spike.core.Element.prototype.compiledHtml= null;spike.core.Element.prototype.childElements= [];spike.core.Element.prototype.selector= {};spike.core.Element.prototype.eventsSelectors= [];spike.core.Element.prototype.linksSelectors= [];spike.core.Element.prototype.templatePath= null;spike.core.Element.prototype.watchers= {};spike.core.Element.prototype.rootSelector=function(){var $this=this;
 
 if(this.elementSelector === null){
 this.elementSelector = getElementBySpikeId(document, this.elementId);
@@ -2587,8 +2530,8 @@ this[prop] = params[prop];
 };spike.core.Element.prototype.include=function(childElement){var $this=this;
 
 childElement.extractElementId();
-
 this.childElements.push(childElement);
+
 return childElement.compiledHtml;
 
 };spike.core.Element.prototype.extractElementId=function(){var $this=this;
@@ -2622,60 +2565,21 @@ return this.templatePath;
 this.compiledHtml = spike.core.Templates.compileTemplate(this, this.templatePath);
 spike.core.Selectors.createUniqueSelectors(this);
 
-};spike.core.Element.prototype.reloadElement=function(element, params){var $this=this;
 };spike.core.Element.prototype.postConstructChildren=function(){var $this=this;
 
-for(var i = 0; i < this.childElements.length; i++){
-this.childElements[i].postConstruct();
+
+};spike.core.Element.prototype.watch=function(field, watchFn){var $this=this;
+
+if(this.watchers[field] === undefined){
+
+this.watchers[field] = watchFn;
+
+}else{
+Log.warn('Watcher for field {0} exist', [field]);
 }
-
-};spike.core.Element.prototype.trigger=function(triggerName, params){var $this=this;
-
-if(!this.triggers[triggerName]){
-spike.core.Errors.throwError(spike.core.Errors.messages.TRIGGER_NOT_DEFINED, [triggerName, scope.getClass()]);
-}
-
-var triggerDestinationElement = this.selector[this.triggers[triggerName].triggerId]();
-
-switch(this.triggers[triggerName].triggerType){
-case 'T' :
-triggerDestinationElement.innerHTML = spike.core.Templates.includeTemplate(this.triggers[triggerName].modulePath, params || this);
-spike.core.Events.bindEvents(this);
-break;
-case 'E' :
-var elementInstance = spike.core.Assembler.getClassInstance(this.triggers[triggerName].modulePath, [this, params || {}]);
-triggerDestinationElement.innerHTML = this.include(elementInstance);
-elementInstance.postConstructChildren();
-elementInstance.postConstruct();
-break;
-}
-
-};spike.core.Element.prototype.addTrigger=function(triggerType, modulePath, triggerName, triggerId){var $this=this;
-
-this.triggers[triggerName] = {
-triggerId: triggerId,
-modulePath: modulePath,
-triggerType: triggerType
-};
-
-};spike.core.Element.prototype.addTriggerElement=function(elementClassName, triggerName, triggerId){var $this=this;
-
-this.addTrigger('E', elementClassName, triggerName, triggerId);
-return '';
-
-};spike.core.Element.prototype.addTriggerTemplate=function(templateName, triggerName, triggerId){var $this=this;
-
-this.addTrigger('T', templateName, triggerName, triggerId);
-return '';
 
 };spike.core.Element.prototype.destroy=function(){var $this=this;
-spike.core.Events.removeEventListeners(this);
 
-if(this.childElements.length > 0){
-for(var i = 0; i < this.childElements.length; i++){
-this.childElements[i].destroy();
-}
-}
 
 };spike.core.Element.prototype.render=function(){var $this=this;};spike.core.Element.prototype.postConstruct=function(){var $this=this;
 this.postConstructChildren();
@@ -2691,8 +2595,6 @@ this.render();
 
 this.replaceWith();
 
-spike.core.Events.bindEvents(this);
-spike.core.Router.bindLinks(this);
 spike.core.Watchers.observe(this);
 
 this.rendered = true;
@@ -2718,12 +2620,10 @@ spike.core.Watchers.unobservable(this);
 };spike.core.GlobalElement.prototype.getSuper=function(){var $this=this; return 'spike.core.Element'; };spike.core.GlobalElement.prototype.getClass=function(){var $this=this; return 'spike.core.GlobalElement'; };});spike.core.Assembler.defineNamespace('spike.core.Controller',function(){spike.core.Controller=function(args){var __args = [];if(args && arguments.length == 1){    if(args instanceof Array){      if(arguments.length == 1 && arguments[0] instanceof Array) {           __args = args.length == 0 ? arguments : [args];       }else{           __args = args.length == 0 ? arguments : args;       }    }else{        __args = [args];    }}else{    __args = arguments;}this.scrollTop= true;this.checkNetwork= true;if(this['constructor_'+__args.length] !== undefined){this['constructor_'+__args.length].apply(this, __args);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+__args.length);}};spike.core.Controller.prototype.Controller=function(){this.scrollTop= true;this.checkNetwork= true;if(this['constructor_'+arguments.length] !== undefined){this['constructor_'+arguments.length].apply(this, arguments);}else{throw new Error('Spike: No matching constructor found spike.core.Controller with arguments count: '+arguments.length);}};spike.core.Controller.prototype.constructor_0=function(){var $this=this;
 };spike.core.Controller.prototype.scrollTop= true;spike.core.Controller.prototype.checkNetwork= true;spike.core.Controller.prototype.render=function(){var $this=this;
 
-this.elementId = 'root';
-this.elementSelector = spike.core.System.getView();
-this.rootSelector().innerHTML = this.compiledHtml;
+spike.core.System.getView().innerHTML = this.compiledHtml;
+this.elementSelector = spike.core.System.getView().firstChild;
+this.elementId = this.elementSelector.getAttribute('sp-id');
 
-spike.core.Events.bindEvents(this);
-spike.core.Router.bindLinks(this);
 spike.core.Watchers.observe(this);
 
 this.rendered = true;
@@ -2742,18 +2642,15 @@ this.render();
 
 };spike.core.Modal.prototype.visible= false;spike.core.Modal.prototype.render=function(){var $this=this;
 
-this.parentElement = spike.core.System.getModalsView();
 this.elementId = 'modal-'+spike.core.Util.hash();
 
 var modalElement = document.createElement('div');
 setSpikeId(modalElement, this.elementId);
 modalElement = spike.core.System.modalInterface.onConstruct(modalElement);
 
-this.parentElement.appendChild(modalElement);
+spike.core.System.getModalsView().appendChild(modalElement);
 this.rootSelector().innerHTML = this.compiledHtml;
 
-spike.core.Events.bindEvents(this);
-spike.core.Router.bindLinks(this);
 spike.core.Watchers.observe(this);
 
 spike.core.System.modalInterface.onRender(this);
@@ -2828,14 +2725,9 @@ spike.core.Errors.throwError(spike.core.Errors.messages.APPLICATION_EVENT_NOT_EX
 
 this.applicationEvents[eventName] = [];
 
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Reconcile', 'null',function(){ return {constructRestrictedAttributes: function(){var $this=this;
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Broadcaster'; },}});spike.core.Assembler.createStaticClass('spike.core','spike.core.Reconcile', 'null',function(){ return {restrictedAttributes: [],constructRestrictedAttributes: function(){var $this=this;
 
-spike.core.Reconcile.restrictedAttributes = ['spike-unbinded', 'sp-id'];
 
-for(var i = 0; i < spike.core.Events.allowedEvents.length; i++){
-spike.core.Reconcile.restrictedAttributes.push('spike-event-'+spike.core.Events.allowedEvents[i]);
-spike.core.Reconcile.restrictedAttributes.push('spike-event-'+spike.core.Events.allowedEvents[i]+'-link');
-}
 
 },escape: function (s) {var $this=this;
 var n = s;
@@ -3660,9 +3552,7 @@ conflicts.push(conflict);
 }
 
 return {'unapplied': unapplied, 'conflicts': conflicts};
-},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {watchers: {},idCache: {},scopes: {},observables: [],excludedProperties: {
-'childElements' : 'childElements',
-'parentElement' : 'parentElement',
+},getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Reconcile'; },}});spike.core.Assembler.createStaticClass('spike.core','Watchers', 'null',function(){ return {scopes: {},observables: {},observablesArr: [],stopLoop: false,excludedProperties: {
 'eventsSelectors': 'eventsSelectors',
 'linksSelectors': 'linksSelectors',
 'compiledHtml': 'compiledHtml',
@@ -3670,121 +3560,144 @@ return {'unapplied': unapplied, 'conflicts': conflicts};
 'templatePath': 'templatePath',
 'selector': 'selector',
 '__proto__': '__proto__',
-'selector':'selector'
-},update: function(scope, watcherName){var $this=this;
-this.compileWatchers(scope, watcherName);
-},compileWatchers: function(scope, watcherName){var $this=this;
+'selector':'selector',
+'exclusion':'exclusion'
+},compileWatchers: function(scope){var $this=this;
 
-var wasChanged = false;
-var watchers = [];
+var watcherHtml = spike.core.Templates.compileTemplate(scope, scope.templatePath);
+var element = scope.rootSelector();
 
-if(this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath]){
-watchers = this.watchers[spike.core.Assembler.sourcePath+"_"+scope.templatePath](scope);
+if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(element.outerHTML)){
+$this.replaceChangedElements(scope, watcherHtml, element);
 }
 
-if(watchers.length > 0){
+},replaceChangedElements: function(scope, watcherHtml, currentElement){var $this=this;
 
-var virtualDom = scope.rootSelector();
-var watchElements = [];
-
-if(watcherName){
-watchElements = virtualDom.querySelectorAll('[sp-watch="'+watcherName+'"]');
-}else {
-watchElements = virtualDom.querySelectorAll('[sp-watch]');
-}
-
-for(var i = 0; i < watchElements.length; i++){
-
-
-if(watcherName !== watchElements[i].getAttribute('sp-watch') && watchElements[i].getAttribute('sp-watch-manual') !== null){
-continue;
-}
-
-for(var k = 0; k < watchers.length; k++){
-
-if(watchers[k][0] === watchElements[i].getAttribute('sp-watch')){
-
-var currentHtml = watchElements[i].outerHTML;
-var watcherHtml = watchers[k][1];//$this.fillAutoSelectors(watchers[k][1], currentHtml);;
-
-if(spike.core.Util.hashString(watcherHtml) !== spike.core.Util.hashString(currentHtml)){
-
-spike.core.Log.log('Watcher reflow needed');
-
-$this.replaceChangedElements(watcherHtml, watchElements[i]);
-wasChanged = true;
-
-}
-
-}
-
-}
-
-}
-
-}
-
-if(wasChanged === true){
-spike.core.Events.bindEvents(scope);
-spike.core.Router.bindLinks(scope);
-}
-
-},replaceChangedElements: function(watcherHtml, currentElement){var $this=this;
-
-if(!$this.idCache[getSpikeId(currentElement)]){
-$this.idCache[getSpikeId(currentElement)] = getElementBySpikeId(document, getSpikeId(currentElement));
-}
+var elementInDocument = getElementById(getSpikeId(currentElement));
 
 var watcherVirtual = document.createElement('div');
 watcherVirtual.innerHTML = watcherHtml;
 
-if(currentElement.innerHTML.length === 0){
-spike.core.Log.log('Watcher - replace without diff');
-$this.idCache[getSpikeId(currentElement)].innerHTML = watcherVirtual.firstChild.innerHTML;
-}else{
-
+if(currentElement.outerHTML !== watcherHtml){
 
 var changes = spike.core.Reconcile.diff(watcherVirtual.firstChild, currentElement);
-spike.core.Reconcile.apply(changes, getElementById(getSpikeId(currentElement)));
+
+if(changes.length > 0){
+spike.core.Reconcile.apply(changes, elementInDocument);
+}
 
 }
 
 },observe: function(scope){var $this=this;
-this.observables.push(scope);
+this.stopLoop = true;
+this.observables[scope.elementId] = scope;
+this.createObservablesList();
+this.stopLoop = false;
 },unobservable: function(scope){var $this=this;
+this.stopLoop = true;
+this.observables[scope.elementId] = null;
+this.createObservablesList();
+this.stopLoop = false;
+},createObservablesList: function(){var $this=this;
 
-var index = -1;
-for(var i = 0; i < this.observables.length; i++){
+var list = [];
+for(var elementId in this.observables){
 
-if(this.observables[i].getClass() === scope.getClass() && this.observables[i].elementId === scope.elementId){
-this.observables.splice(i, 1);
-break;
+if(this.observables[elementId] !== undefined && this.observables[elementId] !== null){
+list.push(this.observables[elementId]);
 }
 
 }
 
-},stringifyScope: function(scope){var $this=this;
+$this.observablesArr = list;
 
-var stringifyText = '';
+},getScopeCopy: function(scope){var $this=this;
+
+var copy = {};
 for(var key in scope) {
 if(typeof scope[key] !== 'function'){
+
 if($this.excludedProperties[key] === undefined){
-stringifyText += JSON.stringify(scope[key]);
+copy[key] = scope[key];
 }
 
 }
 }
 
-return stringifyText;
+scope.watchExclusion = scope.watchExclusion || [];
+for(var i = 0; i < scope.watchExclusion.length; i++){
+new Function("copy", "copy."+scope.watchExclusion[i]+" = '[Circular]';")(copy);
+}
 
+return copy;
+
+},fireWatchers: function(scope){var $this=this;
+
+var oldScope = {};
+
+if($this.scopes[scope.elementId]){
+oldScope = JSON.parse($this.scopes[scope.elementId]);
+}
+
+for(var propertyPath in scope.watchers){
+
+var oldScopePropertyValue = spike.core.Assembler.getDotPathObject(oldScope, propertyPath);
+var scopePropertyValue = spike.core.Assembler.getDotPathObject(scope, propertyPath);
+
+if(JSON.stringify(oldScopePropertyValue) !== JSON.stringify(scopePropertyValue)){
+scope.watchers[propertyPath](oldScopePropertyValue, scopePropertyValue);
+}
+
+}
+
+},isCyclic: function (obj) {var $this=this;
+var keys = [];
+var stack = [];
+var stackSet = new Set();
+var detected = false;
+
+function detect(obj, key) {
+if (!(obj instanceof Object)) { return; } // Now works with other
+
+if (stackSet.has(obj)) { // it's cyclic! Print the object and its locations.
+var oldindex = stack.indexOf(obj);
+var l1 = (keys.join('.') + '.' + key).replace('obj.','scope.');
+var l2 = keys.slice(0, oldindex + 1).join('.').replace('obj.','scope.');
+throw new Error('Spike Framework: Obervables circular structure field: '+l1+' = '+l2+'\nAdd to scope.exclusion given field');
+detected = true;
+return;
+}
+
+keys.push(key);
+stack.push(obj);
+stackSet.add(obj);
+for (var k in obj) { //dive on the object's children
+if (obj.hasOwnProperty(k)) { detect(obj[k], k); }
+}
+
+keys.pop();
+stack.pop();
+stackSet.delete(obj);
+return;
+}
+
+detect(obj, 'obj');
+return detected;
 },detectScopeChange: function(scope){var $this=this;
 
-var stringify = $this.stringifyScope(scope);
+var scopeCopy = $this.getScopeCopy(scope);
+$this.isCyclic(scopeCopy);
+
+var stringify = JSON.stringify(scopeCopy);
 
 if(stringify !== $this.scopes[scope.elementId]){
 
-spike.core.Log.log('scope changed during lifecycle');
+spike.core.Log.log('scope changed during lifecycle '+scope.getClass());
+
+
+$this.fireWatchers(scope);
 $this.compileWatchers(scope);
+
 }
 
 $this.scopes[scope.elementId] = stringify;
@@ -3793,13 +3706,17 @@ $this.scopes[scope.elementId] = stringify;
 
 setTimeout(function(){
 
-for(var i = 0; i < $this.observables.length; i++){
-$this.detectScopeChange($this.observables[i]);
+if(!$this.stopLoop){
+
+for(var i = 0; i < $this.observablesArr.length; i++){
+$this.detectScopeChange($this.observablesArr[i]);
+}
+
 }
 
 $this.createWatchLoop();
 
-}, 20)
+}, 2000)
 
 },getSuper: function(){var $this=this; return 'null'; },getClass: function(){var $this=this; return 'spike.core.Watchers'; },}});spike.core.Assembler.dependencies(function(){spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.GlobalElement.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Controller.prototype);spike.core.Assembler.extend(spike.core.Element.prototype,spike.core.Modal.prototype);});(function (history) {
 

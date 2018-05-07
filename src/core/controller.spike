@@ -17,12 +17,10 @@ class Controller extends Element {
 
     render: function(){
 
-        this.elementId = 'root';
-        this.elementSelector = System.getView();
-        this.rootSelector().innerHTML = this.compiledHtml;
+        System.getView().innerHTML = this.compiledHtml;
+        this.elementSelector = System.getView().firstChild;
+        this.elementId = this.elementSelector.getAttribute('sp-id');
 
-        Events.bindEvents(this);
-        Router.bindLinks(this);
         Watchers.observe(this);
 
         this.rendered = true;

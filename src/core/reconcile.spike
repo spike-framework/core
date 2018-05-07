@@ -6,14 +6,16 @@ import Events from spike.core.Events;
 
 static class Reconcile {
 
+ restrictedAttributes: [],
+
  constructRestrictedAttributes: function(){
 
-   Reconcile.restrictedAttributes = ['spike-unbinded', 'sp-id'];
+   //Reconcile.restrictedAttributes = ['spike-unbinded', 'spike-binded'];
 
-   for(var i = 0; i < Events.allowedEvents.length; i++){
-     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
-     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
-   }
+//   for(var i = 0; i < Events.allowedEvents.length; i++){
+//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
+//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
+//   }
 
  },
 
