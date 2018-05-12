@@ -33,6 +33,16 @@ static class Broadcaster {
 
     },
 
+    unsecureRegister: function(eventName){
+
+        if (!Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwWarn(Errors.messages.APPLICATION_EVENT_ALREADY_EXIST, [eventName]);
+            return;
+        }
+
+       this.applicationEvents[eventName] = [];
+    },
+
     /**
      * @public
      *

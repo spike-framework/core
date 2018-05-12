@@ -6,6 +6,7 @@ import Router from spike.core.Router;
 import Element from spike.core.Element;
 import Assembler from spike.core.Assembler;
 import Watchers from spike.core.Watchers;
+import Util from spike.core.Util;
 
 class Controller extends Element {
 
@@ -13,6 +14,16 @@ class Controller extends Element {
     checkNetwork: true,
 
     Controller: function(){
+       System.currentRenderedController = this;
+    },
+
+    rootSelector: function(){
+
+        if(this.elementSelector === null){
+            this.elementSelector = getElementBySpikeId(document, this.elementId);
+        }
+
+        return this.elementSelector;
     },
 
     render: function(){
@@ -29,6 +40,7 @@ class Controller extends Element {
         this.postConstruct();
 
     },
+
 
     destroy: function(){
         this.super.destroy();

@@ -18,17 +18,15 @@ spike.core.Assembler = {
   staticClasses: {},
   objectiveClasses: {},
 
-  dependenciesFn: null,
   spikeLoading: false,
 
-  throwError: function(message){
-    throw new Error('Spike Framework: '+message);
+  throwError: function (message) {
+    throw new Error('Spike Framework: ' + message);
   },
 
   resetNamespaces: function (namespacesCount, package) {
     this.totalNamespaces = namespacesCount;
     this.namespacesCount = 0;
-    this.dependenciesFn = null;
     this.spikeLoading = false;
 
     if (package === 'spike.core') {
@@ -37,6 +35,38 @@ spike.core.Assembler = {
       this.staticClasses = {};
       this.objectiveClasses = {};
     }
+
+  },
+
+  extendDynamicClass: function (from, to) {
+
+    if (from === null) {
+      return to;
+    }
+
+    from = from('EXT');
+    return this.extend(from, to);
+
+  },
+
+  constructSuper: function ($this) {
+
+    // console.log($this.getSuper());
+    //  console.log(typeof $this.getSuper());
+    if ($this.getSuper() == 'null') {
+      //  console.log('return');
+      return;
+    }
+
+    $this.super = spike.core.Assembler.getClassByName($this.getSuper());
+
+    if ($this.super !== null) {
+      $this.super = $this.super('EXT');
+    }
+
+    spike.core.Assembler.constructSuper($this.super);
+
+    // console.log($this);
 
   },
 
@@ -51,12 +81,12 @@ spike.core.Assembler = {
 
         if (from.hasOwnProperty(prop)) {
 
-            if (to[prop] !== undefined) {
-              supers[prop] = from[prop];
-              overrides[prop] = to[prop];
-            } else {
-              to[prop] = from[prop];
-            }
+          if (to[prop] !== undefined) {
+            supers[prop] = from[prop];
+            overrides[prop] = to[prop];
+          } else {
+            to[prop] = from[prop];
+          }
 
         }
 
@@ -66,8 +96,8 @@ spike.core.Assembler = {
         to[prop] = overrides[prop];
       }
 
-      to.super = function(){
-        return spike.core.Assembler.getClassByName(this.getSuper()).prototype;
+      to.super = function () {
+        return spike.core.Assembler.getClassByName(this.getSuper());
       };
 
     }
@@ -76,12 +106,7 @@ spike.core.Assembler = {
 
   },
 
-  dependencies: function (dependenciesFn) {
-    this.dependenciesFn = dependenciesFn;
-    this.checkIfCanBootstrap();
-  },
-
-  getDotPathObject: function(obj, package){
+  getDotPathObject: function (obj, package) {
 
     package = package.split(".");
     for (var i = 0, l = package.length; i < l; i++) {
@@ -146,7 +171,7 @@ spike.core.Assembler = {
   defineNamespace: function (classFullName, namespaceCreator) {
 
     this.namespacesCount++;
-    this.createDotPath(classFullName, null);
+    this.createDotPath(classFullName, namespaceCreator);
 
     this.objectiveClasses[classFullName] = namespaceCreator;
 
@@ -162,8 +187,8 @@ spike.core.Assembler = {
     var classBody = classBody();
     if (inheritsPackage && inheritsPackage !== 'null') {
       var inheritsClass = this.getClassByName(inheritsPackage);
-      if(inheritsClass === undefined){
-        this.throwError('Superclass '+inheritsPackage+'not found');
+      if (inheritsClass === undefined) {
+        this.throwError('Superclass ' + inheritsPackage + 'not found');
       }
 
       this.extend(inheritsClass, classBody);
@@ -177,11 +202,11 @@ spike.core.Assembler = {
 
   checkIfCanBootstrap: function () {
 
-    if(this.namespacesCount !== this.totalNamespaces){
+    if (this.namespacesCount !== this.totalNamespaces) {
       this.throwError("FATAL Some namespaces damaged");
     }
 
-    if (this.namespacesCount === this.totalNamespaces && this.dependenciesFn) {
+    if (this.namespacesCount === this.totalNamespaces) {
       this.bootstrap();
 
       if (this.appLoaded === true && this.spikeLoading === false) {
@@ -193,12 +218,11 @@ spike.core.Assembler = {
   },
 
   bootstrap: function () {
+    //
+    // for (var className in this.objectiveClasses) {
+    //   this.objectiveClasses[className]();
+    // }
 
-    for (var className in this.objectiveClasses) {
-      this.objectiveClasses[className]();
-    }
-
-    this.dependenciesFn();
     this.loadTemplates();
 
   },
@@ -257,7 +281,11 @@ spike.core.Assembler = {
 
           }
 
-          loader = new loader();
+          if (loader === null) {
+            this.throwError('No loader defined');
+          }
+
+          loader = loader();
           return loader;
 
         }
@@ -308,24 +336,30 @@ spike.core.Assembler = {
 
   },
 
-  getClassSuper: function(module){
+  getClassSuper: function (module) {
 
-    if(module.super){
+    if (module.super) {
       return this.getClassSuper(module.super());
-    }else{
+    } else {
       return module.getClass();
     }
 
   },
 
-  getClassExtendingList: function(module, inheritsList){
+  getClassExtendingList: function (module, inheritsList) {
 
     inheritsList = inheritsList || [];
 
-    if(module.super){
+    if (module.super) {
       inheritsList.push(module.getClass());
-      return this.getClassExtendingList(module.super(), inheritsList);
-    }else{
+
+      if(spike.core.Util.isFunction(module.super)){
+        return this.getClassExtendingList(module.super()('EXT'), inheritsList);
+      }else{
+        return this.getClassExtendingList(module.super, inheritsList);
+      }
+
+    } else {
       inheritsList.push(module.getClass());
       return inheritsList;
     }
@@ -335,9 +369,10 @@ spike.core.Assembler = {
   getClassInstance: function (classFullName, argsArray) {
     var clazz = this.getClassByName(classFullName);
 
-    if(clazz === undefined){
-      this.throwError('Class '+classFullName+' not found');
+    if (clazz === undefined) {
+      this.throwError('Class ' + classFullName + ' not found');
     }
+
 
     argsArray.unshift(null);
 
@@ -345,34 +380,34 @@ spike.core.Assembler = {
 
   },
 
-  newCall: function(cls, args) {
-     return new (Function.prototype.bind.apply(cls, args));
+  newCall: function (cls, args) {
+    return new (Function.prototype.bind.apply(cls, args));
   },
 
-  destroy: function(){
+  destroy: function () {
     this.objectiveClasses = null;
     this.staticClasses = null;
   }
 
 };
 
-function getElementById(id){
-  return document.querySelector('[sp-id="'+id+'"]');
+function getElementById(id) {
+  return document.querySelector('[sp-id="' + id + '"]');
 }
 
-function getElementBySpikeId(element, id){
+function getElementBySpikeId(element, id) {
 
-  return element.querySelector('[sp-id="'+id+'"]');
+  return element.querySelector('[sp-id="' + id + '"]');
 }
 
-function getSpikeId(element){
+function getSpikeId(element) {
 
-  if(!element){
+  if (!element) {
     spike.core.Log.warn('Get id on not existing element');
     return null;
   }
 
-  if(element.nodeType === 3 || element.nodeType === 8){
+  if (element.nodeType === 3 || element.nodeType === 8) {
     spike.core.Log.warn('Get id on text element');
     return null;
   }
@@ -380,14 +415,14 @@ function getSpikeId(element){
   return element.getAttribute('sp-id');
 }
 
-function setSpikeId(element, id){
+function setSpikeId(element, id) {
 
-  if(!element){
+  if (!element) {
     spike.core.Log.warn('Set id on not existing element');
     return null;
   }
 
-  if(element.nodeType === 3 || element.nodeType === 8){
+  if (element.nodeType === 3 || element.nodeType === 8) {
     spike.core.Log.warn('Set id on text element');
     return null;
   }
@@ -396,4 +431,3 @@ function setSpikeId(element, id){
   element.setAttribute('sp-id', id);
 
 }
-

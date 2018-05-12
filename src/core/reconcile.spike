@@ -10,12 +10,7 @@ static class Reconcile {
 
  constructRestrictedAttributes: function(){
 
-   //Reconcile.restrictedAttributes = ['spike-unbinded', 'spike-binded'];
-
-//   for(var i = 0; i < Events.allowedEvents.length; i++){
-//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
-//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
-//   }
+   Reconcile.restrictedAttributes = ['element-element', 'element-id'];
 
  },
 
@@ -412,7 +407,8 @@ static class Reconcile {
     return diffActions;
   },
 
-  diff: function (source, base, index) {
+  diff: function (source, base, index, processElement) {
+
     var diffActions = [];
     if (index == null) {
       index = '0'; // 0 for root node
@@ -437,6 +433,16 @@ static class Reconcile {
         name;
 
       // iterate over the source attributes that we want to copy over to the new base node
+
+      for (var i = base.attributes.length; i--;) {
+
+        if(base.attributes[i].nodeName === 'element-id'){
+        // console.log('has element-id');
+            source.setAttribute('sp-id', base.attributes[i].nodeValue);
+        }
+
+      }
+
       for (var i = attributes.length; i--;) {
         value = attributes[i].nodeValue;
         name = attributes[i].nodeName;
@@ -467,6 +473,7 @@ static class Reconcile {
                 diffActions = diffActions.concat(styleChanges);
               }
             } else {
+
               diffActions.push({
                 'action': 'setAttribute',
                 'name': name,
@@ -476,6 +483,7 @@ static class Reconcile {
                 '_deleted': val,
                 '_inserted': value
               });
+
             }
           }
         }
@@ -529,10 +537,47 @@ static class Reconcile {
         var baseChildNode = compare[i][1];
 
         // perform the diff between the given source and base child nodes
-        var childDiffs = spike.core.Reconcile.diff(
-          sourceChildNode,
-          baseChildNode, index + '>' +
-          baseChildNode._i);
+
+        var childDiffs = [];
+
+
+        if (sourceChildNode.nodeType === 3 || sourceChildNode.nodeType === 8) {
+         // console.log('changing text element');
+          childDiffs = spike.core.Reconcile.diff(
+            sourceChildNode,
+            baseChildNode, index + '>' +
+            baseChildNode._i,
+            processElement);
+        } else {
+
+          if (sourceChildNode.getAttribute('element-element') === null && baseChildNode.getAttribute('element-element') === null) {
+          //  console.log('changing element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          } else if (sourceChildNode.getAttribute('element-element') != null && baseChildNode.getAttribute('element-element') != null && processElement === true) {
+          //  console.log('skipping element');
+            //     console.log(sourceChildNode);
+            //     console.log(baseChildNode);
+          } else if (sourceChildNode.getAttribute('element-element') != null && baseChildNode.getAttribute('element-element') === null) {
+          //  console.log('removing element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          } else if (sourceChildNode.getAttribute('element-element') === null && baseChildNode.getAttribute('element-element') != null) {
+            //console.log('creating element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          }
+
+        }
 
         // if there was any difference, concat those to our existing actions
         if (childDiffs.length > 0) {
@@ -723,7 +768,9 @@ static class Reconcile {
             'appendOnly': true
           });
         }
+
         removals.push([node.parentNode, node]);
+
       } else if (action === 'deleteText' || action === 'insertText' ||
         action === 'setStyleValue' || action === 'removeStyleValue') {
         // all text changes need to be grouped into a

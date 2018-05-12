@@ -23,17 +23,34 @@ static class Watchers {
 
     replaceChangedElements: function(scope, watcherHtml, currentElement){
 
-        var elementInDocument = getElementById(getSpikeId(currentElement));
+//        var elementInDocument = getElementById(getSpikeId(currentElement));
+//
+//        if(elementInDocument.getAttribute('spike-view') != null){
+//            elementInDocument = elementInDocument.firstChild;
+//        }
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.outerHTML !== watcherHtml){
 
-            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+          //  if(scope.getClass() === 'app.module.privileges.controller.inne.Inne'){
+            //if(scope.getClass() === 'app.module.privileges.controller.alertBox.AlertBox'){
+              //  console.log('changes detected');
+                //console.log(currentElement);
+              //  console.log(watcherVirtual.firstChild);
+          //  }
+
+            var allowProcessingElement = false;
+            if(currentElement.getAttribute('element-element') !== null){
+                allowProcessingElement = true;
+            }
+
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement, '0', allowProcessingElement);
+            //console.log(changes);
 
             if(changes.length > 0){
-                Reconcile.apply(changes, elementInDocument);
+                Reconcile.apply(changes, currentElement);
             }
 
         }
@@ -49,6 +66,9 @@ static class Watchers {
 
     @array
     observablesArr: [],
+
+    @number
+    observablesArrLength: 0,
 
     @boolean
     stopLoop: false,
@@ -79,11 +99,12 @@ static class Watchers {
         }
 
         $this.observablesArr = list;
+        $this.observablesArrLength = list.length;
 
     },
 
     excludedProperties: {
-        //'childElements' : 'childElements',
+        'childElements' : 'childElements',
         'eventsSelectors': 'eventsSelectors',
         'linksSelectors': 'linksSelectors',
         'compiledHtml': 'compiledHtml',
@@ -185,11 +206,15 @@ static class Watchers {
 
             Log.log('scope changed during lifecycle '+scope.getClass());
 
-         //   console.log(stringify);
-        //    console.log($this.scopes[scope.elementId]);
+           // if(scope.getClass() === 'app.module.privileges.controller.inne.Inne'){
+           // if(scope.getClass() === 'app.module.privileges.controller.alertBox.AlertBox'){
+            //    console.log(stringify);
+           //     console.log($this.scopes[scope.elementId]);
+          //  }
 
             $this.fireWatchers(scope);
             $this.compileWatchers(scope);
+            scope.mountElements();
 
         }
 
@@ -197,13 +222,14 @@ static class Watchers {
 
     },
 
+
     createWatchLoop: function(scope){
 
         setTimeout(function(){
 
             if(!$this.stopLoop){
 
-                for(var i = 0; i < $this.observablesArr.length; i++){
+                for(var i = 0; i < $this.observablesArrLength; i++){
                     $this.detectScopeChange($this.observablesArr[i]);
                 }
 
@@ -211,7 +237,7 @@ static class Watchers {
 
             $this.createWatchLoop();
 
-        }, 2000)
+        }, 20)
 
     }
 

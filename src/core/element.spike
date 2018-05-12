@@ -7,6 +7,8 @@ import Errors from spike.core.Errors;
 import Selectors from spike.core.Selectors;
 import Assembler from spike.core.Assembler;
 import Events from spike.core.Events;
+import Util from spike.core.Util;
+import Watchers from spike.core.Watchers;
 
 class Element {
 
@@ -16,7 +18,10 @@ class Element {
     elementSelector: null,
 
     compiledHtml: null,
-    childElements: [],
+    childElements: {
+        WAITING: {},
+        WORKING: {}
+    },
 
     selector: {},
     eventsSelectors: [],
@@ -34,7 +39,13 @@ class Element {
     },
 
     Element: function(parentElement){
-     this.Element(parentElement, null);
+        this.constructor_2(parentElement, null);
+    },
+
+    Element: function(parentElement, params, elementSelector){
+        this.elementId = getSpikeId(elementSelector);
+        this.elementSelector = elementSelector;
+        this.constructor_2(parentElement, params);
     },
 
     Element: function(parentElement, params){
@@ -57,22 +68,60 @@ class Element {
 
     },
 
-    include: function(childElement){
+    mountElement: function(element, childElementId){
+       //console.log('mount element');
+      //  console.log(element);
 
-        childElement.extractElementId();
-        this.childElements.push(childElement);
+        this.childElements.WORKING[childElementId] = this.childElements.WAITING[childElementId];
 
-        return childElement.compiledHtml;
+        var params = this.childElements.WORKING[childElementId].params;
+        var elementInstance = null;
+
+        elementInstance = new this.childElements.WORKING[childElementId].clazz(this, params, element);
+        this.childElements.WORKING[childElementId].instance = elementInstance;
+
+        element.innerHTML = this.childElements.WORKING[childElementId].instance.compiledHtml;
+
+       // console.log(this);
+
+        Watchers.observe(this.childElements.WORKING[childElementId].instance);
 
     },
 
-    extractElementId: function(){
+    mountElements: function(){
 
-        var virtualElement = document.createElement('div');
-        virtualElement.innerHTML = this.compiledHtml;
+        for(var childElementId in this.childElements.WAITING){
 
-        this.elementId = getSpikeId(virtualElement.firstChild);
+            if(!this.childElements.WAITING[childElementId].working){
 
+                var element = getElementById(childElementId);
+
+                if(element !== null){
+                    this.childElements.WAITING[childElementId].working = true;
+                    this.mountElement(element, childElementId);
+                }
+
+            }
+
+        }
+
+    },
+
+    include: function(childElementClass, params){
+
+        var childElementId = this.createElementId();
+
+        this.childElements.WAITING[childElementId] = {
+            clazz: childElementClass,
+            params: params
+        };
+
+        return '<div element-element element-id="'+childElementId+'" sp-id="'+childElementId+'" ></div>';//childElement.compiledHtml;
+
+    },
+
+    createElementId: function(){
+       return 'element-'+Util.hash();
     },
 
     createTemplatePath: function(){

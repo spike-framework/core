@@ -183,8 +183,6 @@ static class System {
     //Renders controller
     controller.render();
 
-    this.currentRenderedController = controller;
-
     System.execOnRenderEvent();
 
     if (afterRenderCallback) {
@@ -338,6 +336,8 @@ static class System {
 
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
+
+    System.getView().setAttribute('sp-id', 'view-'+Util.hash());
 
     this.verifyViews();
     Router.detectHTML5Mode();

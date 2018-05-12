@@ -42,7 +42,7 @@ static class Config {
        *
        * Defines if logs type 'DEBUG' shoud be printed in console
        */
-      showDebug: true,
+      showDebug: false,
 
       /**
        * @public

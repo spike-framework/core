@@ -42,7 +42,7 @@ static class Config {
        *
        * Defines if logs type 'DEBUG' shoud be printed in console
        */
-      showDebug: true,
+      showDebug: false,
 
       /**
        * @public
@@ -620,8 +620,6 @@ static class System {
     //Renders controller
     controller.render();
 
-    this.currentRenderedController = controller;
-
     System.execOnRenderEvent();
 
     if (afterRenderCallback) {
@@ -775,6 +773,8 @@ static class System {
 
     Log.warn('Spike version: {0}', [System.version]);
     Log.ok('Spike application initializing...');
+
+    System.getView().setAttribute('sp-id', 'view-'+Util.hash());
 
     this.verifyViews();
     Router.detectHTML5Mode();
@@ -3801,6 +3801,8 @@ import Errors from spike.core.Errors;
 import Selectors from spike.core.Selectors;
 import Assembler from spike.core.Assembler;
 import Events from spike.core.Events;
+import Util from spike.core.Util;
+import Watchers from spike.core.Watchers;
 
 class Element {
 
@@ -3810,7 +3812,10 @@ class Element {
     elementSelector: null,
 
     compiledHtml: null,
-    childElements: [],
+    childElements: {
+        WAITING: {},
+        WORKING: {}
+    },
 
     selector: {},
     eventsSelectors: [],
@@ -3828,7 +3833,13 @@ class Element {
     },
 
     Element: function(parentElement){
-     this.Element(parentElement, null);
+        this.constructor_2(parentElement, null);
+    },
+
+    Element: function(parentElement, params, elementSelector){
+        this.elementId = getSpikeId(elementSelector);
+        this.elementSelector = elementSelector;
+        this.constructor_2(parentElement, params);
     },
 
     Element: function(parentElement, params){
@@ -3851,22 +3862,60 @@ class Element {
 
     },
 
-    include: function(childElement){
+    mountElement: function(element, childElementId){
+       //console.log('mount element');
+      //  console.log(element);
 
-        childElement.extractElementId();
-        this.childElements.push(childElement);
+        this.childElements.WORKING[childElementId] = this.childElements.WAITING[childElementId];
 
-        return childElement.compiledHtml;
+        var params = this.childElements.WORKING[childElementId].params;
+        var elementInstance = null;
+
+        elementInstance = new this.childElements.WORKING[childElementId].clazz(this, params, element);
+        this.childElements.WORKING[childElementId].instance = elementInstance;
+
+        element.innerHTML = this.childElements.WORKING[childElementId].instance.compiledHtml;
+
+       // console.log(this);
+
+        Watchers.observe(this.childElements.WORKING[childElementId].instance);
 
     },
 
-    extractElementId: function(){
+    mountElements: function(){
 
-        var virtualElement = document.createElement('div');
-        virtualElement.innerHTML = this.compiledHtml;
+        for(var childElementId in this.childElements.WAITING){
 
-        this.elementId = getSpikeId(virtualElement.firstChild);
+            if(!this.childElements.WAITING[childElementId].working){
 
+                var element = getElementById(childElementId);
+
+                if(element !== null){
+                    this.childElements.WAITING[childElementId].working = true;
+                    this.mountElement(element, childElementId);
+                }
+
+            }
+
+        }
+
+    },
+
+    include: function(childElementClass, params){
+
+        var childElementId = this.createElementId();
+
+        this.childElements.WAITING[childElementId] = {
+            clazz: childElementClass,
+            params: params
+        };
+
+        return '<div element-element element-id="'+childElementId+'" sp-id="'+childElementId+'" ></div>';//childElement.compiledHtml;
+
+    },
+
+    createElementId: function(){
+       return 'element-'+Util.hash();
     },
 
     createTemplatePath: function(){
@@ -3995,6 +4044,7 @@ import Router from spike.core.Router;
 import Element from spike.core.Element;
 import Assembler from spike.core.Assembler;
 import Watchers from spike.core.Watchers;
+import Util from spike.core.Util;
 
 class Controller extends Element {
 
@@ -4002,6 +4052,16 @@ class Controller extends Element {
     checkNetwork: true,
 
     Controller: function(){
+       System.currentRenderedController = this;
+    },
+
+    rootSelector: function(){
+
+        if(this.elementSelector === null){
+            this.elementSelector = getElementBySpikeId(document, this.elementId);
+        }
+
+        return this.elementSelector;
     },
 
     render: function(){
@@ -4018,6 +4078,7 @@ class Controller extends Element {
         this.postConstruct();
 
     },
+
 
     destroy: function(){
         this.super.destroy();
@@ -4127,6 +4188,16 @@ static class Broadcaster {
 
     },
 
+    unsecureRegister: function(eventName){
+
+        if (!Util.isNull(this.applicationEvents[eventName])) {
+            Errors.throwWarn(Errors.messages.APPLICATION_EVENT_ALREADY_EXIST, [eventName]);
+            return;
+        }
+
+       this.applicationEvents[eventName] = [];
+    },
+
     /**
      * @public
      *
@@ -4221,12 +4292,7 @@ static class Reconcile {
 
  constructRestrictedAttributes: function(){
 
-   //Reconcile.restrictedAttributes = ['spike-unbinded', 'spike-binded'];
-
-//   for(var i = 0; i < Events.allowedEvents.length; i++){
-//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]);
-//     Reconcile.restrictedAttributes.push('spike-event-'+Events.allowedEvents[i]+'-link');
-//   }
+   Reconcile.restrictedAttributes = ['element-element', 'element-id'];
 
  },
 
@@ -4623,7 +4689,8 @@ static class Reconcile {
     return diffActions;
   },
 
-  diff: function (source, base, index) {
+  diff: function (source, base, index, processElement) {
+
     var diffActions = [];
     if (index == null) {
       index = '0'; // 0 for root node
@@ -4648,6 +4715,16 @@ static class Reconcile {
         name;
 
       // iterate over the source attributes that we want to copy over to the new base node
+
+      for (var i = base.attributes.length; i--;) {
+
+        if(base.attributes[i].nodeName === 'element-id'){
+        // console.log('has element-id');
+            source.setAttribute('sp-id', base.attributes[i].nodeValue);
+        }
+
+      }
+
       for (var i = attributes.length; i--;) {
         value = attributes[i].nodeValue;
         name = attributes[i].nodeName;
@@ -4678,6 +4755,7 @@ static class Reconcile {
                 diffActions = diffActions.concat(styleChanges);
               }
             } else {
+
               diffActions.push({
                 'action': 'setAttribute',
                 'name': name,
@@ -4687,6 +4765,7 @@ static class Reconcile {
                 '_deleted': val,
                 '_inserted': value
               });
+
             }
           }
         }
@@ -4740,10 +4819,47 @@ static class Reconcile {
         var baseChildNode = compare[i][1];
 
         // perform the diff between the given source and base child nodes
-        var childDiffs = spike.core.Reconcile.diff(
-          sourceChildNode,
-          baseChildNode, index + '>' +
-          baseChildNode._i);
+
+        var childDiffs = [];
+
+
+        if (sourceChildNode.nodeType === 3 || sourceChildNode.nodeType === 8) {
+         // console.log('changing text element');
+          childDiffs = spike.core.Reconcile.diff(
+            sourceChildNode,
+            baseChildNode, index + '>' +
+            baseChildNode._i,
+            processElement);
+        } else {
+
+          if (sourceChildNode.getAttribute('element-element') === null && baseChildNode.getAttribute('element-element') === null) {
+          //  console.log('changing element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          } else if (sourceChildNode.getAttribute('element-element') != null && baseChildNode.getAttribute('element-element') != null && processElement === true) {
+          //  console.log('skipping element');
+            //     console.log(sourceChildNode);
+            //     console.log(baseChildNode);
+          } else if (sourceChildNode.getAttribute('element-element') != null && baseChildNode.getAttribute('element-element') === null) {
+          //  console.log('removing element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          } else if (sourceChildNode.getAttribute('element-element') === null && baseChildNode.getAttribute('element-element') != null) {
+            //console.log('creating element');
+            childDiffs = spike.core.Reconcile.diff(
+              sourceChildNode,
+              baseChildNode, index + '>' +
+              baseChildNode._i,
+              processElement);
+          }
+
+        }
 
         // if there was any difference, concat those to our existing actions
         if (childDiffs.length > 0) {
@@ -4934,7 +5050,9 @@ static class Reconcile {
             'appendOnly': true
           });
         }
+
         removals.push([node.parentNode, node]);
+
       } else if (action === 'deleteText' || action === 'insertText' ||
         action === 'setStyleValue' || action === 'removeStyleValue') {
         // all text changes need to be grouped into a
@@ -5165,17 +5283,34 @@ static class Watchers {
 
     replaceChangedElements: function(scope, watcherHtml, currentElement){
 
-        var elementInDocument = getElementById(getSpikeId(currentElement));
+//        var elementInDocument = getElementById(getSpikeId(currentElement));
+//
+//        if(elementInDocument.getAttribute('spike-view') != null){
+//            elementInDocument = elementInDocument.firstChild;
+//        }
 
         var watcherVirtual = document.createElement('div');
         watcherVirtual.innerHTML = watcherHtml;
 
         if(currentElement.outerHTML !== watcherHtml){
 
-            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement);
+          //  if(scope.getClass() === 'app.module.privileges.controller.inne.Inne'){
+            //if(scope.getClass() === 'app.module.privileges.controller.alertBox.AlertBox'){
+              //  console.log('changes detected');
+                //console.log(currentElement);
+              //  console.log(watcherVirtual.firstChild);
+          //  }
+
+            var allowProcessingElement = false;
+            if(currentElement.getAttribute('element-element') !== null){
+                allowProcessingElement = true;
+            }
+
+            var changes = Reconcile.diff(watcherVirtual.firstChild, currentElement, '0', allowProcessingElement);
+            //console.log(changes);
 
             if(changes.length > 0){
-                Reconcile.apply(changes, elementInDocument);
+                Reconcile.apply(changes, currentElement);
             }
 
         }
@@ -5191,6 +5326,9 @@ static class Watchers {
 
     @array
     observablesArr: [],
+
+    @number
+    observablesArrLength: 0,
 
     @boolean
     stopLoop: false,
@@ -5221,11 +5359,12 @@ static class Watchers {
         }
 
         $this.observablesArr = list;
+        $this.observablesArrLength = list.length;
 
     },
 
     excludedProperties: {
-        //'childElements' : 'childElements',
+        'childElements' : 'childElements',
         'eventsSelectors': 'eventsSelectors',
         'linksSelectors': 'linksSelectors',
         'compiledHtml': 'compiledHtml',
@@ -5327,11 +5466,15 @@ static class Watchers {
 
             Log.log('scope changed during lifecycle '+scope.getClass());
 
-         //   console.log(stringify);
-        //    console.log($this.scopes[scope.elementId]);
+           // if(scope.getClass() === 'app.module.privileges.controller.inne.Inne'){
+           // if(scope.getClass() === 'app.module.privileges.controller.alertBox.AlertBox'){
+            //    console.log(stringify);
+           //     console.log($this.scopes[scope.elementId]);
+          //  }
 
             $this.fireWatchers(scope);
             $this.compileWatchers(scope);
+            scope.mountElements();
 
         }
 
@@ -5339,13 +5482,14 @@ static class Watchers {
 
     },
 
+
     createWatchLoop: function(scope){
 
         setTimeout(function(){
 
             if(!$this.stopLoop){
 
-                for(var i = 0; i < $this.observablesArr.length; i++){
+                for(var i = 0; i < $this.observablesArrLength; i++){
                     $this.detectScopeChange($this.observablesArr[i]);
                 }
 
@@ -5353,7 +5497,7 @@ static class Watchers {
 
             $this.createWatchLoop();
 
-        }, 2000)
+        }, 20)
 
     }
 
